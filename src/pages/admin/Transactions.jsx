@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BiRefresh } from 'react-icons/bi';
-import apiService from '../../services/api';
+import apiService from '../../helper/apiClient';
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);

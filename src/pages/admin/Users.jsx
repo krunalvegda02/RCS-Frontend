@@ -38,7 +38,7 @@ import {
   ArrowDownOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
-import apiService from '../../services/api';
+import apiService from '../../helper/apiClient';
 import { THEME_CONSTANTS } from '../../theme';
 
 

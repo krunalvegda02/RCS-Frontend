@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Form, Input, Button, Typography, Alert, Row, Col, Grid } from 'antd';
 import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone, MailOutlined, PhoneOutlined, CheckCircleOutlined, MessageOutlined, BarChartOutlined, SendOutlined } from '@ant-design/icons';
-import ApiService from '../services/api';
+import ApiService from '../helper/apiClient';
 import toast from 'react-hot-toast';
 import { THEME_CONSTANTS } from '../theme';
 

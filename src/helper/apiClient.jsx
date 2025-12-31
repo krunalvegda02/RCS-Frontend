@@ -96,4 +96,23 @@ const _put = (url, data = {}, config = {}, token = null) => {
     return apiClient.put(fullUrl, data, addTokenToConfig(config, token));
 };
 
+// Create API service object with all methods
+const apiService = {
+    get: _get,
+    post: _post,
+    put: _put,
+    patch: _patch,
+    delete: _delete,
+    // Add any other methods that might be used
+    getmonthlyliyanalytics: (userId) => _get(`analytics/monthly/${userId}`),
+    getweekliyanalytics: (userId) => _get(`analytics/weekly/${userId}`),
+    adminsummry: () => _get('admin/summary'),
+    getUserMessages: (userId) => _get(`messages/user/${userId}`),
+    getProfileWithTransactions: (userId, limit) => _get(`profile/${userId}/transactions?limit=${limit}`),
+    addWalletRequest: (data) => _post('wallet/request', data),
+    updateProfile: (userId, data) => _put(`profile/${userId}`, data),
+    changePassword: (data) => _post('auth/change-password', data)
+};
+
 export { _delete, _get, _post, _patch, _put };
+export default apiService;

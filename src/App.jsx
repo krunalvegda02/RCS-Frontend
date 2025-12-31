@@ -5,7 +5,7 @@ import AuthChecker from './components/AuthChecker'
 import { Toaster } from 'react-hot-toast'
 import ReduxProvider from './components/ReduxProvider.jsx'
 import AppRoute from './routes/AppRoute.jsx'
-import { pageData } from './data/pageData.js'
+import { pageData } from './data/pageData'
 
 function App() {
   return (

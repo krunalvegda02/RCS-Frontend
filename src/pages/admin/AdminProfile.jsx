@@ -28,7 +28,7 @@ import {
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { THEME_CONSTANTS } from '../../theme';
-import apiService from '../../services/api';
+import apiService from '../../helper/apiClient';
 
 const { useBreakpoint } = Grid;
 
