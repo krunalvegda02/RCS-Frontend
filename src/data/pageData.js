@@ -1,0 +1,104 @@
+import { lazy } from 'react'
+
+// Lazy loaded components
+const Dashboard = lazy(() => import('../pages/user/Dashboard.jsx'))
+const CreateCampaign = lazy(() => import('../pages/user/CreateCampaign.jsx'))
+const TemplatePage = lazy(() => import('../pages/user/TemplatePage.jsx'))
+const CreateTemplatePage = lazy(() => import('../pages/user/CreateTempalte.jsx'))
+const Orders = lazy(() => import('../pages/user/Orders.jsx'))
+const Profile = lazy(() => import('../pages/Profile.jsx'))
+const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard.jsx'))
+const Users = lazy(() => import('../pages/admin/Users.jsx'))
+const WalletRequests = lazy(() => import('../pages/admin/WalletRequests.jsx'))
+const AdminProfile = lazy(() => import('../pages/admin/AdminProfile.jsx'))
+const AdminReports = lazy(() => import('../pages/admin/AdminReports.jsx'))
+const Login = lazy(() => import('../pages/Login.jsx'))
+const Register = lazy(() => import('../pages/Register.jsx'))
+
+// Layouts
+const Layout = lazy(() => import('../layout/layout.jsx'))
+const AdminLayout = lazy(() => import('../layout/AdminLayout.jsx'))
+
+export const pageData = {
+  // Public routes
+  public: [
+    {
+      path: '/login',
+      component: Login,
+      requiresAuth: false
+    },
+    {
+      path: '/register', 
+      component: Register,
+      requiresAuth: false
+    }
+  ],
+
+  // User routes
+  user: [
+    {
+      path: '/',
+      layout: Layout,
+      allowedRoles: ['USER'],
+      children: [
+        {
+          path: '',
+          component: Dashboard,
+          index: true
+        },
+        {
+          path: 'newCampaign',
+          component: CreateCampaign
+        },
+        {
+          path: 'templates',
+          component: TemplatePage
+        },
+        {
+          path: 'create-template',
+          component: CreateTemplatePage
+        },
+        {
+          path: 'reports',
+          component: Orders
+        },
+        {
+          path: 'profile',
+          component: Profile
+        }
+      ]
+    }
+  ],
+
+  // Admin routes
+  admin: [
+    {
+      path: '/admin',
+      layout: AdminLayout,
+      allowedRoles: ['ADMIN'],
+      children: [
+        {
+          path: '',
+          component: AdminDashboard,
+          index: true
+        },
+        {
+          path: 'users',
+          component: Users
+        },
+        {
+          path: 'wallet-requests',
+          component: WalletRequests
+        },
+        {
+          path: 'profile',
+          component: AdminProfile
+        },
+        {
+          path: 'reports',
+          component: AdminReports
+        }
+      ]
+    }
+  ]
+}

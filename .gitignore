@@ -113,8 +113,8 @@ docker-compose.override.yml
 # Redis dump
 dump.rdb
 
-# MongoDB
-data/
+# # MongoDB
+# data/
 
 # Uploads
 uploads/
