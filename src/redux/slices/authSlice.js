@@ -1,4 +1,4 @@
-  import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 import { createAsyncThunkHandler } from '../../helper/createAsyncThunkHandler.jsx';
 import { _get, _post, _put } from '../../helper/apiClient.jsx';
 import { buildUrlWithParams } from '../../helper/helperFunction.js';
@@ -95,7 +95,7 @@ const authSlice = createSlice({
       state.loading = false;
       state.isAuthenticated = true;
       state.user = action.payload.user;
-      state.token = action.payload.jio_token;
+      state.token = action.payload.token; // FIXED: Use token instead of jio_token
     },
     loginFailure: (state, action) => {
       state.loading = false;
@@ -140,8 +140,8 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.token = action.payload.jio_token;
-        localStorage.setItem('token', action.payload.jio_token);
+        state.token = action.payload.token; // FIXED: Use token instead of jio_token
+        localStorage.setItem('token', action.payload.token); // FIXED: Use token instead of jio_token
         localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -162,8 +162,8 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.token = action.payload.jio_token;
-        localStorage.setItem('token', action.payload.jio_token);
+        state.token = action.payload.token; // FIXED: Use token instead of jio_token
+        localStorage.setItem('token', action.payload.token); // FIXED: Use token instead of jio_token
         localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
       .addCase(registerUser.rejected, (state, action) => {
@@ -174,8 +174,8 @@ const authSlice = createSlice({
     // Refresh Token
     builder
       .addCase(refreshToken.fulfilled, (state, action) => {
-        state.token = action.payload.data.token;
-        localStorage.setItem('token', action.payload.data.token);
+        state.token = action.payload.token; // FIXED: Use token instead of data.token
+        localStorage.setItem('token', action.payload.token); // FIXED: Use token instead of data.token
       })
 
     // Get Profile

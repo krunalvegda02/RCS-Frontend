@@ -13,8 +13,11 @@ const apiClient = axios.create({
 // Request interceptor to handle FormData uploads and add auth token
 apiClient.interceptors.request.use(
     (config) => {
-        // Token will be injected by Redux middleware or manually
-        // For now, we'll handle it in individual requests
+        // Automatically add token from localStorage if available
+        const token = localStorage.getItem('token');
+        if (token && !config.headers.Authorization) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
         
         // If data is FormData, remove Content-Type header to let axios set it automatically with boundary
         if (config.data instanceof FormData) {
@@ -30,19 +33,24 @@ apiClient.interceptors.request.use(
     }
 );
 
-// Response interceptor to handle token expiration
+// Response interceptor to handle token expiration and auto-refresh
 apiClient.interceptors.response.use(
     (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
+    async (error) => {
+        const originalRequest = error.config;
+        
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            const errorMessage = error.response?.data?.message || '';
             const currentPath = window.location.pathname;
-                const errorMessage = error.response?.data?.message || '';
             
-            // Only redirect if it's actually a token/auth issue, not a validation error
+            // Check if it's a token expiration issue
+            const isTokenExpired = errorMessage.toLowerCase().includes('token expired') || 
+                                  errorMessage.toLowerCase().includes('expired');
+            
             const isAuthError = errorMessage.toLowerCase().includes('token') || 
-                               errorMessage.toLowerCase().includes('expired') || 
                                errorMessage.toLowerCase().includes('unauthorized') ||
-                               errorMessage.toLowerCase().includes('authentication');
+                               errorMessage.toLowerCase().includes('authentication') ||
+                               errorMessage.toLowerCase().includes('invalid token');
             
             // Only redirect if not already on auth pages and if it's a real auth error
             if (isAuthError &&
@@ -50,10 +58,20 @@ apiClient.interceptors.response.use(
                 !currentPath.includes('/register') && 
                 !currentPath.includes('/join') && 
                 !currentPath.includes('/reset-password')) {
+                
                 // Clear any stored auth data
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
-                window.location.href = '/login';
+                
+                // Dispatch logout action if Redux store is available
+                if (window.__REDUX_STORE__) {
+                    window.__REDUX_STORE__.dispatch({ type: 'auth/logout' });
+                }
+                
+                // Redirect to login
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 100);
             }
         }
         return Promise.reject(error);
@@ -103,6 +121,7 @@ const apiService = {
     put: _put,
     patch: _patch,
     delete: _delete,
+
     // Add any other methods that might be used
     getmonthlyliyanalytics: (userId) => _get(`analytics/monthly/${userId}`),
     getweekliyanalytics: (userId) => _get(`analytics/weekly/${userId}`),
@@ -111,7 +130,13 @@ const apiService = {
     getProfileWithTransactions: (userId, limit) => _get(`profile/${userId}/transactions?limit=${limit}`),
     addWalletRequest: (data) => _post('wallet/request', data),
     updateProfile: (userId, data) => _put(`profile/${userId}`, data),
-    changePassword: (data) => _post('auth/change-password', data)
+    changePassword: (data) => _post('auth/change-password', data),
+    
+    // Wallet request methods
+    getWalletRequests: () => _get('wallet/admin/requests'),
+    approveWalletRequest: (requestId, adminNote) => _put(`wallet/admin/approve/${requestId}`, { adminNote }),
+    rejectWalletRequest: (requestId, rejectionReason) => _put(`wallet/admin/reject/${requestId}`, { rejectionReason }),
+    deleteWalletRequest: (requestId) => _delete(`wallet/admin/delete/${requestId}`)
 };
 
 export { _delete, _get, _post, _patch, _put };

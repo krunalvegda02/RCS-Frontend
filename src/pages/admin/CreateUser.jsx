@@ -197,7 +197,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
-import { createUser } from '../../redux/slices/authSlice';
+import { createUser } from '../../redux/slices/adminSlice';
 
 const { useBreakpoint } = Grid;
 
@@ -207,11 +207,24 @@ function CreateUser() {
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
   
-  const { loading, error } = useSelector(state => state.auth);
+  const { loading, error } = useSelector(state => state.admin);
 
   const handleSubmit = async (values) => {
     try {
-      const result = await dispatch(createUser(values)).unwrap();
+      // Map form values to backend expected format
+      const payload = {
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+        role: values.role,
+        companyname: values.companyname,
+        clientId: values.jioId,
+        clientSecret: values.jioSecret,
+        walletBalance: values.walletBalance || 0,
+      };
+      
+      const result = await dispatch(createUser(payload)).unwrap();
       if (result.success) {
         message.success('User created successfully!');
         form.resetFields();
@@ -224,7 +237,7 @@ function CreateUser() {
 
   return (
     <>
-      <Spin spinning={loading}>
+      <Spin spinning={loading.createUser}>
         <Row gutter={[24, 24]} justify="center" style={{ marginTop: 24 }}>
           <Col xs={24} sm={22} md={20} lg={16} xl={14}>
             {/* CARD HEADER */}
@@ -655,7 +668,7 @@ function CreateUser() {
                       size="large"
                       icon={<SaveOutlined />}
                       htmlType="submit"
-                      loading={loading}
+                      loading={loading.createUser}
                       style={{
                         borderRadius: THEME_CONSTANTS.radius.base,
                         fontWeight: 600,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Card,
   Row,
@@ -18,6 +19,7 @@ import {
   Popconfirm,
   message,
   Breadcrumb,
+  Spin,
 } from 'antd';
 import {
   WalletOutlined,
@@ -30,16 +32,17 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
-import apiService from '../../helper/apiClient';
-import { useAuth } from '../../context/AuthContext';
+import { getWalletRequests, approveWalletRequest, rejectWalletRequest, deleteWalletRequest } from '../../redux/slices/adminSlice';
 
 const { useBreakpoint } = Grid;
 
 function WalletRequests() {
   const screens = useBreakpoint();
-  const { user } = useAuth();
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  
+  // Redux state
+  const { walletRequests, loading } = useSelector(state => state.admin);
+  
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [form] = Form.useForm();
@@ -48,29 +51,23 @@ function WalletRequests() {
     pendingRequests: 0,
     approvedRequests: 0,
     totalAmount: 0,
-    totalReject:0
+    totalReject: 0
   });
 
   // ==================== FETCH DATA ====================
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    dispatch(getWalletRequests());
+  }, [dispatch]);
 
-  const fetchRequests = async () => {
-    setLoading(true);
-    try {
-      const data = await apiService.getWalletRequests();
-      if (data.success) {
-        setRequests(data.requests);
-        calculateStats(data.requests);
-      }
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-      message.error('Failed to fetch wallet requests');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (walletRequests.length > 0) {
+      calculateStats(walletRequests);
     }
+  }, [walletRequests]);
+
+  const fetchRequests = () => {
+    dispatch(getWalletRequests());
   };
 
   const calculateStats = (requestsList) => {
@@ -84,7 +81,7 @@ function WalletRequests() {
       pendingRequests: pending,
       approvedRequests: approved,
       totalAmount: totalAmount,
-      totalReject:reject
+      totalReject: reject
     });
   };
 
@@ -92,18 +89,13 @@ function WalletRequests() {
 
   const handleApprove = async (requestId) => {
     try {
-      const data = await apiService.approveWalletRequest(
+      await dispatch(approveWalletRequest({
         requestId,
-        user._id,
-        'Approved by admin'
-      );
-      if (data.success) {
-        message.success('Request approved successfully!');
-        fetchRequests();
-      }
+        adminNote: 'Approved by admin'
+      })).unwrap();
+      message.success('Request approved successfully!');
     } catch (error) {
-      console.error('Error approving request:', error);
-      message.error('Error approving request');
+      message.error(error || 'Error approving request');
     }
   };
 
@@ -115,35 +107,26 @@ function WalletRequests() {
         return;
       }
 
-      const data = await apiService.rejectWalletRequest(
-        selectedRequest._id,
-        user._id,
-        reason
-      );
+      await dispatch(rejectWalletRequest({
+        requestId: selectedRequest._id,
+        rejectionReason: reason
+      })).unwrap();
 
-      if (data.success) {
-        message.success('Request rejected successfully!');
-        setRejectModalVisible(false);
-        form.resetFields();
-        setSelectedRequest(null);
-        fetchRequests();
-      }
+      message.success('Request rejected successfully!');
+      setRejectModalVisible(false);
+      form.resetFields();
+      setSelectedRequest(null);
     } catch (error) {
-      console.error('Error rejecting request:', error);
-      message.error('Error rejecting request');
+      message.error(error || 'Error rejecting request');
     }
   };
 
   const handleDelete = async (requestId) => {
     try {
-      const data = await apiService.deleteWalletRequest(requestId);
-      if (data.success) {
-        message.success('Request deleted successfully!');
-        fetchRequests();
-      }
+      await dispatch(deleteWalletRequest({ requestId })).unwrap();
+      message.success('Request deleted successfully!');
     } catch (error) {
-      console.error('Error deleting request:', error);
-      message.error('Error deleting request');
+      message.error(error || 'Error deleting request');
     }
   };
 
@@ -266,7 +249,7 @@ function WalletRequests() {
           </div>
         </Space>
       ),
-      width: '35%',
+      width: '25%',
     },
     {
       title: 'Amount',
@@ -277,7 +260,7 @@ function WalletRequests() {
           {formatCurrency(amount)}
         </div>
       ),
-      width: '15%',
+      width: '12%',
     },
     {
       title: 'Status',
@@ -321,7 +304,7 @@ function WalletRequests() {
           </Tag>
         );
       },
-      width: '15%',
+      width: '12%',
     },
     {
       title: 'Requested',
@@ -333,6 +316,31 @@ function WalletRequests() {
             {formatRelativeDate(date)}
           </span>
         </Tooltip>
+      ),
+      width: '12%',
+    },
+    {
+      title: 'Rejection Reason',
+      dataIndex: 'rejectionReason',
+      key: 'rejectionReason',
+      render: (reason, record) => (
+        record.status === 'rejected' ? (
+          <Tooltip title={reason}>
+            <span style={{ 
+              fontSize: '13px', 
+              color: '#ff4d4f',
+              display: 'block',
+              maxWidth: '150px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {reason || 'No reason provided'}
+            </span>
+          </Tooltip>
+        ) : (
+          <span style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>-</span>
+        )
       ),
       width: '15%',
     },
@@ -386,7 +394,7 @@ function WalletRequests() {
           </Popconfirm>
         </Space>
       ),
-      width: '20%',
+      width: '12%',
       align: 'center',
     },
   ];
@@ -630,33 +638,35 @@ function WalletRequests() {
           }}
           bodyStyle={{ padding: 0 }}
         >
-          {requests.length === 0 ? (
-            <Empty
-              description="No wallet requests"
-              style={{ padding: '40px 0' }}
-            />
-          ) : (
-            <Table
-              columns={columns}
-              dataSource={requests}
-              rowKey="_id"
-              loading={loading}
-              pagination={{
-                pageSize: 10,
-                total: requests.length,
-                showSizeChanger: window.innerWidth > 768,
-                showQuickJumper: window.innerWidth > 768,
-                pageSizeOptions: ['5', '10', '20', '50'],
-                style: { padding: '16px' },
-                size: window.innerWidth <= 768 ? 'small' : 'default'
-              }}
-              scroll={{ x: 800 }}
-              size={window.innerWidth <= 768 ? 'small' : 'default'}
-              style={{
-                borderCollapse: 'collapse',
-              }}
-            />
-          )}
+          <Spin spinning={loading.walletRequests}>
+            {walletRequests.length === 0 ? (
+              <Empty
+                description="No wallet requests"
+                style={{ padding: '40px 0' }}
+              />
+            ) : (
+              <Table
+                columns={columns}
+                dataSource={walletRequests}
+                rowKey="_id"
+                loading={loading.walletRequests}
+                pagination={{
+                  pageSize: 10,
+                  total: walletRequests.length,
+                  showSizeChanger: window.innerWidth > 768,
+                  showQuickJumper: window.innerWidth > 768,
+                  pageSizeOptions: ['5', '10', '20', '50'],
+                  style: { padding: '16px' },
+                  size: window.innerWidth <= 768 ? 'small' : 'default'
+                }}
+                scroll={{ x: 800 }}
+                size={window.innerWidth <= 768 ? 'small' : 'default'}
+                style={{
+                  borderCollapse: 'collapse',
+                }}
+              />
+            )}
+          </Spin>
         </Card>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Card,
   Table,
@@ -38,145 +39,64 @@ import {
   ArrowDownOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
-import apiService from '../../helper/apiClient';
 import { THEME_CONSTANTS } from '../../theme';
+import { getAllUsers, updateWallet, updateUserPassword, getUserTransactionHistory, createUser, updateUser } from '../../redux/slices/adminSlice';
+import { useNavigate } from 'react-router-dom';
 
 
 function UserManagement() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   
-const APIURL = "https://rcssender.com";
-
-  // Create User Modal States
-  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
-  const [createFormData, setCreateFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    phone: '',
-    role: 'user',
-    jioId: '',
-    jioSecret: '',
-    companyname: '',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [createLoading, setCreateLoading] = useState(false);
-
-  // Edit User States
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [editFormData, setEditFormData] = useState({});
-  const [editLoading, setEditLoading] = useState(false);
-
-  // Wallet Modal States
+  // Redux state
+  const { users, transactions, loading, error, stats } = useSelector(state => state.admin);
+  
+  // Local state for modals
   const [isWalletModalVisible, setIsWalletModalVisible] = useState(false);
-  const [selectedUserForWallet, setSelectedUserForWallet] = useState(null);
-  const [walletAmount, setWalletAmount] = useState('');
-  const [walletLoading, setWalletLoading] = useState(false);
-
-  // Password Modal States
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
-  const [selectedUserForPassword, setSelectedUserForPassword] = useState(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [passwordLoading, setPasswordLoading] = useState(false);
-
-  // Transaction Modal States
   const [isTransactionModalVisible, setIsTransactionModalVisible] = useState(false);
-  const [selectedUserForTransaction, setSelectedUserForTransaction] = useState(null);
-  const [transactionSummary, setTransactionSummary] = useState(null);
-  const [transactionLoading, setTransactionLoading] = useState(false);
+  const [isCreateUserModalVisible, setIsCreateUserModalVisible] = useState(false);
+  const [isEditUserModalVisible, setIsEditUserModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [walletAmount, setWalletAmount] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [createUserForm] = Form.useForm();
+  const [editUserForm] = Form.useForm();
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    dispatch(getAllUsers({ page: 1, limit: 50 }));
+  }, [dispatch]);
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${APIURL}/api/admin/users`);
-      const data = await response.json();
-      if (data.success) {
-        setUsers(data.users);
-      }
-    } catch (err) {
-      console.error('Error fetching users:', err);
-      message.error('Failed to fetch users');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateUser = async (e) => {
-    e.preventDefault();
-    setCreateLoading(true);
-    try {
-      const data = await apiService.createUser(createFormData);
-      if (data.success) {
-        message.success('User created successfully!');
-        setCreateFormData({
-          name: '',
-          email: '',
-          password: '',
-          phone: '',
-          // role: 'user',
-          jioId: '',
-          jioSecret: '',
-          companyname: '',
-        });
-        setIsCreateModalVisible(false);
-        fetchUsers();
-      } else {
-        message.error(data.message || 'Failed to create user');
-      }
-    } catch (err) {
-      message.error('Error creating user');
-    } finally {
-      setCreateLoading(false);
-    }
-  };
-
-  const handleCreateChange = (e) => {
-    const { name, value } = e.target;
-    setCreateFormData({ ...createFormData, [name]: value });
-  };
-
-  const openEditModal = (user) => {
-    setEditingUser(user);
-    setEditFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      // role: user.role,
-      jioId: user.jioId || '',
-      jioSecret: user.jioSecret || '',
-      status: user.status || 'active',
-      companyname: user.companyname || '',
-    });
-    setIsEditModalVisible(true);
-  };
-
-  const handleEditUser = async () => {
-    setEditLoading(true);
-    try {
-      const response = await apiService.editUser(editingUser._id, editFormData);
-      if (response.success) {
-        message.success('User updated successfully!');
-        fetchUsers();
-        setIsEditModalVisible(false);
-      }
-    } catch (err) {
-      message.error('Error updating user');
-    } finally {
-      setEditLoading(false);
-    }
+  const fetchUsers = () => {
+    dispatch(getAllUsers({ page: 1, limit: 50 }));
   };
 
   const openWalletModal = (user) => {
-    setSelectedUserForWallet(user);
+    setSelectedUser(user);
     setWalletAmount('');
     setIsWalletModalVisible(true);
+  };
+
+  const openPasswordModal = (user) => {
+    setSelectedUser(user);
+    setNewPassword('');
+    setIsPasswordModalVisible(true);
+  };
+
+  const openTransactionModal = async (user) => {
+    setSelectedUser(user);
+    setIsTransactionModalVisible(true);
+    // Use transactions from user's wallet if available, otherwise fetch from API
+    if (user.wallet?.transactions && user.wallet.transactions.length > 0) {
+      // Use existing transactions from user data
+      dispatch({ type: 'admin/getUserTransactionHistory/fulfilled', payload: { data: user.wallet.transactions } });
+    } else {
+      try {
+        await dispatch(getUserTransactionHistory({ userId: user._id })).unwrap();
+      } catch (error) {
+        message.error('Failed to load transaction history');
+      }
+    }
   };
 
   const handleAddWallet = async () => {
@@ -184,100 +104,93 @@ const APIURL = "https://rcssender.com";
       message.error('Please enter a valid amount');
       return;
     }
-    setWalletLoading(true);
+    
     try {
-      const response = await apiService.addWalletBalance(
-        selectedUserForWallet._id,
-        Number(walletAmount)
-      );
-      if (response.success) {
-        message.success('Wallet balance added successfully!');
-        fetchUsers();
-        setIsWalletModalVisible(false);
-      }
-    } catch (err) {
-      message.error('Error adding wallet balance');
-    } finally {
-      setWalletLoading(false);
+      await dispatch(updateWallet({
+        userId: selectedUser._id,
+        amount: Number(walletAmount),
+        operation: 'add'
+      })).unwrap();
+      
+      message.success('Wallet balance added successfully!');
+      setIsWalletModalVisible(false);
+    } catch (error) {
+      message.error(error || 'Error adding wallet balance');
     }
   };
 
-  const openPasswordModal = (user) => {
-    setSelectedUserForPassword(user);
-    setNewPassword('');
-    setShowNewPassword(false);
-    setIsPasswordModalVisible(true);
-  };
-
-  const handleResetPassword = async () => {
+  const handleUpdatePassword = async () => {
     if (!newPassword || newPassword.length < 6) {
-      message.error('Password must be at least 6 characters');
+      message.error('Password must be at least 6 characters long');
       return;
     }
-    setPasswordLoading(true);
+    
     try {
-      const response = await apiService.resetPassword(
-        selectedUserForPassword._id,
+      await dispatch(updateUserPassword({
+        userId: selectedUser._id,
         newPassword
-      );
-      if (response.success) {
-        message.success('Password reset successfully!');
-        setIsPasswordModalVisible(false);
-      }
-    } catch (err) {
-      message.error('Error resetting password');
-    } finally {
-      setPasswordLoading(false);
+      })).unwrap();
+      
+      message.success('Password updated successfully!');
+      setIsPasswordModalVisible(false);
+    } catch (error) {
+      message.error(error || 'Error updating password');
     }
   };
 
-  const openTransactionModal = async (user) => {
-    setSelectedUserForTransaction(user);
-    setIsTransactionModalVisible(true);
-    setTransactionLoading(true);
+  const handleCreateUser = async () => {
     try {
-      const data = await apiService.getUserTransactionSummary(user._id);
-      if (data.success) {
-        setTransactionSummary(data.summary);
+      const values = await createUserForm.validateFields();
+      await dispatch(createUser(values)).unwrap();
+      message.success('User created successfully!');
+      setIsCreateUserModalVisible(false);
+      createUserForm.resetFields();
+    } catch (error) {
+      if (error.errorFields) {
+        message.error('Please fill in all required fields');
+      } else {
+        message.error(error || 'Error creating user');
       }
-    } catch (err) {
-      message.error('Error fetching transactions');
-    } finally {
-      setTransactionLoading(false);
     }
   };
 
-  const handleDeleteUser = async (userId, userName) => {
-    Modal.confirm({
-      title: 'Delete User',
-      content: `Are you sure you want to delete ${userName}?`,
-      okText: 'Delete',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          const response = await apiService.deleteUser(userId);
-          if (response.success) {
-            message.success('User deleted successfully!');
-            fetchUsers();
-          }
-        } catch (err) {
-          message.error('Error deleting user');
-        }
-      },
+  const openEditModal = (user) => {
+    setSelectedUser(user);
+    editUserForm.setFieldsValue({
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      companyname: user.companyname || '',
+      isActive: user.isActive
     });
+    setIsEditUserModalVisible(true);
   };
 
-  const handleToggleStatus = async (userId, currentStatus) => {
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+  const handleEditUser = async () => {
     try {
-      const response = await apiService.updateUserStatus(userId, newStatus);
-      if (response.success) {
-        message.success(`User status updated to ${newStatus}`);
-        fetchUsers();
+      const values = await editUserForm.validateFields();
+      await dispatch(updateUser({
+        userId: selectedUser._id,
+        ...values
+      })).unwrap();
+      message.success('User updated successfully!');
+      setIsEditUserModalVisible(false);
+      dispatch(getAllUsers({ page: 1, limit: 50 }));
+    } catch (error) {
+      if (error.errorFields) {
+        message.error('Please fill in all required fields');
+      } else {
+        message.error(error || 'Error updating user');
       }
-    } catch (err) {
-      message.error('Error updating user status');
     }
+  };
+
+  const handleToggleStatus = (userId, currentStatus) => {
+    message.info('Toggle user status functionality will be implemented soon');
+  };
+
+  const handleDeleteUser = (userId, userName) => {
+    message.info('Delete user functionality will be implemented soon');
   };
 
   const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -364,33 +277,33 @@ const APIURL = "https://rcssender.com";
     },
     {
       title: 'Wallet',
-      dataIndex: 'Wallet',
+      dataIndex: 'wallet',
       key: 'wallet',
       width: '15%',
       render: (wallet) => (
         <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success }}>
-          {formatCurrency(wallet)}
+          {formatCurrency(wallet?.balance || 0)}
         </span>
       ),
     },
     {
       title: 'Status',
-      dataIndex: 'status',
+      dataIndex: 'isActive',
       key: 'status',
       width: '15%',
-      render: (status) => (
+      render: (isActive) => (
         <Tag
-          icon={status === 'active' ? <CheckOutlined /> : <CloseOutlined />}
-          color={status === 'active' ? '#F6FFED' : '#FFF1F0'}
+          icon={isActive ? <CheckOutlined /> : <CloseOutlined />}
+          color={isActive ? '#F6FFED' : '#FFF1F0'}
           style={{
-            color: status === 'active' ? THEME_CONSTANTS.colors.success : '#FF4D4F',
-            border: `1px solid ${status === 'active' ? THEME_CONSTANTS.colors.success : '#FF4D4F'}`,
+            color: isActive ? THEME_CONSTANTS.colors.success : '#FF4D4F',
+            border: `1px solid ${isActive ? THEME_CONSTANTS.colors.success : '#FF4D4F'}`,
             fontWeight: 500,
             padding: '4px 12px',
             borderRadius: THEME_CONSTANTS.radius.sm,
           }}
         >
-          {status?.charAt(0).toUpperCase() + status?.slice(1)}
+          {isActive ? 'Active' : 'Inactive'}
         </Tag>
       ),
     },
@@ -445,22 +358,22 @@ const APIURL = "https://rcssender.com";
               onClick={() => openTransactionModal(record)}
             />
           </Tooltip>
-          <Tooltip title={record.status === 'active' ? 'Deactivate' : 'Activate'}>
+          <Tooltip title={record.isActive ? 'Deactivate' : 'Activate'}>
             <Button
               style={{
                 borderRadius: THEME_CONSTANTS.radius.sm,
-                color: record.status === 'active' ? '#ef4444' : '#10b981',
-                borderColor: record.status === 'active' ? '#ef4444' : '#10b981',
+                color: record.isActive ? '#ef4444' : '#10b981',
+                borderColor: record.isActive ? '#ef4444' : '#10b981',
               }}
               size="small"
               icon={
-                record.status === 'active' ? (
+                record.isActive ? (
                   <CloseOutlined />
                 ) : (
                   <CheckOutlined />
                 )
               }
-              onClick={() => handleToggleStatus(record._id, record.status)}
+              onClick={() => handleToggleStatus(record._id, record.isActive)}
             />
           </Tooltip>
           <Tooltip title="Delete">
@@ -477,10 +390,10 @@ const APIURL = "https://rcssender.com";
     },
   ];
 
-  const stats = {
+  const calculatedStats = {
     totalUsers: users.length,
-    activeUsers: users.filter((u) => u.status === 'active').length,
-    totalWallet: users.reduce((sum, u) => sum + (u.Wallet || 0), 0),
+    activeUsers: users.filter((u) => u.isActive).length,
+    totalWallet: users.reduce((sum, u) => sum + (u.wallet?.balance || 0), 0),
   };
 
   return (
@@ -491,7 +404,7 @@ const APIURL = "https://rcssender.com";
           margin: '0 auto',
           padding: THEME_CONSTANTS.spacing.xl
         }}>
-          <Spin spinning={loading}>
+          <Spin spinning={loading.users}>
             {/* Enhanced Header Section */}
             <div style={{
               marginBottom: THEME_CONSTANTS.spacing.xxxl,
@@ -566,7 +479,7 @@ const APIURL = "https://rcssender.com";
                     type="primary"
                     size="large"
                     icon={<PlusOutlined />}
-                    onClick={() => setIsCreateModalVisible(true)}
+                    onClick={() => setIsCreateUserModalVisible(true)}
                     style={{
                       borderRadius: THEME_CONSTANTS.radius.md,
                       fontWeight: 600,
@@ -586,7 +499,7 @@ const APIURL = "https://rcssender.com";
             <StatCard
               icon={UserOutlined}
               title="Total Users"
-              value={stats.totalUsers}
+              value={calculatedStats.totalUsers}
               color={THEME_CONSTANTS.colors.primary}
               bgColor={`${THEME_CONSTANTS.colors.primary}15`}
             />
@@ -595,7 +508,7 @@ const APIURL = "https://rcssender.com";
             <StatCard
               icon={CheckOutlined}
               title="Active Users"
-              value={stats.activeUsers}
+              value={calculatedStats.activeUsers}
               color={THEME_CONSTANTS.colors.success}
               bgColor={`${THEME_CONSTANTS.colors.success}15`}
             />
@@ -604,7 +517,7 @@ const APIURL = "https://rcssender.com";
             <StatCard
               icon={DollarOutlined}
               title="Total Wallet"
-              value={formatCurrency(stats.totalWallet)}
+              value={formatCurrency(calculatedStats.totalWallet)}
               color={THEME_CONSTANTS.colors.warning}
               bgColor={`${THEME_CONSTANTS.colors.warning}15`}
             />
@@ -632,7 +545,7 @@ const APIURL = "https://rcssender.com";
               type="primary"
               icon={<ReloadOutlined />}
               onClick={fetchUsers}
-              loading={loading}
+              loading={loading.users}
               size={window.innerWidth <= 768 ? 'small' : 'default'}
             >
               {window.innerWidth <= 576 ? '' : 'Refresh'}
@@ -659,130 +572,175 @@ const APIURL = "https://rcssender.com";
         </div>
       </div>
 
+      {/* Edit User Modal */}
       <Modal
-        title="Create New User"
-        open={isCreateModalVisible}
+        title="Edit User Details"
+        open={isEditUserModalVisible}
         onCancel={() => {
-          setIsCreateModalVisible(false);
-          setCreateFormData({
-            name: '',
-            email: '',
-            password: '',
-            phone: '',
-            role: 'user',
-            jioId: '',
-            jioSecret: '',
-            companyname: '',
-          });
+          setIsEditUserModalVisible(false);
+          editUserForm.resetFields();
         }}
-        onOk={handleCreateUser}
-        confirmLoading={createLoading}
-        width={window.innerWidth <= 768 ? '95vw' : 800}
-        okText="Create User"
+        onOk={handleEditUser}
+        confirmLoading={loading.updateUser}
+        width={window.innerWidth <= 768 ? '95vw' : 600}
       >
-        <Form layout="vertical" style={{ marginTop: 24 }}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12}>
-              <Form.Item label="Full Name *">
-                <Input
-                  prefix={<UserOutlined />}
-                  placeholder="e.g., John Doe"
-                  name="name"
-                  value={createFormData.name}
-                  onChange={handleCreateChange}
-                />
+        <Form
+          form={editUserForm}
+          layout="vertical"
+          style={{ marginTop: 24 }}
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Name"
+                name="name"
+                rules={[{ required: true, message: 'Please enter name' }]}
+              >
+                <Input placeholder="Enter full name" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="Email Address *">
-                <Input
-                  prefix={<MailOutlined />}
-                  placeholder="e.g., john@example.com"
-                  type="email"
-                  name="email"
-                  value={createFormData.email}
-                  onChange={handleCreateChange}
-                />
+            <Col span={12}>
+              <Form.Item
+                label="Email"
+                name="email"
+                rules={[
+                  { required: true, message: 'Please enter email' },
+                  { type: 'email', message: 'Please enter valid email' }
+                ]}
+              >
+                <Input placeholder="Enter email address" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="Phone Number *">
-                <Input
-                  prefix={<PhoneOutlined />}
-                  placeholder="e.g., 9876543210"
-                  name="phone"
-                  value={createFormData.phone}
-                  onChange={handleCreateChange}
-                  maxLength={10}
-                />
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Phone"
+                name="phone"
+                rules={[
+                  { required: true, message: 'Please enter phone number' },
+                  { pattern: /^[0-9]{10}$/, message: 'Phone must be 10 digits' }
+                ]}
+              >
+                <Input placeholder="Enter 10-digit phone number" maxLength={10} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="Company Name">
-                <Input
-                  prefix={<BuildOutlined />}
-                  placeholder="e.g., Tech Solutions Inc."
-                  name="companyname"
-                  value={createFormData.companyname}
-                  onChange={handleCreateChange}
-                />
+            <Col span={12}>
+              <Form.Item
+                label="Company Name"
+                name="companyname"
+              >
+                <Input placeholder="Enter company name (optional)" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="Password *">
-                <Input
-                  prefix={<LockOutlined />}
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter secure password"
-                  name="password"
-                  value={createFormData.password}
-                  onChange={handleCreateChange}
-                  suffix={
-                    <Button
-                      type="text"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{ fontSize: 12 }}
-                    >
-                      {showPassword ? 'Hide' : 'Show'}
-                    </Button>
-                  }
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="User Role *">
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Status"
+                name="isActive"
+                valuePropName="checked"
+              >
                 <Select
-                  value={createFormData.role}
-                  onChange={(value) =>
-                    setCreateFormData({ ...createFormData, role: value })
-                  }
+                  placeholder="Select status"
                   options={[
-                    { label: 'Regular User', value: 'user' },
-                    { label: 'Admin', value: 'admin' },
+                    { label: 'Active', value: true },
+                    { label: 'Inactive', value: false }
                   ]}
                 />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="Jio Client ID">
-                <Input
-                  prefix={<KeyOutlined />}
-                  placeholder="e.g., jio_client_xxxxx"
-                  name="jioId"
-                  value={createFormData.jioId}
-                  onChange={handleCreateChange}
-                />
+          </Row>
+        </Form>
+      </Modal>
+
+      {/* Create User Modal */}
+      <Modal
+        title="Create New User"
+        open={isCreateUserModalVisible}
+        onCancel={() => {
+          setIsCreateUserModalVisible(false);
+          createUserForm.resetFields();
+        }}
+        onOk={handleCreateUser}
+        confirmLoading={loading.createUser}
+        width={window.innerWidth <= 768 ? '95vw' : 600}
+      >
+        <Form
+          form={createUserForm}
+          layout="vertical"
+          style={{ marginTop: 24 }}
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Name"
+                name="name"
+                rules={[{ required: true, message: 'Please enter name' }]}
+              >
+                <Input placeholder="Enter full name" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="Jio Client Secret">
-                <Input
-                  prefix={<LockOutlined />}
-                  type="password"
-                  placeholder="Enter API secret key"
-                  name="jioSecret"
-                  value={createFormData.jioSecret}
-                  onChange={handleCreateChange}
+            <Col span={12}>
+              <Form.Item
+                label="Email"
+                name="email"
+                rules={[
+                  { required: true, message: 'Please enter email' },
+                  { type: 'email', message: 'Please enter valid email' }
+                ]}
+              >
+                <Input placeholder="Enter email address" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Phone"
+                name="phone"
+                rules={[
+                  { required: true, message: 'Please enter phone number' },
+                  { pattern: /^[0-9]{10}$/, message: 'Phone must be 10 digits' }
+                ]}
+              >
+                <Input placeholder="Enter 10-digit phone number" maxLength={10} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Password"
+                name="password"
+                rules={[
+                  { required: true, message: 'Please enter password' },
+                  { min: 6, message: 'Password must be at least 6 characters' }
+                ]}
+              >
+                <Input.Password placeholder="Enter password (min 6 chars)" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Company Name"
+                name="companyname"
+              >
+                <Input placeholder="Enter company name (optional)" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Initial Wallet Balance"
+                name="walletBalance"
+                initialValue={0}
+              >
+                <InputNumber
+                  min={0}
+                  placeholder="Enter initial balance"
+                  style={{ width: '100%' }}
+                  formatter={(value) => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  parser={(value) => value.replace(/₹\s?|(,*)/g, '')}
                 />
               </Form.Item>
             </Col>
@@ -791,96 +749,24 @@ const APIURL = "https://rcssender.com";
       </Modal>
 
       <Modal
-        title="Edit User"
-        open={isEditModalVisible}
-        onCancel={() => setIsEditModalVisible(false)}
-        onOk={handleEditUser}
-        confirmLoading={editLoading}
-        width={window.innerWidth <= 768 ? '95vw' : 600}
-      >
-        <Form layout="vertical" style={{ marginTop: 24 }}>
-          <Form.Item label="Name">
-            <Input
-              value={editFormData.name}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, name: e.target.value })
-              }
-              prefix={<UserOutlined />}
-            />
-          </Form.Item>
-          <Form.Item label="Email">
-            <Input
-              value={editFormData.email}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, email: e.target.value })
-              }
-              prefix={<MailOutlined />}
-            />
-          </Form.Item>
-          <Form.Item label="Phone">
-            <Input
-              value={editFormData.phone}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, phone: e.target.value })
-              }
-              prefix={<PhoneOutlined />}
-            />
-          </Form.Item>
-          <Form.Item label="Company">
-            <Input
-              value={editFormData.companyname}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, companyname: e.target.value })
-              }
-              prefix={<BuildOutlined />}
-            />
-          </Form.Item>
-          <Form.Item label="Role">
-            <Select
-              value={editFormData.role}
-              onChange={(value) =>
-                setEditFormData({ ...editFormData, role: value })
-              }
-              options={[
-                { label: 'User', value: 'user' },
-                { label: 'Admin', value: 'admin' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="Status">
-            <Select
-              value={editFormData.status}
-              onChange={(value) =>
-                setEditFormData({ ...editFormData, status: value })
-              }
-              options={[
-                { label: 'Active', value: 'active' },
-                { label: 'Inactive', value: 'inactive' },
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
         title="Add Wallet Balance"
         open={isWalletModalVisible}
         onCancel={() => setIsWalletModalVisible(false)}
         onOk={handleAddWallet}
-        confirmLoading={walletLoading}
+        confirmLoading={loading.updateWallet}
         width={window.innerWidth <= 768 ? '95vw' : 500}
       >
         <Form layout="vertical" style={{ marginTop: 24 }}>
           <Form.Item label="User">
             <Input
-              value={selectedUserForWallet?.name}
+              value={selectedUser?.name}
               disabled
               prefix={<UserOutlined />}
             />
           </Form.Item>
           <Form.Item label="Current Balance">
             <Input
-              value={formatCurrency(selectedUserForWallet?.Wallet)}
+              value={formatCurrency(selectedUser?.wallet?.balance || 0)}
               disabled
               prefix={<DollarOutlined />}
             />
@@ -900,172 +786,193 @@ const APIURL = "https://rcssender.com";
       </Modal>
 
       <Modal
-        title="Reset Password"
+        title="Update Password"
         open={isPasswordModalVisible}
         onCancel={() => setIsPasswordModalVisible(false)}
-        onOk={handleResetPassword}
-        confirmLoading={passwordLoading}
+        onOk={handleUpdatePassword}
+        confirmLoading={loading.updatePassword}
         width={window.innerWidth <= 768 ? '95vw' : 500}
       >
         <Form layout="vertical" style={{ marginTop: 24 }}>
           <Form.Item label="User">
             <Input
-              value={selectedUserForPassword?.name}
+              value={selectedUser?.name}
               disabled
               prefix={<UserOutlined />}
             />
           </Form.Item>
           <Form.Item label="New Password *">
-            <Input
-              type={showNewPassword ? 'text' : 'password'}
+            <Input.Password
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password (min 6 chars)"
+              placeholder="Enter new password (min 6 characters)"
               prefix={<LockOutlined />}
-              suffix={
-                <Button
-                  type="text"
-                  size="small"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                >
-                  {showNewPassword ? 'Hide' : 'Show'}
-                </Button>
-              }
             />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title={`Transaction History - ${selectedUserForTransaction?.name}`}
+        title={`Transaction History - ${selectedUser?.name}`}
         open={isTransactionModalVisible}
         onCancel={() => setIsTransactionModalVisible(false)}
-        width={window.innerWidth <= 768 ? '95vw' : 800}
-        footer={null}
+        footer={[
+          <Button key="close" onClick={() => setIsTransactionModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={window.innerWidth <= 768 ? '95vw' : 900}
       >
-        <Spin spinning={transactionLoading}>
-          {transactionSummary && (
-            <div style={{ marginTop: 24 }}>
-              <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                <Col xs={24} sm={12}>
-                  <Card style={{ backgroundColor: `${THEME_CONSTANTS.colors.primary}05` }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>Current Balance</div>
-                    <div
-                      style={{
-                        fontSize: 'clamp(18px, 4vw, 24px)',
-                        fontWeight: 700,
-                        color: THEME_CONSTANTS.colors.primary,
-                        marginTop: 8,
-                      }}
-                    >
-                      {formatCurrency(transactionSummary.currentBalance)}
-                    </div>
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Card style={{ backgroundColor: `${THEME_CONSTANTS.colors.success}05` }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>Total Credit</div>
-                    <div
-                      style={{
-                        fontSize: 'clamp(18px, 4vw, 24px)',
-                        fontWeight: 700,
-                        color: THEME_CONSTANTS.colors.success,
-                        marginTop: 8,
-                      }}
-                    >
-                      {formatCurrency(transactionSummary.totalCredit)}
-                    </div>
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Card style={{ backgroundColor: `${THEME_CONSTANTS.colors.danger}05` }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>Total Debit</div>
-                    <div
-                      style={{
-                        fontSize: 'clamp(18px, 4vw, 24px)',
-                        fontWeight: 700,
-                        color: THEME_CONSTANTS.colors.danger,
-                        marginTop: 8,
-                      }}
-                    >
-                      {formatCurrency(transactionSummary.totalDebit)}
-                    </div>
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Card style={{ backgroundColor: `${THEME_CONSTANTS.colors.warning}05` }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>Net Amount</div>
-                    <div
-                      style={{
-                        fontSize: 'clamp(18px, 4vw, 24px)',
-                        fontWeight: 700,
-                        color: THEME_CONSTANTS.colors.warning,
-                        marginTop: 8,
-                      }}
-                    >
-                      {formatCurrency(transactionSummary.netAmount)}
-                    </div>
-                  </Card>
-                </Col>
-              </Row>
-
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
-                Recent Transactions
-              </h4>
+        <div style={{ marginTop: 24 }}>
+          <div style={{ 
+            marginBottom: 16, 
+            padding: 16, 
+            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', 
+            borderRadius: 8,
+            border: `1px solid ${THEME_CONSTANTS.colors.border}`
+          }}>
+            <Row gutter={16} align="middle">
+              <Col span={8}>
+                <div style={{ textAlign: 'center' }}>
+                  <Avatar size={48} style={{ background: THEME_CONSTANTS.colors.primary, marginBottom: 8 }}>
+                    {selectedUser?.name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                  <div style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>
+                    {selectedUser?.name}
+                  </div>
+                  <div style={{ fontSize: 12, color: THEME_CONSTANTS.colors.textSecondary }}>
+                    {selectedUser?.email}
+                  </div>
+                </div>
+              </Col>
+              <Col span={8}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: THEME_CONSTANTS.colors.success }}>
+                    {formatCurrency(selectedUser?.wallet?.balance || 0)}
+                  </div>
+                  <div style={{ fontSize: 12, color: THEME_CONSTANTS.colors.textSecondary }}>
+                    Current Balance
+                  </div>
+                </div>
+              </Col>
+              <Col span={8}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, fontWeight: 600, color: THEME_CONSTANTS.colors.primary }}>
+                    {transactions.length}
+                  </div>
+                  <div style={{ fontSize: 12, color: THEME_CONSTANTS.colors.textSecondary }}>
+                    Total Transactions
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          </div>
+          
+          <Spin spinning={loading.transactions}>
+            {transactions && transactions.length > 0 ? (
               <Table
-                dataSource={transactionSummary.recentTransactions || []}
-                rowKey={(_, index) => index}
-                pagination={false}
-                scroll={{ x: 600 }}
-                size={window.innerWidth <= 768 ? 'small' : 'default'}
+                dataSource={transactions}
                 columns={[
+                  {
+                    title: 'Date & Time',
+                    dataIndex: 'createdAt',
+                    key: 'date',
+                    width: '20%',
+                    render: (date) => (
+                      <div>
+                        <div style={{ fontWeight: 500 }}>
+                          {new Date(date).toLocaleDateString('en-IN')}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#666' }}>
+                          {new Date(date).toLocaleTimeString('en-IN')}
+                        </div>
+                      </div>
+                    ),
+                  },
                   {
                     title: 'Type',
                     dataIndex: 'type',
+                    key: 'type',
+                    width: '15%',
                     render: (type) => (
-                      <Tag
+                      <Tag 
+                        icon={type === 'credit' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                         color={type === 'credit' ? 'green' : 'red'}
-                        icon={
-                          type === 'credit' ? (
-                            <ArrowDownOutlined />
-                          ) : (
-                            <ArrowUpOutlined />
-                          )
-                        }
+                        style={{ fontWeight: 500 }}
                       >
-                        {type?.toUpperCase()}
+                        {type.toUpperCase()}
                       </Tag>
                     ),
                   },
                   {
                     title: 'Amount',
                     dataIndex: 'amount',
+                    key: 'amount',
+                    width: '15%',
                     render: (amount, record) => (
-                      <span
-                        style={{
-                          color: record.type === 'credit' ? '#10b981' : '#ef4444',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {record.type === 'credit' ? '+' : '-'}
-                        {formatCurrency(amount)}
+                      <span style={{ 
+                        color: record.type === 'credit' ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.error,
+                        fontWeight: 600,
+                        fontSize: 14
+                      }}>
+                        {record.type === 'credit' ? '+' : '-'}{formatCurrency(amount)}
                       </span>
                     ),
                   },
                   {
                     title: 'Description',
                     dataIndex: 'description',
+                    key: 'description',
+                    width: '30%',
+                    render: (description) => (
+                      <span style={{ fontSize: 13 }}>{description || 'No description'}</span>
+                    ),
                   },
                   {
-                    title: 'Date',
-                    dataIndex: 'createdAt',
-                    render: (date) => formatDate(date),
+                    title: 'Balance After',
+                    dataIndex: 'balanceAfter',
+                    key: 'balanceAfter',
+                    width: '20%',
+                    render: (balance) => (
+                      <span style={{ fontWeight: 500, color: THEME_CONSTANTS.colors.text }}>
+                        {formatCurrency(balance)}
+                      </span>
+                    ),
                   },
                 ]}
+                rowKey={(record, index) => record._id || index}
+                pagination={{ 
+                  pageSize: 8,
+                  showSizeChanger: false,
+                  showQuickJumper: window.innerWidth > 768,
+                  size: 'small'
+                }}
+                size="small"
+                scroll={{ x: 600 }}
+                style={{
+                  border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                  borderRadius: THEME_CONSTANTS.radius.md
+                }}
               />
-            </div>
-          )}
-        </Spin>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <Empty 
+                  description={
+                    <div>
+                      <div style={{ marginBottom: 8, color: THEME_CONSTANTS.colors.text }}>
+                        No transactions found
+                      </div>
+                      <div style={{ fontSize: 12, color: THEME_CONSTANTS.colors.textSecondary }}>
+                        This user hasn't made any transactions yet
+                      </div>
+                    </div>
+                  }
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              </div>
+            )}
+          </Spin>
+        </div>
       </Modal>
     </>
   );

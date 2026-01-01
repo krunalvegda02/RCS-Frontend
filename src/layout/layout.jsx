@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Layout,
   Menu,
@@ -10,18 +10,17 @@ import {
   Input,
 } from 'antd';
 import {
-  DashboardOutlined,
   SendOutlined,
   FileTextOutlined,
   BarChartOutlined,
   SettingOutlined,
   LogoutOutlined,
   UserOutlined,
-  SearchOutlined,
   MenuOutlined,
   CloseOutlined,
   HomeOutlined,
   MailOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -136,6 +135,12 @@ export default function UserLayout() {
       label: 'Reports',
       onClick: () => navigate('/reports'),
     },
+    {
+      key: '/wallet',
+      icon: <WalletOutlined className="text-xl" />,
+      label: 'Wallet',
+      onClick: () => navigate('/wallet'),
+    },
   ];
 
   const userMenuItems = [
@@ -151,7 +156,7 @@ export default function UserLayout() {
       label: 'Admin Panel',
       onClick: () => navigate('/admin'),
     }] : []),
-    
+
     { type: 'divider' },
     {
       key: 'logout',

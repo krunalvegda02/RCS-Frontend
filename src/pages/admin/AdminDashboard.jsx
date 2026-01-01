@@ -41,9 +41,12 @@ function AdminDashboard() {
 
   const [stats, setStats] = useState({
     totalUsers: 0,
+    activeUsers: 0,
     totalMessages: 0,
+    totalCost: 0,
     pendingRequests: 0,
     totalTransactions: 0,
+    totalWalletBalance: 0,
   });
 
   const [recentUsers, setRecentUsers] = useState([]);
@@ -58,8 +61,9 @@ function AdminDashboard() {
 
   const fetchDashboard = async () => {
     try {
-      const res = await _get('admin/dashboard', {}, {}, token);
+      const res = await _get('v1/dashboard/admin', {}, {}, token);
       if (res.data.success) {
+        console.log('Dashboard data:', res.data.dashboard.recentUsers); // Debug log
         setStats(res.data.dashboard.stats);
         setRecentUsers(res.data.dashboard.recentUsers || []);
         setRecentRequests(res.data.dashboard.recentWalletRequests || []);
@@ -651,9 +655,9 @@ function AdminDashboard() {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <StatCard
-              icon={CreditCardOutlined}
-              title="Total Transactions"
-              value={stats.totalTransactions || 0}
+              icon={WalletOutlined}
+              title="Total Wallet Balance"
+              value={formatCurrency(stats.totalWalletBalance || 0)}
               color={THEME_CONSTANTS.colors.danger}
               bgColor={THEME_CONSTANTS.colors.dangerLight}
               trend={3.8}

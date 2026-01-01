@@ -6,7 +6,9 @@ const CreateCampaign = lazy(() => import('../pages/user/CreateCampaign.jsx'))
 const TemplatePage = lazy(() => import('../pages/user/TemplatePage.jsx'))
 const CreateTemplatePage = lazy(() => import('../pages/user/CreateTempalte.jsx'))
 const Orders = lazy(() => import('../pages/user/Orders.jsx'))
+const WalletTransaction = lazy(() => import('../pages/user/WalletTransaction.jsx'))
 const Profile = lazy(() => import('../pages/Profile.jsx'))
+const BatchTest = lazy(() => import('../components/BatchCapabilityTest.jsx'))
 const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard.jsx'))
 const Users = lazy(() => import('../pages/admin/Users.jsx'))
 const WalletRequests = lazy(() => import('../pages/admin/WalletRequests.jsx'))
@@ -63,8 +65,20 @@ export const pageData = {
           component: Orders
         },
         {
+          path: 'wallet',
+          component: WalletTransaction
+        },
+        {
+          path: 'wallet-requests',
+          component: WalletRequests
+        },
+        {
           path: 'profile',
           component: Profile
+        },
+        {
+          path: 'batch-test',
+          component: BatchTest
         }
       ]
     }

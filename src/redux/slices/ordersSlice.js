@@ -51,6 +51,7 @@ const initialState = {
   messageBreakdowns: {},
   userInteractions: {},
   liveEvents: [],
+  socketConnected: false,
   loading: {
     orders: false,
     realTimeStats: false,
@@ -81,12 +82,32 @@ const ordersSlice = createSlice({
     },
     updateRealTimeStats: (state, action) => {
       const { campaignId, stats } = action.payload;
-      state.realTimeStats[campaignId] = stats;
+      state.realTimeStats[campaignId] = {
+        ...state.realTimeStats[campaignId],
+        ...stats,
+        lastUpdated: new Date().toISOString()
+      };
+    },
+    setSocketConnected: (state, action) => {
+      state.socketConnected = action.payload;
+    },
+    updateCampaignFromSocket: (state, action) => {
+      const { campaignId, updateData } = action.payload;
+      // Update the order in the orders array if it exists
+      const orderIndex = state.orders.findIndex(order => order._id === campaignId);
+      if (orderIndex !== -1) {
+        state.orders[orderIndex] = {
+          ...state.orders[orderIndex],
+          ...updateData,
+          lastSocketUpdate: new Date().toISOString()
+        };
+      }
     },
     clearErrors: (state) => {
       state.error = {
         orders: null,
         realTimeStats: null,
+        messages: null,
         delete: null,
       };
     },
@@ -133,7 +154,10 @@ const ordersSlice = createSlice({
         state.loading.realTimeStats = false;
         // Extract campaignId from the URL in the action meta
         const campaignId = action.meta.arg;
-        state.realTimeStats[campaignId] = action.payload.data;
+        state.realTimeStats[campaignId] = {
+          ...action.payload.data,
+          lastUpdated: new Date().toISOString()
+        };
       })
       .addCase(fetchRealTimeStats.rejected, (state, action) => {
         state.loading.realTimeStats = false;
@@ -169,8 +193,8 @@ const ordersSlice = createSlice({
       })
       .addCase(fetchCampaignMessages.fulfilled, (state, action) => {
         state.loading.messages = false;
-        state.campaignMessages = action.payload.data.messages;
-        state.messagesPagination = action.payload.pagination;
+        state.campaignMessages = action.payload.data || [];
+        state.messagesPagination = action.payload.pagination || {};
       })
       .addCase(fetchCampaignMessages.rejected, (state, action) => {
         state.loading.messages = false;
@@ -183,7 +207,9 @@ export const {
   setSelectedOrder, 
   clearSelectedOrder, 
   addLiveEvent, 
-  updateRealTimeStats, 
+  updateRealTimeStats,
+  setSocketConnected,
+  updateCampaignFromSocket,
   clearErrors 
 } = ordersSlice.actions;
 

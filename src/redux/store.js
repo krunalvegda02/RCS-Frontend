@@ -11,6 +11,9 @@ import messageSlice from './slices/messageSlice.js';
 import realtimeSlice from './slices/realtimeSlice.js';
 import campaignReportSlice from './slices/campaignReportSlice.js';
 import uploadSlice from './slices/uploadSlice.js';
+import adminSlice from './slices/adminSlice.js';
+import walletSlice from './slices/walletSlice.js';
+import contactUploadSlice from './slices/contactUploadSlice.js';
 
 const persistConfig = {
   key: 'root',
@@ -28,6 +31,9 @@ const rootReducer = combineReducers({
   realtime: realtimeSlice,
   campaignReports: campaignReportSlice,
   upload: uploadSlice,
+  admin: adminSlice,
+  wallet: walletSlice,
+  contactUpload: contactUploadSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

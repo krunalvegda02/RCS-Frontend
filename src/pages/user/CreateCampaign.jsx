@@ -67,11 +67,14 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useWallet } from '../../hooks/useWallet';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
+import ContactUpload from '../../components/ContactUpload';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
 import { sendBulkMessage, checkCapability } from '../../redux/slices/campaignSlice';
 import { _get, _post } from '../../helper/apiClient.jsx';
+import { useContactUpload } from '../../hooks/useContactUpload';
 
 // Add CSS for animations
 const styles = `
@@ -109,20 +112,35 @@ const MESSAGE_TYPES = {
 
 const BUTTON_TYPES = ['URL Button', 'Call Button', 'Quick Reply Button'];
 
-// Virtual scrolling component for large contact lists
-  const VirtualizedContactList = ({ contacts, deleteContact, loading }) => {
+const VirtualizedContactList = ({ contacts, deleteContact, loading }) => {
+  // Only show valid RCS contacts
+  const displayContacts = contacts.filter(contact => contact.capable === true);
+  
   const [scrollTop, setScrollTop] = useState(0);
   const itemHeight = 50;
   const containerHeight = 384;
   const visibleCount = Math.ceil(containerHeight / itemHeight);
   const startIndex = Math.floor(scrollTop / itemHeight);
-  const endIndex = Math.min(startIndex + visibleCount + 5, contacts.length);
-  const visibleItems = contacts.slice(startIndex, endIndex);
-  const totalHeight = contacts.length * itemHeight;
+  const endIndex = Math.min(startIndex + visibleCount + 5, displayContacts.length);
+  const visibleItems = displayContacts.slice(startIndex, endIndex);
+  const totalHeight = displayContacts.length * itemHeight;
   const offsetY = startIndex * itemHeight;
 
-  if (contacts.length === 0) {
-    return <Empty description="No contacts added" style={{ padding: '40px 0' }} />;
+  if (displayContacts.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px 0' }}>
+        <Empty description="No valid RCS contacts found" />
+        {contacts.length > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            <Alert 
+              message={`${contacts.length} contacts uploaded, but none are RCS capable`}
+              type="warning"
+              showIcon
+            />
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -153,8 +171,6 @@ const BUTTON_TYPES = ['URL Button', 'Call Button', 'Quick Reply Button'];
               <tbody>
                 {visibleItems.map((contact, idx) => {
                   const actualIndex = startIndex + idx;
-                  const isChecking = contact.checking;
-                  const isCapable = contact.capable;
 
                   return (
                     <tr
@@ -167,19 +183,12 @@ const BUTTON_TYPES = ['URL Button', 'Call Button', 'Quick Reply Button'];
                     >
                       <td style={{ padding: '8px 16px', fontSize: '13px' }}>{actualIndex + 1}</td>
                       <td style={{ padding: '8px 16px', fontSize: '13px', fontFamily: 'monospace' }}>
-                        <span style={{
-                          color: isCapable === true ? THEME_CONSTANTS.colors.success : isCapable === false ? THEME_CONSTANTS.colors.error : THEME_CONSTANTS.colors.text
-                        }}>
+                        <span style={{ color: THEME_CONSTANTS.colors.success }}>
                           {contact.number}
                         </span>
                       </td>
                       <td style={{ padding: '8px 16px', fontSize: '13px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {isChecking && <Spin size="small" />}
-                          {isCapable === true && <Tag color="green">✓ Valid</Tag>}
-                          {isCapable === false && <Tag color="red">✗ Invalid</Tag>}
-                          {isCapable === null && !isChecking && <Tag>Pending</Tag>}
-                        </div>
+                        <Tag color="green">✓ RCS Ready</Tag>
                       </td>
                       <td style={{ padding: '8px 16px', textAlign: 'center' }}>
                         <Button
@@ -205,9 +214,13 @@ const BUTTON_TYPES = ['URL Button', 'Call Button', 'Quick Reply Button'];
 
 function CreateCampaign() {
   const { user, token } = useSelector(state => state.auth);
+  const { balance, currency, formattedBalance } = useWallet();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [form] = Form.useForm();
+
+  // Contact upload hook
+  const { uploadState, uploadContacts, resetUpload } = useContactUpload();
 
   // Redux state
   const { userTemplates, loading: templatesLoading, error: templatesError } = useSelector(state => state.templates);
@@ -219,6 +232,7 @@ function CreateCampaign() {
   const [templateSearch, setTemplateSearch] = useState('');
   const [templateFilter, setTemplateFilter] = useState('all');
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [messageType, setMessageType] = useState('text');
   const [messageText, setMessageText] = useState('');
   const [cardDescription, setCardDescription] = useState('');
@@ -241,11 +255,23 @@ function CreateCampaign() {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addAmount, setAddAmount] = useState('');
 
-  // Load templates on mount
+  // Filter to show only valid RCS contacts in table
+  const validRcsContacts = recipients.filter(contact => contact.capable === true);
+  const invalidContacts = recipients.filter(contact => contact.capable === false);
+  const pendingContacts = recipients.filter(contact => contact.capable === null || contact.checking === true);
+
+  // Load templates on mount and cleanup on unmount
   useEffect(() => {
     if (user?._id) {
       dispatch(fetchUserTemplates({ userId: user._id }));
     }
+    
+    // Cleanup function to clear state when component unmounts
+    return () => {
+      setRecipients([]);
+      setSelectedTemplate(null);
+      setCampaignName('');
+    };
   }, [user, dispatch]);
 
   // Load Templates from Redux
@@ -340,25 +366,33 @@ function CreateCampaign() {
     }
   };
 
-  // Check RCS Capability for batch of numbers using Redux
+  // Check RCS Capability for batch of numbers using Redux (optimized)
   const checkRcsCapability = async (numbers) => {
     try {
+      // Show immediate feedback for large batches
+      if (numbers.length > 50) {
+        message.loading(`Checking RCS capability for ${numbers.length} contacts...`, 0);
+      }
+      
       const result = await dispatch(checkCapability({
         phoneNumbers: numbers,
         userId: user._id
       })).unwrap();
+      
+      // Hide loading message
+      message.destroy();
+      
       return result;
     } catch (error) {
+      message.destroy();
       console.error('Error checking capability:', error);
       throw error;
     }
   };
 
-  // Import Excel File
+  // Import Excel File with background processing
   const handleExcelUpload = async (file) => {
     try {
-      setCheckingCapability(true);
-
       if (!file) {
         message.error('Please select a file');
         return false;
@@ -368,14 +402,12 @@ function CreateCampaign() {
       const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv'];
       if (!allowedTypes.includes(file.type)) {
         message.error('Please upload only Excel (.xlsx, .xls) or CSV files');
-        setCheckingCapability(false);
         return false;
       }
 
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         message.error('File size should be less than 5MB');
-        setCheckingCapability(false);
         return false;
       }
 
@@ -423,7 +455,7 @@ function CreateCampaign() {
               }
 
               if (/^\d{10}$/.test(num)) {
-                const fullNum = '+91' + num;
+                const fullNum = num; // Store as 10-digit for backend
                 if (!seen.has(fullNum)) {
                   seen.add(fullNum);
                   imported.push(fullNum);
@@ -434,79 +466,41 @@ function CreateCampaign() {
 
           if (imported.length === 0) {
             message.error('No valid phone numbers found in the file. Please check the format.');
-            setCheckingCapability(false);
             return;
           }
 
-          // Remove duplicates with existing contacts
-          const existingNumbers = new Set(recipients.map(r => r.number));
-          const newNumbers = imported.filter(num => !existingNumbers.has(num));
-
-          if (newNumbers.length === 0) {
-            message.warning('All numbers from the file are already added');
-            setCheckingCapability(false);
-            return;
+          // Upload contacts for background processing
+          const result = await uploadContacts(imported, file.name);
+          
+          if (result.success) {
+            setUploadedFile(file.name);
+            message.success(`${imported.length} contacts uploaded for processing`);
           }
 
-          // Check RCS capability
-          const response = await checkRcsCapability(newNumbers);
-          console.log('RCS Capability Response:', response);
-
-          let capableNumbers = [];
-          if (response && response.data) {
-            // Map response data to contacts with capability status
-            capableNumbers = newNumbers.map((num) => {
-              const capabilityResult = response.data.find(r => r.phoneNumber === num);
-              const isCapable = capabilityResult ? capabilityResult.isCapable : false;
-              console.log(`Number ${num} capability:`, isCapable);
-              return {
-                id: Date.now() + Math.random(),
-                number: num,
-                capable: isCapable,
-                checking: false,
-              };
-            });
-          } else {
-            // Default to false if no response
-            capableNumbers = newNumbers.map((num) => ({
-              id: Date.now() + Math.random(),
-              number: num,
-              capable: false,
-              checking: false,
-            }));
-          }
-
-          setRecipients((prev) => [...prev, ...capableNumbers]);
-          setUploadedFile(file.name);
-          const capableCount = capableNumbers.filter(c => c.capable).length;
-          message.success(`${capableNumbers.length} contacts imported (${capableCount} RCS capable) from ${file.name}`);
         } catch (error) {
           console.error('Error parsing file:', error);
           message.error('Error parsing file: ' + error.message);
-        } finally {
-          setCheckingCapability(false);
         }
       };
 
       reader.onerror = () => {
         message.error('Error reading file');
-        setCheckingCapability(false);
       };
 
       reader.readAsArrayBuffer(file);
     } catch (error) {
       console.error('Error uploading file:', error);
       message.error('Error uploading file: ' + error.message);
-      setCheckingCapability(false);
     }
 
     return false; // Prevent default upload
   };
 
-  // Add Contact Manually
+
+
+  // Add Contact Manually with batch capability check
   const handleAddContact = async (values) => {
     try {
-      setCheckingCapability(true);
       let phoneNumbers = values.phone.trim();
 
       if (!phoneNumbers) {
@@ -529,7 +523,7 @@ function CreateCampaign() {
       const existingNumbers = new Set(recipients.map(r => r.number));
 
       for (let phone of numbers) {
-        // Add +91 if not present
+        // Clean and format phone number
         if (!phone.startsWith('+91')) {
           if (phone.startsWith('91') && phone.length === 12) {
             phone = '+' + phone;
@@ -540,7 +534,7 @@ function CreateCampaign() {
           }
         }
 
-        // Validate phone number format
+        // Validate phone number format and check for duplicates
         if (/^\+91\d{10}$/.test(phone) && !existingNumbers.has(phone)) {
           validNumbers.push(phone);
         }
@@ -551,35 +545,75 @@ function CreateCampaign() {
         return;
       }
 
-      // Check capability for all numbers
-      const response = await checkRcsCapability(validNumbers);
+      // Use batch capability check for quick results
+      const phoneNumbersOnly = validNumbers.map(phone => phone.replace('+91', ''));
       
-      const newContacts = validNumbers.map(phone => {
-        let isCapable = false;
-        if (response && response.data) {
-          const capabilityResult = response.data.find(r => r.phoneNumber === phone);
-          isCapable = capabilityResult ? capabilityResult.isCapable : false;
-        }
+      try {
+        const result = await dispatch(checkBatchCapability(phoneNumbersOnly));
         
-        return {
-          id: Date.now() + Math.random(),
+        if (result.payload?.success) {
+          const newContacts = result.payload.data.results.map(r => ({
+            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            number: `+91${r.phoneNumber}`,
+            capable: r.isCapable,
+            checking: false
+          }));
+          
+          setRecipients(prev => [...prev, ...newContacts]);
+          manualContactForm.resetFields();
+          setManualContactModal(false);
+          
+          const rcsCount = newContacts.filter(c => c.capable).length;
+          message.success(`${newContacts.length} contacts added (${rcsCount} RCS capable) in ${result.payload.performance.totalTime}ms`);
+        } else {
+          throw new Error('Batch capability check failed');
+        }
+      } catch (error) {
+        // Fallback to adding contacts without capability check
+        const newContacts = validNumbers.map(phone => ({
+          id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           number: phone,
-          capable: isCapable,
-          checking: false,
-        };
-      });
+          capable: null,
+          checking: true
+        }));
+        
+        setRecipients(prev => [...prev, ...newContacts]);
+        manualContactForm.resetFields();
+        setManualContactModal(false);
+        
+        message.success(`${newContacts.length} contacts added. Checking RCS capability...`);
+        
+        // Check capability in background
+        setTimeout(async () => {
+          try {
+            const response = await checkRcsCapability(validNumbers);
+            if (response?.data) {
+              setRecipients(prev => prev.map(contact => {
+                const result = response.data.find(r => r.phoneNumber === contact.number);
+                if (result && validNumbers.includes(contact.number)) {
+                  return {
+                    ...contact,
+                    capable: result.isCapable,
+                    checking: false
+                  };
+                }
+                return contact;
+              }));
+            }
+          } catch (error) {
+            setRecipients(prev => prev.map(contact => {
+              if (validNumbers.includes(contact.number)) {
+                return { ...contact, capable: false, checking: false };
+              }
+              return contact;
+            }));
+          }
+        }, 1000);
+      }
 
-      setRecipients([...recipients, ...newContacts]);
-      manualContactForm.resetFields();
-      setManualContactModal(false);
-      
-      const capableCount = newContacts.filter(c => c.capable).length;
-      message.success(`${newContacts.length} contacts added (${capableCount} RCS capable)`);
     } catch (error) {
       console.error('Error adding contacts:', error);
-      message.error('Error adding contacts: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setCheckingCapability(false);
+      message.error('Error adding contacts: ' + error.message);
     }
   };
 
@@ -610,14 +644,14 @@ function CreateCampaign() {
         return;
       }
       if (recipients.filter(r => r.capable === true).length === 0) {
-        message.error('Please add valid recipients first');
+        message.error('Please add valid RCS contacts first');
         return;
       }
       setCurrentStep(2);
     }
   };
 
-  // Send Campaign using Redux with optimized loading
+  // Send Campaign with background processing support
   const handleSendCampaign = async () => {
     try {
       // Validation
@@ -631,87 +665,85 @@ function CreateCampaign() {
         return;
       }
 
-      // Filter only RCS capable contacts for billing calculation
-      const validRecipients = recipients.filter(r => r.capable === true);
+      // Get only valid RCS contacts for campaign
+      const validRcsContacts = recipients.filter(r => r.capable === true);
+      const totalContacts = recipients.length;
       
-      if (validRecipients.length === 0) {
-        message.error('No valid RCS contacts found. Please add valid contacts.');
+      if (validRcsContacts.length === 0) {
+        message.error('No valid RCS contacts found. Please add RCS capable contacts.');
         return;
       }
 
-      // Check wallet - ONLY charge for RCS capable numbers
-      const totalCost = validRecipients.length * 1;
-      if (user.Wallet < totalCost) {
-        message.error(`Insufficient credits! Required: ₹${totalCost}, Available: ₹${user.Wallet}`);
+      // Estimate cost only for valid RCS contacts
+      const estimatedCost = validRcsContacts.length * 1;
+      if (balance < estimatedCost) {
+        message.error(`Insufficient credits! Required: ₹${estimatedCost}, Available: ${formattedBalance}`);
         setShowAddMoney(true);
         return;
       }
 
-      // Show immediate success for large campaigns
-      if (recipients.length > 10000) {
-        Modal.confirm({
-          title: 'Large Campaign Detected',
-          content: `You're about to send ${recipients.length} messages (${validRecipients.length} RCS capable). This will be processed in background. You'll receive real-time updates in Reports section.`,
-          okText: 'Start Campaign',
-          cancelText: 'Cancel',
-          onOk: async () => {
-            await processCampaign();
-          }
-        });
-      } else {
-        await processCampaign();
-      }
+      // Show campaign options
+      Modal.confirm({
+        title: 'Start RCS Campaign',
+        content: (
+          <div>
+            <p><strong>Campaign:</strong> {campaignName}</p>
+            <p><strong>Total Contacts Uploaded:</strong> {totalContacts}</p>
+            <p><strong>RCS Ready Contacts:</strong> {validRcsContacts.length}</p>
+            <p><strong>Invalid/Pending:</strong> {totalContacts - validRcsContacts.length}</p>
+            <br />
+            <Alert 
+              message="Only RCS capable contacts will receive messages"
+              description="Messages will be sent only to contacts that support RCS messaging"
+              type="info"
+              showIcon
+            />
+            <br />
+            <p>💰 Cost: ₹{estimatedCost} (₹1 per RCS message)</p>
+          </div>
+        ),
+        okText: 'Send to RCS Contacts',
+        cancelText: 'Cancel',
+        onOk: async () => {
+          await processCampaign();
+        }
+      });
 
       async function processCampaign() {
-        // Build payload - include ALL recipients but only charge for RCS capable
-        const payload = {
-          name: campaignName.trim(),
-          description: `Bulk campaign with ${recipients.length} total recipients (${validRecipients.length} RCS capable) using template: ${selectedTemplate.name}`,
-          templateId: selectedTemplate._id,
-          recipients: recipients.map(r => ({
-            phoneNumber: r.number.replace('+91', ''), // Remove +91 prefix for backend
-            variables: r.variables || {},
-            isRcsCapable: r.capable === true // Flag for billing
-          })),
-          batchSize: Math.min(500, Math.max(100, Math.floor(recipients.length / 10))), // Dynamic batch size (max 500)
-          autoStart: true,
-          estimatedCost: totalCost // Only for RCS capable numbers
-        };
-
-        // Show loading with progress for large campaigns
-        const hideLoading = message.loading(
-          recipients.length > 10000 
-            ? `Creating campaign for ${recipients.length} contacts... This may take a moment.`
-            : 'Creating campaign...', 
-          0
-        );
+        const hideLoading = message.loading('Creating campaign...', 0);
 
         try {
-          // Dispatch Redux action to create and start campaign
-          const result = await dispatch(sendBulkMessage(payload)).unwrap();
+          const uploadResponse = await _post('v1/campaigns/send-bulk', {
+            name: campaignName.trim(),
+            templateId: selectedTemplate._id,
+            recipients: validRcsContacts.map(c => ({
+              phoneNumber: c.number.replace('+91', ''),
+              isRcsCapable: true,
+              variables: {}
+            })),
+            autoStart: true
+          }, {}, localStorage.getItem('token'));
           
           hideLoading();
           
-          if (result.success) {
-            // Show different success messages based on campaign size
-            if (recipients.length > 10000) {
-              Modal.success({
-                title: 'Campaign Created Successfully!',
-                content: (
-                  <div>
-                    <p>✅ Campaign "{campaignName}" has been created and started.</p>
-                    <p>📊 Total Recipients: {recipients.length}</p>
-                    <p>💰 RCS Capable: {validRecipients.length} (₹{totalCost} charged)</p>
-                    <p>🚀 Processing in background with real-time updates.</p>
-                    <p>📈 Track progress in Reports section.</p>
-                  </div>
-                ),
-                onOk: () => navigate('/reports')
-              });
-            } else {
-              message.success(`Campaign created! Sending to ${validRecipients.length} RCS capable numbers.`);
-              setTimeout(() => navigate('/reports'), 1500);
-            }
+          if (uploadResponse.data.success) {
+            Modal.success({
+              title: 'Campaign Started Successfully!',
+              content: (
+                <div>
+                  <p>✅ Campaign "{campaignName}" started successfully!</p>
+                  <p>📊 RCS Ready Contacts: {validRcsContacts.length}</p>
+                  <p>🚀 Messages are being sent to RCS capable contacts</p>
+                  <p>📈 Track progress in Reports section</p>
+                </div>
+              ),
+              onOk: () => {
+                clearAllFields();
+                navigate('/reports');
+              }
+            });
+          } else {
+            throw new Error(uploadResponse.data.message || 'Failed to start campaign');
           }
         } catch (error) {
           hideLoading();
@@ -719,12 +751,39 @@ function CreateCampaign() {
         }
       }
     } catch (error) {
-      const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to send campaign';
-      if (errorMessage.includes('Insufficient balance')) {
-        setShowAddMoney(true);
-      }
+      const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to start campaign';
       message.error(errorMessage);
     }
+  };
+
+  // Clear all form fields
+  const clearAllFields = () => {
+    // Reset all state variables
+    setCurrentStep(0);
+    setSelectedTemplate(null);
+    setMessageType('text');
+    setMessageText('');
+    setCardDescription('');
+    setMediaUrl('');
+    setFooter('');
+    setButtons([]);
+    setCarouselCards([]);
+    setRecipients([]); // Clear recipients array completely
+    setCampaignName('');
+    setUploadedFile(null);
+    
+    // Reset forms
+    form.resetFields();
+    manualContactForm.resetFields();
+    
+    // Reset search and filters
+    setTemplateSearch('');
+    setTemplateFilter('all');
+    
+    // Force re-render by clearing any cached state
+    setTimeout(() => {
+      setRecipients([]); // Double-clear to ensure state is reset
+    }, 100);
   };
 
   // Download Demo Excel
@@ -811,17 +870,13 @@ function CreateCampaign() {
       title: 'Phone',
       dataIndex: 'number',
       key: 'number',
-      render: (text) => <span style={{ fontFamily: 'monospace' }}>{text}</span>,
+      render: (text) => <span style={{ fontFamily: 'monospace', color: THEME_CONSTANTS.colors.success }}>{text}</span>,
     },
     {
       title: 'Status',
       dataIndex: 'capable',
       key: 'capable',
-      render: (capable) => {
-        if (capable === true) return <Tag color="green">✓ Valid</Tag>;
-        if (capable === false) return <Tag color="red">✗ Invalid</Tag>;
-        return <Tag>Pending</Tag>;
-      },
+      render: () => <Tag color="green">✓ RCS Ready</Tag>,
     },
     {
       title: 'Action',
@@ -1083,7 +1138,15 @@ function CreateCampaign() {
                   <Row gutter={[12, 12]}>
                     <Col xs={12} sm={12}>
                       <Statistic
-                        title="Total Contacts"
+                        title="RCS Ready"
+                        value={validRcsContacts.length}
+                        prefix={<CheckCircleOutlined />}
+                        valueStyle={{ color: THEME_CONSTANTS.colors.success, fontSize: 'clamp(16px, 3vw, 20px)' }}
+                      />
+                    </Col>
+                    <Col xs={12} sm={12}>
+                      <Statistic
+                        title="Total Uploaded"
                         value={recipients.length}
                         prefix={<TeamOutlined />}
                         valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: 'clamp(16px, 3vw, 20px)' }}
@@ -1092,8 +1155,7 @@ function CreateCampaign() {
                     <Col xs={12} sm={12}>
                       <Statistic
                         title="Wallet"
-                        value={user?.Wallet?.toFixed(2) || '0.00'}
-                        prefix="₹"
+                        value={formattedBalance}
                         valueStyle={{ color: THEME_CONSTANTS.colors.success, fontSize: 'clamp(16px, 3vw, 20px)' }}
                       />
                     </Col>
@@ -1112,282 +1174,266 @@ function CreateCampaign() {
 
             {/* Step 0: Select Template */}
             {currentStep === 0 && (
-              <Row gutter={[16, 24]}>
-                <Col xs={24} xl={16}>
-                  <Card
-                    title={
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between',
-                        gap: '12px'
-                      }}>
-                        <span style={{
-                          color: THEME_CONSTANTS.colors.text,
-                          fontSize: 'clamp(14px, 2.5vw, 16px)',
-                          fontWeight: THEME_CONSTANTS.typography.h5.weight
-                        }}>Select a Template ({userTemplates.length})</span>
-                        <Space size="small">
-                          <Button
-                            onClick={loadTemplates}
-                            icon={<ReloadOutlined />}
-                            loading={templatesLoading}
-                            size="small"
-                            style={{ 
-                              borderColor: THEME_CONSTANTS.colors.border,
-                              color: THEME_CONSTANTS.colors.textSecondary
-                            }}
-                          >
-                            Refresh
-                          </Button>
-                          <Button
-                            type="primary"
-                            onClick={() => navigate('/templates')}
-                            icon={<PlusOutlined />}
-                            size="small"
-                            style={{ 
-                              backgroundColor: THEME_CONSTANTS.colors.primary,
-                              borderColor: THEME_CONSTANTS.colors.primary
-                            }}
-                          >
-                            Create New
-                          </Button>
-                        </Space>
-                      </div>
-                    }
-                    style={{
-                      background: THEME_CONSTANTS.colors.surface,
-                      border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                      borderRadius: THEME_CONSTANTS.radius.lg,
-                      boxShadow: THEME_CONSTANTS.shadow.sm
-                    }}
-                    bodyStyle={{ padding: 'clamp(16px, 3vw, 24px)' }}
-                  >
-                    {templatesLoading ? (
-                      <div style={{ textAlign: 'center', padding: `${THEME_CONSTANTS.spacing.xxxl} ${THEME_CONSTANTS.spacing.lg}` }}>
-                        <Spin size="large" />
-                        <p style={{ 
-                          marginTop: THEME_CONSTANTS.spacing.lg, 
-                          color: THEME_CONSTANTS.colors.textSecondary,
-                          fontSize: THEME_CONSTANTS.typography.body.size
-                        }}>Loading templates...</p>
-                      </div>
-                    ) : filteredTemplates.length === 0 ? (
-                      <Empty
-                        description={
-                          <div>
-                            <p style={{ 
-                              marginBottom: THEME_CONSTANTS.spacing.sm,
-                              color: THEME_CONSTANTS.colors.text,
-                              fontSize: THEME_CONSTANTS.typography.body.size
-                            }}>No templates found</p>
-                            <p style={{ 
-                              fontSize: THEME_CONSTANTS.typography.caption.size, 
-                              color: THEME_CONSTANTS.colors.textSecondary, 
-                              margin: 0 
-                            }}>
-                              Create your first template to start sending messages
-                            </p>
-                          </div>
-                        }
-                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+              <Card
+                title={
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}>
+                    <span style={{
+                      color: THEME_CONSTANTS.colors.text,
+                      fontSize: 'clamp(14px, 2.5vw, 16px)',
+                      fontWeight: THEME_CONSTANTS.typography.h5.weight
+                    }}>Select a Template ({userTemplates.length})</span>
+                    <Space size="small">
+                      <Button
+                        onClick={loadTemplates}
+                        icon={<ReloadOutlined />}
+                        loading={templatesLoading}
+                        size="small"
+                        style={{ 
+                          borderColor: THEME_CONSTANTS.colors.border,
+                          color: THEME_CONSTANTS.colors.textSecondary
+                        }}
                       >
-                        <Button 
-                          type="primary" 
-                          onClick={() => navigate('/templates')} 
-                          icon={<PlusOutlined />}
-                          style={{
-                            background: THEME_CONSTANTS.colors.primary,
-                            borderColor: THEME_CONSTANTS.colors.primary,
-                            borderRadius: THEME_CONSTANTS.radius.md
-                          }}
-                        >
-                          Create Your First Template
-                        </Button>
-                      </Empty>
-                    ) : (
-                      <>
-                        {/* Search and Filter */}
-                        <div style={{ 
-                          marginBottom: '16px', 
-                          display: 'flex', 
-                          gap: '8px', 
-                          alignItems: 'center', 
-                          justifyContent: 'flex-end',
-                          flexDirection: window.innerWidth <= 768 ? 'column' : 'row'
-                        }}>
-                          <Input.Search
-                            placeholder={window.innerWidth <= 768 ? 'Search...' : 'Search templates...'}
-                            value={templateSearch}
-                            onChange={(e) => setTemplateSearch(e.target.value)}
-                            style={{ width: window.innerWidth <= 768 ? '100%' : 'min(250px, 100%)', minWidth: '200px' }}
-                            allowClear
-                            size={window.innerWidth <= 768 ? 'small' : 'default'}
-                          />
-                          <Select
-                            value={templateFilter}
-                            onChange={setTemplateFilter}
-                            style={{ width: window.innerWidth <= 768 ? '100%' : 'min(150px, 100%)', minWidth: '120px' }}
-                            size={window.innerWidth <= 768 ? 'small' : 'default'}
-                            options={[
-                              { label: 'All Types', value: 'all' },
-                              { label: 'Text', value: 'text' },
-                              { label: 'Text + Action', value: 'text-with-action' },
-                              { label: 'RCS Rich Card', value: 'rcs' },
-                              { label: 'Carousel', value: 'carousel' }
-                            ]}
-                          />
-                        </div>
-
-                        {/* Templates Table */}
-                        <Table
-                          dataSource={filteredTemplates}
-                          rowKey="_id"
-                          pagination={{ pageSize: 10, showSizeChanger: true }}
-                          onRow={(record) => ({
-                            onClick: () => handleTemplateSelect(record),
-                            style: {
-                              cursor: 'pointer',
-                              backgroundColor: selectedTemplate?._id === record._id ? THEME_CONSTANTS.colors.primaryLight : 'transparent'
-                            }
-                          })}
-                          scroll={{ x: 600 }}
-                          size="small"
-                          columns={[
-                            {
-                              title: 'Template Name',
-                              dataIndex: 'name',
-                              key: 'name',
-                              width: 200,
-                              render: (text, record) => (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{ fontSize: '16px' }}>
-                                    {record.messageType === 'text' ? '💬' :
-                                      record.messageType === 'rcs' ? '🎨' :
-                                        record.messageType === 'carousel' ? '🎠' :
-                                          record.messageType === 'text-with-action' ? '🔗' : '📧'}
-                                  </span>
-                                  <div>
-                                    <div style={{ 
-                                      fontWeight: 600,
-                                      color: THEME_CONSTANTS.colors.text
-                                    }}>{text}</div>
-                                    <div style={{ 
-                                      fontSize: '11px', 
-                                      color: THEME_CONSTANTS.colors.textSecondary 
-                                    }}>
-                                      {MESSAGE_TYPES[record.messageType] || record.messageType}
-                                    </div>
-                                  </div>
-                                </div>
-                              )
-                            },
-                            {
-                              title: 'Content Preview',
-                              key: 'preview',
-                              width: 250,
-                              render: (_, record) => (
-                                <div style={{ maxWidth: '200px' }}>
-                                  {record.text && (
-                                    <div style={{ 
-                                      fontSize: '12px', 
-                                      color: THEME_CONSTANTS.colors.textSecondary, 
-                                      marginBottom: '4px' 
-                                    }}>
-                                      {record.text.length > 30 ? record.text.substring(0, 30) + '...' : record.text}
-                                    </div>
-                                  )}
-                                  {record.richCard?.title && (
-                                    <div style={{ 
-                                      fontSize: '12px', 
-                                      fontWeight: 500,
-                                      color: THEME_CONSTANTS.colors.text
-                                    }}>
-                                      {record.richCard.title}
-                                    </div>
-                                  )}
-                                  {record.messageType === 'text-with-action' && record.actions && record.actions.length > 0 && (
-                                    <div style={{ marginTop: '4px' }}>
-                                      {record.actions.slice(0, 2).map((action, idx) => (
-                                        <Tag key={idx} size="small" style={{ fontSize: '10px', marginBottom: '2px' }}>
-                                          {action.title}
-                                        </Tag>
-                                      ))}
-                                      {record.actions.length > 2 && (
-                                        <Tag size="small" style={{ fontSize: '10px' }}>+{record.actions.length - 2} more</Tag>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              )
-                            },
-                            {
-                              title: 'Created',
-                              dataIndex: 'createdAt',
-                              key: 'createdAt',
-                              width: 100,
-                              render: (date) => (
-                                <span style={{
-                                  color: THEME_CONSTANTS.colors.textSecondary,
-                                  fontSize: '11px'
-                                }}>
-                                  {new Date(date).toLocaleDateString()}
-                                </span>
-                              )
-                            }
-                          ]}
-                        />
-                      </>
-                    )}
-
-                    {/* Navigation Buttons */}
-                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                        Refresh
+                      </Button>
                       <Button
                         type="primary"
-                        onClick={() => {
-                          if (!selectedTemplate) {
-                            message.error('Please select a template to continue');
-                            return;
-                          }
-                          setCurrentStep(1);
-                        }}
-                        icon={<ArrowRightOutlined />}
-                        size={window.innerWidth <= 768 ? 'default' : 'large'}
-                        block={window.innerWidth <= 768}
+                        onClick={() => navigate('/templates')}
+                        icon={<PlusOutlined />}
+                        size="small"
                         style={{ 
                           backgroundColor: THEME_CONSTANTS.colors.primary,
                           borderColor: THEME_CONSTANTS.colors.primary
                         }}
                       >
-                        {window.innerWidth <= 768 ? 'Next' : 'Next: Add Recipients'}
+                        Create New
                       </Button>
-                    </div>
-                  </Card>
-                </Col>
-
-                <Col xs={24} xl={8}>
-                  <div
-                    className="template-preview-section"
-                    style={{
-                      background: THEME_CONSTANTS.colors.surface,
-                      border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                      borderRadius: THEME_CONSTANTS.radius.lg,
-                      position: 'sticky',
-                      top: '20px',
-                      padding: 'clamp(12px, 2vw, 16px)',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      minHeight: 'clamp(300px, 50vh, 500px)',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    <div style={{ width: '100%', maxWidth: '100%' }}>
-                      {renderTemplatePreview()}
-                    </div>
+                    </Space>
                   </div>
-                </Col>
-              </Row>
+                }
+                style={{
+                  background: THEME_CONSTANTS.colors.surface,
+                  border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                  borderRadius: THEME_CONSTANTS.radius.lg,
+                  boxShadow: THEME_CONSTANTS.shadow.sm
+                }}
+                bodyStyle={{ padding: 'clamp(16px, 3vw, 24px)' }}
+              >
+                {templatesLoading ? (
+                  <div style={{ textAlign: 'center', padding: `${THEME_CONSTANTS.spacing.xxxl} ${THEME_CONSTANTS.spacing.lg}` }}>
+                    <Spin size="large" />
+                    <p style={{ 
+                      marginTop: THEME_CONSTANTS.spacing.lg, 
+                      color: THEME_CONSTANTS.colors.textSecondary,
+                      fontSize: THEME_CONSTANTS.typography.body.size
+                    }}>Loading templates...</p>
+                  </div>
+                ) : filteredTemplates.length === 0 ? (
+                  <Empty
+                    description={
+                      <div>
+                        <p style={{ 
+                          marginBottom: THEME_CONSTANTS.spacing.sm,
+                          color: THEME_CONSTANTS.colors.text,
+                          fontSize: THEME_CONSTANTS.typography.body.size
+                        }}>No templates found</p>
+                        <p style={{ 
+                          fontSize: THEME_CONSTANTS.typography.caption.size, 
+                          color: THEME_CONSTANTS.colors.textSecondary, 
+                          margin: 0 
+                        }}>
+                          Create your first template to start sending messages
+                        </p>
+                      </div>
+                    }
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  >
+                    <Button 
+                      type="primary" 
+                      onClick={() => navigate('/templates')} 
+                      icon={<PlusOutlined />}
+                      style={{
+                        background: THEME_CONSTANTS.colors.primary,
+                        borderColor: THEME_CONSTANTS.colors.primary,
+                        borderRadius: THEME_CONSTANTS.radius.md
+                      }}
+                    >
+                      Create Your First Template
+                    </Button>
+                  </Empty>
+                ) : (
+                  <>
+                    {/* Search and Filter */}
+                    <div style={{ 
+                      marginBottom: '16px', 
+                      display: 'flex', 
+                      gap: '8px', 
+                      alignItems: 'center', 
+                      justifyContent: 'flex-end',
+                      flexDirection: window.innerWidth <= 768 ? 'column' : 'row'
+                    }}>
+                      <Input.Search
+                        placeholder={window.innerWidth <= 768 ? 'Search...' : 'Search templates...'}
+                        value={templateSearch}
+                        onChange={(e) => setTemplateSearch(e.target.value)}
+                        style={{ width: window.innerWidth <= 768 ? '100%' : 'min(250px, 100%)', minWidth: '200px' }}
+                        allowClear
+                        size={window.innerWidth <= 768 ? 'small' : 'default'}
+                      />
+                      <Select
+                        value={templateFilter}
+                        onChange={setTemplateFilter}
+                        style={{ width: window.innerWidth <= 768 ? '100%' : 'min(150px, 100%)', minWidth: '120px' }}
+                        size={window.innerWidth <= 768 ? 'small' : 'default'}
+                        options={[
+                          { label: 'All Types', value: 'all' },
+                          { label: 'Text', value: 'text' },
+                          { label: 'Text + Action', value: 'text-with-action' },
+                          { label: 'RCS Rich Card', value: 'rcs' },
+                          { label: 'Carousel', value: 'carousel' }
+                        ]}
+                      />
+                    </div>
+
+                    {/* Templates Table */}
+                    <Table
+                      dataSource={filteredTemplates}
+                      rowKey="_id"
+                      pagination={{ pageSize: 10, showSizeChanger: true }}
+                      onRow={(record) => ({
+                        onClick: () => {
+                          handleTemplateSelect(record);
+                          setCurrentStep(1); // Auto-advance to step 2
+                        },
+                        style: {
+                          cursor: 'pointer',
+                          backgroundColor: selectedTemplate?._id === record._id ? THEME_CONSTANTS.colors.primaryLight : 'transparent'
+                        }
+                      })}
+                      scroll={{ x: 600 }}
+                      size="small"
+                      columns={[
+                        {
+                          title: 'Template Name',
+                          dataIndex: 'name',
+                          key: 'name',
+                          width: 200,
+                          render: (text, record) => (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '16px' }}>
+                                {record.templateType === 'plainText' ? '💬' :
+                                  record.templateType === 'richCard' ? '🎨' :
+                                    record.templateType === 'carousel' ? '🎠' :
+                                      record.templateType === 'textWithAction' ? '🔗' : '📧'}
+                              </span>
+                              <div>
+                                <div style={{ 
+                                  fontWeight: 600,
+                                  color: THEME_CONSTANTS.colors.text
+                                }}>{text}</div>
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  color: THEME_CONSTANTS.colors.textSecondary 
+                                }}>
+                                  {record.templateType === 'richCard' ? 'Rich Card' : 
+                                   record.templateType === 'carousel' ? 'Carousel' :
+                                   record.templateType === 'textWithAction' ? 'Text + Actions' : 'Plain Text'}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        },
+                        {
+                          title: 'Content Preview',
+                          key: 'preview',
+                          width: 250,
+                          render: (_, record) => (
+                            <div style={{ maxWidth: '200px' }}>
+                              {record.templateType === 'plainText' && record.content?.body && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: THEME_CONSTANTS.colors.textSecondary, 
+                                  marginBottom: '4px' 
+                                }}>
+                                  {record.content.body.length > 30 ? record.content.body.substring(0, 30) + '...' : record.content.body}
+                                </div>
+                              )}
+                              {record.templateType === 'richCard' && record.content?.title && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  fontWeight: 500,
+                                  color: THEME_CONSTANTS.colors.text
+                                }}>
+                                  {record.content.title}
+                                </div>
+                              )}
+                              {record.templateType === 'textWithAction' && record.content?.text && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: THEME_CONSTANTS.colors.textSecondary, 
+                                  marginBottom: '4px' 
+                                }}>
+                                  {record.content.text.length > 30 ? record.content.text.substring(0, 30) + '...' : record.content.text}
+                                </div>
+                              )}
+                              {record.templateType === 'carousel' && record.content?.cards && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: THEME_CONSTANTS.colors.textSecondary 
+                                }}>
+                                  {record.content.cards.length} cards
+                                </div>
+                              )}
+                              {record.templateType === 'textWithAction' && record.content?.buttons && record.content.buttons.length > 0 && (
+                                <div style={{ marginTop: '4px' }}>
+                                  {record.content.buttons.slice(0, 2).map((action, idx) => (
+                                    <Tag key={idx} size="small" style={{ fontSize: '10px', marginBottom: '2px' }}>
+                                      {action.label}
+                                    </Tag>
+                                  ))}
+                                  {record.content.buttons.length > 2 && (
+                                    <Tag size="small" style={{ fontSize: '10px' }}>+{record.content.buttons.length - 2} more</Tag>
+                                  )}
+                                </div>
+                              )}
+                              {record.templateType === 'richCard' && record.content?.actions && record.content.actions.length > 0 && (
+                                <div style={{ marginTop: '4px' }}>
+                                  {record.content.actions.slice(0, 2).map((action, idx) => (
+                                    <Tag key={idx} size="small" style={{ fontSize: '10px', marginBottom: '2px' }}>
+                                      {action.label}
+                                    </Tag>
+                                  ))}
+                                  {record.content.actions.length > 2 && (
+                                    <Tag size="small" style={{ fontSize: '10px' }}>+{record.content.actions.length - 2} more</Tag>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        },
+                        {
+                          title: 'Created',
+                          dataIndex: 'createdAt',
+                          key: 'createdAt',
+                          width: 100,
+                          render: (date) => (
+                            <span style={{
+                              color: THEME_CONSTANTS.colors.textSecondary,
+                              fontSize: '11px'
+                            }}>
+                              {new Date(date).toLocaleDateString()}
+                            </span>
+                          )
+                        }
+                      ]}
+                    />
+                  </>
+                )}
+              </Card>
             )}
 
             {/* Step 1: Add Recipients */}
@@ -1440,25 +1486,23 @@ function CreateCampaign() {
                         border: `1px solid ${THEME_CONSTANTS.colors.border}`,
                       }}>
                         <h4 style={{ margin: '0 0 16px 0', color: THEME_CONSTANTS.colors.text }}>Add Contacts</h4>
-                        <Row gutter={[16, 16]}>
-                          <Col xs={12} sm={6}>
-                            <Upload
-                              beforeUpload={handleExcelUpload}
-                              accept=".xlsx,.xls,.csv"
-                              maxCount={1}
-                              showUploadList={false}
-                            >
-                              <Button
-                                icon={<UploadOutlined />}
-                                loading={checkingCapability}
-                                block
-                                size={window.innerWidth <= 768 ? 'default' : 'large'}
-                                style={{ height: window.innerWidth <= 768 ? '40px' : '48px' }}
-                              >
-                                {window.innerWidth <= 768 ? 'Import' : 'Import Excel'}
-                              </Button>
-                            </Upload>
-                          </Col>
+                        
+                        {/* Simple Contact Upload Component */}
+                        <ContactUpload 
+                          onContactsReady={(newContacts) => {
+                            // Prevent duplicate contacts from being added
+                            const existingNumbers = new Set(recipients.map(r => r.number));
+                            const uniqueContacts = newContacts.filter(contact => 
+                              !existingNumbers.has(contact.number)
+                            );
+                            
+                            if (uniqueContacts.length > 0) {
+                              setRecipients(prev => [...prev, ...uniqueContacts]);
+                            }
+                          }}
+                        />
+
+                        <Row gutter={[16, 16]} style={{ marginTop: '16px' }}>
                           <Col xs={12} sm={6}>
                             <Button
                               icon={<DownloadOutlined />}
@@ -1470,7 +1514,7 @@ function CreateCampaign() {
                               {window.innerWidth <= 768 ? 'Demo' : 'Download Demo'}
                             </Button>
                           </Col>
-                          <Col xs={24} sm={12}>
+                          <Col xs={24} sm={18}>
                             <Button
                               icon={<PlusOutlined />}
                               type="primary"
@@ -1529,7 +1573,7 @@ function CreateCampaign() {
                             <Col xs={12} sm={6}>
                               <div>
                                 <div style={{ fontSize: 'clamp(18px, 4vw, 24px)', fontWeight: 700, marginBottom: '4px', color: THEME_CONSTANTS.colors.warning }}>
-                                  ₹{(recipients.length * 1).toFixed(0)}
+                                  ₹{(validRcsContacts.length * 1).toFixed(0)}
                                 </div>
                                 <div style={{ fontSize: 'clamp(10px, 2vw, 11px)', opacity: 0.9 }}>Est. Cost</div>
                               </div>
@@ -1538,25 +1582,61 @@ function CreateCampaign() {
                         </div>
                       )}
 
-                      {/* Contact List */}
+                      {/* Contact List with Pagination */}
                       {recipients.length > 0 && (
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <h4 style={{ margin: 0 }}>Valid Contacts ({recipients.filter(r => r.capable === true).length})</h4>
+                            <h4 style={{ margin: 0 }}>Contacts ({recipients.length})</h4>
+                            <div style={{ fontSize: '12px', color: '#666' }}>
+                              <span style={{ color: '#52c41a' }}>{recipients.filter(r => r.capable === true).length} RCS</span> • 
+                              <span style={{ color: '#ff4d4f' }}>{recipients.filter(r => r.capable === false).length} SMS</span> • 
+                              <span style={{ color: '#faad14' }}>{recipients.filter(r => r.checking).length} Checking</span>
+                            </div>
                           </div>
                           <Table
-                            columns={contactsColumns}
-                            dataSource={recipients.filter(r => r.capable === true)}
+                            columns={[
+                              {
+                                title: 'Phone',
+                                dataIndex: 'number',
+                                key: 'number',
+                                render: (text) => <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>{text}</span>,
+                              },
+                              {
+                                title: 'Status',
+                                dataIndex: 'capable',
+                                key: 'capable',
+                                render: (capable, record) => {
+                                  if (record.checking) return <Tag color="orange">Checking...</Tag>;
+                                  if (capable === true) return <Tag color="green">RCS</Tag>;
+                                  if (capable === false) return <Tag color="red">SMS</Tag>;
+                                  return <Tag>Pending</Tag>;
+                                },
+                              },
+                              {
+                                title: 'Action',
+                                key: 'action',
+                                render: (_, record) => (
+                                  <Button
+                                    type="text"
+                                    danger
+                                    size="small"
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => deleteContact(record.id)}
+                                  />
+                                ),
+                              },
+                            ]}
+                            dataSource={recipients}
                             rowKey="id"
                             pagination={{
                               pageSize: 10,
                               showSizeChanger: true,
                               showQuickJumper: true,
-                              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} valid contacts`,
-                              pageSizeOptions: ['10', '20', '50', '100'],
+                              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} contacts`,
+                              pageSizeOptions: ['10', '20', '50'],
                             }}
                             size="small"
-                            scroll={{ y: 400 }}
+                            scroll={{ y: 300 }}
                             style={{
                               border: `1px solid ${THEME_CONSTANTS.colors.border}`,
                               borderRadius: THEME_CONSTANTS.radius.md,
@@ -1609,67 +1689,281 @@ function CreateCampaign() {
                   <div style={{ position: 'sticky', top: '20px' }}>
                     <Space direction="vertical" style={{ width: '100%' }} size="large">
                       <Card
-                        title="Campaign Summary"
+                        title={
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            color: THEME_CONSTANTS.colors.text 
+                          }}>
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <FileTextOutlined style={{ color: 'white', fontSize: '16px' }} />
+                            </div>
+                            <span style={{ fontSize: '16px', fontWeight: 600 }}>Campaign Summary</span>
+                          </div>
+                        }
                         style={{
                           background: THEME_CONSTANTS.colors.surface,
                           border: `1px solid ${THEME_CONSTANTS.colors.border}`,
                           borderRadius: THEME_CONSTANTS.radius.lg,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
                         }}
-                        bodyStyle={{ padding: '20px' }}
+                        bodyStyle={{ padding: '24px' }}
                       >
-                      <Space direction="vertical" style={{ width: '100%' }} size="large">
-                        <div>
-                          <Statistic
-                            title="Selected Template"
-                            value={selectedTemplate?.name || 'None'}
-                            valueStyle={{ fontSize: '16px', color: THEME_CONSTANTS.colors.primary }}
-                          />
-                        </div>
-                        <div>
-                          <Statistic
-                            title="Total Recipients"
-                            value={recipients.filter(r => r.capable === true).length}
-                            valueStyle={{ fontSize: '24px', color: THEME_CONSTANTS.colors.text }}
-                          />
-                        </div>
-                        <div>
-                          <Statistic
-                            title="RCS Capable Contacts"
-                            value={recipients.filter((r) => r.capable === true).length}
-                            valueStyle={{ fontSize: '20px', color: THEME_CONSTANTS.colors.success }}
-                          />
-                        </div>
-                        {recipients.filter(r => r.capable === true).length > 0 && (
-                          <div>
-                            <Statistic
-                              title="Estimated Cost"
-                              value={`₹${(recipients.filter(r => r.capable === true).length * 1).toFixed(2)}`}
-                              valueStyle={{ fontSize: '20px', color: THEME_CONSTANTS.colors.warning }}
-                            />
-                          </div>
-                        )}
-
-                        {recipients.length > 0 && (
+                        <Space direction="vertical" style={{ width: '100%' }} size="large">
+                          {/* Template Section */}
                           <div style={{
-                            background: '#f0f5ff',
-                            padding: '16px',
-                            borderRadius: THEME_CONSTANTS.radius.md,
-                            border: `1px solid ${THEME_CONSTANTS.colors.primary}20`,
+                            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                            borderRadius: THEME_CONSTANTS.radius.lg,
+                            padding: '20px',
+                            border: `1px solid ${THEME_CONSTANTS.colors.border}`
                           }}>
-                            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginBottom: '8px' }}>
-                              DELIVERY RATE
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'flex-start',
+                              marginBottom: '12px'
+                            }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  fontWeight: 600, 
+                                  color: THEME_CONSTANTS.colors.textSecondary,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  marginBottom: '8px'
+                                }}>
+                                  Selected Template
+                                </div>
+                                <div style={{ 
+                                  fontSize: '16px', 
+                                  fontWeight: 600, 
+                                  color: selectedTemplate ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.textSecondary,
+                                  marginBottom: '4px'
+                                }}>
+                                  {selectedTemplate?.name || 'No template selected'}
+                                </div>
+                                {selectedTemplate && (
+                                  <div style={{
+                                    fontSize: '12px',
+                                    color: THEME_CONSTANTS.colors.textSecondary,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}>
+                                    <span>📱</span>
+                                    {selectedTemplate.templateType === 'richCard' ? 'Rich Card' : 
+                                     selectedTemplate.templateType === 'carousel' ? 'Carousel' :
+                                     selectedTemplate.templateType === 'textWithAction' ? 'Text + Actions' : 'Plain Text'}
+                                  </div>
+                                )}
+                              </div>
+                              {selectedTemplate && (
+                                <Tooltip title={showPreview ? 'Hide Preview' : 'Show Preview'}>
+                                  <Button
+                                    type="text"
+                                    icon={<EyeOutlined />}
+                                    size="small"
+                                    onClick={() => setShowPreview(!showPreview)}
+                                    style={{ 
+                                      color: THEME_CONSTANTS.colors.primary,
+                                      background: showPreview ? THEME_CONSTANTS.colors.primaryLight : 'transparent',
+                                      borderRadius: '8px',
+                                      width: '32px',
+                                      height: '32px'
+                                    }}
+                                  />
+                                </Tooltip>
+                              )}
                             </div>
-                            <Progress
-                              percent={Math.round((recipients.filter(r => r.capable === true).length / recipients.length) * 100)}
-                              strokeColor={THEME_CONSTANTS.colors.success}
-                              size="small"
-                            />
-                            <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>
-                              {recipients.filter(r => r.capable === true).length} out of {recipients.length} contacts can receive RCS messages
+                            
+                            {showPreview && selectedTemplate && (
+                              <div style={{ 
+                                marginTop: '16px',
+                                padding: '16px',
+                                background: 'white',
+                                borderRadius: THEME_CONSTANTS.radius.md,
+                                border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                              }}>
+                                <div style={{
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  color: THEME_CONSTANTS.colors.textSecondary,
+                                  marginBottom: '12px',
+                                  textAlign: 'center'
+                                }}>
+                                  MESSAGE PREVIEW
+                                </div>
+                                <RCSMessagePreview data={selectedTemplate} />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Statistics Grid */}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: '16px'
+                          }}>
+                            <div style={{
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              borderRadius: THEME_CONSTANTS.radius.lg,
+                              padding: '20px',
+                              color: 'white',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                position: 'absolute',
+                                top: '-10px',
+                                right: '-10px',
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.1)'
+                              }} />
+                              <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 500 }}>
+                                RCS READY
+                              </div>
+                              <div style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1 }}>
+                                {recipients.filter(r => r.capable === true).length}
+                              </div>
+                              <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>
+                                Contacts verified
+                              </div>
+                            </div>
+
+                            <div style={{
+                              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                              borderRadius: THEME_CONSTANTS.radius.lg,
+                              padding: '20px',
+                              color: 'white',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                position: 'absolute',
+                                top: '-10px',
+                                right: '-10px',
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.1)'
+                              }} />
+                              <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 500 }}>
+                                TOTAL UPLOADED
+                              </div>
+                              <div style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1 }}>
+                                {recipients.length}
+                              </div>
+                              <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>
+                                All contacts
+                              </div>
                             </div>
                           </div>
-                        )}
-                      </Space>
+
+                          {/* Cost Section */}
+                          {validRcsContacts.length > 0 && (
+                            <div style={{
+                              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                              borderRadius: THEME_CONSTANTS.radius.lg,
+                              padding: '20px',
+                              color: 'white',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                position: 'absolute',
+                                top: '-10px',
+                                right: '-10px',
+                                width: '60px',
+                                height: '60px',
+                                borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.1)'
+                              }} />
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center'
+                              }}>
+                                <div>
+                                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 500 }}>
+                                    ESTIMATED COST
+                                  </div>
+                                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>
+                                    ₹{(validRcsContacts.length * 1).toFixed(0)}
+                                  </div>
+                                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>
+                                    ₹1 per RCS message
+                                  </div>
+                                </div>
+                                <div style={{ fontSize: '32px', opacity: 0.3 }}>💰</div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Delivery Rate */}
+                          {recipients.length > 0 && (
+                            <div style={{
+                              background: 'white',
+                              padding: '20px',
+                              borderRadius: THEME_CONSTANTS.radius.lg,
+                              border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                            }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                marginBottom: '12px'
+                              }}>
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  fontWeight: 600, 
+                                  color: THEME_CONSTANTS.colors.textSecondary,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px'
+                                }}>
+                                  Delivery Rate
+                                </div>
+                                <div style={{ 
+                                  fontSize: '16px', 
+                                  fontWeight: 700, 
+                                  color: THEME_CONSTANTS.colors.success
+                                }}>
+                                  {Math.round((recipients.filter(r => r.capable === true).length / recipients.length) * 100)}%
+                                </div>
+                              </div>
+                              <Progress
+                                percent={Math.round((recipients.filter(r => r.capable === true).length / recipients.length) * 100)}
+                                strokeColor={{
+                                  '0%': '#10b981',
+                                  '100%': '#059669',
+                                }}
+                                trailColor="#f3f4f6"
+                                strokeWidth={8}
+                                showInfo={false}
+                              />
+                              <div style={{ 
+                                fontSize: '11px', 
+                                color: THEME_CONSTANTS.colors.textSecondary, 
+                                marginTop: '8px',
+                                textAlign: 'center'
+                              }}>
+                                {recipients.filter(r => r.capable === true).length} of {recipients.length} contacts will receive RCS messages
+                              </div>
+                            </div>
+                          )}
+                        </Space>
                     </Card>
                     </Space>
                   </div>
@@ -1739,7 +2033,10 @@ function CreateCampaign() {
                             <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '4px' }}>RECIPIENTS</div>
                             <div style={{ fontSize: '18px', fontWeight: 600 }}>{recipients.length} contacts</div>
                             <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>
-                              {recipients.filter(r => r.capable === true).length} RCS capable
+                              {recipients.filter(r => r.checking || r.capable === null).length > 0 
+                                ? `${recipients.filter(r => r.capable === true).length} verified, ${recipients.filter(r => r.checking || r.capable === null).length} processing`
+                                : `${recipients.filter(r => r.capable === true).length} RCS capable`
+                              }
                             </div>
                           </div>
                         </Col>
@@ -1766,10 +2063,10 @@ function CreateCampaign() {
                             borderRadius: THEME_CONSTANTS.radius.md,
                             color: 'white',
                           }}>
-                            <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '4px' }}>TOTAL COST</div>
-                            <div style={{ fontSize: '18px', fontWeight: 600 }}>₹{(recipients.length * 1).toFixed(2)}</div>
+                            <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '4px' }}>ESTIMATED COST</div>
+                            <div style={{ fontSize: '18px', fontWeight: 600 }}>₹{(validRcsContacts.length * 1).toFixed(2)}</div>
                             <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>
-                              ₹1 per contact
+                              ₹1 per RCS contact
                             </div>
                           </div>
                         </Col>
@@ -1794,7 +2091,27 @@ function CreateCampaign() {
                       </Form>
 
                       {/* Wallet Check */}
-                      {user?.Wallet < recipients.filter(r => r.capable === true).length * 1 ? (
+                      {recipients.filter(r => r.checking || r.capable === null).length > 0 ? (
+                        <Alert
+                          type="info"
+                          showIcon
+                          message="Processing Contacts"
+                          description={
+                            <div>
+                              <p style={{ margin: '8px 0' }}>
+                                {recipients.filter(r => r.checking || r.capable === null).length} contacts are still being processed for RCS capability.
+                              </p>
+                              <p style={{ margin: '8px 0' }}>
+                                Estimated Cost: ₹{(validRcsContacts.length * 1).toFixed(2)} | Available: {formattedBalance}
+                              </p>
+                              <p style={{ margin: '8px 0', fontSize: '12px', color: '#666' }}>
+                                ℹ️ You'll only be charged for successfully sent RCS messages
+                              </p>
+                            </div>
+                          }
+                          style={{ marginBottom: '24px' }}
+                        />
+                      ) : balance < recipients.filter(r => r.capable === true).length * 1 ? (
                         <Alert
                           type="error"
                           showIcon
@@ -1802,7 +2119,7 @@ function CreateCampaign() {
                           description={
                             <div>
                               <p style={{ margin: '8px 0' }}>
-                                Required: ₹{(recipients.filter(r => r.capable === true).length * 1).toFixed(2)} | Available: ₹{user?.Wallet?.toFixed(2) || '0.00'}
+                                Required: ₹{(recipients.filter(r => r.capable === true).length * 1).toFixed(2)} | Available: {formattedBalance}
                               </p>
                               <Button
                                 type="primary"
@@ -1820,7 +2137,7 @@ function CreateCampaign() {
                           type="success"
                           showIcon
                           message="Ready to Send"
-                          description={`Your wallet balance (₹${user?.Wallet?.toFixed(2)}) is sufficient for this campaign.`}
+                          description={`Your wallet balance (${formattedBalance}) is sufficient for this campaign.`}
                           style={{ marginBottom: '24px' }}
                         />
                       )}
@@ -1849,7 +2166,7 @@ function CreateCampaign() {
                           loading={sendingMessage}
                           onClick={handleSendCampaign}
                           icon={<SendOutlined />}
-                          disabled={!campaignName.trim() || user?.Wallet < recipients.filter(r => r.capable === true).length * 1}
+                          disabled={!campaignName.trim() || balance < validRcsContacts.length * 1}
                           style={{
                             height: '48px',
                             flex: window.innerWidth <= 768 ? '1' : 'none',
@@ -1888,8 +2205,8 @@ function CreateCampaign() {
 
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary }}>Valid Recipients</span>
-                          <span style={{ fontSize: '16px', fontWeight: 600 }}>{recipients.filter(r => r.capable === true).length}</span>
+                          <span style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary }}>Total Contacts</span>
+                          <span style={{ fontSize: '16px', fontWeight: 600 }}>{recipients.length}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <span style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary }}>RCS Capable</span>
@@ -1897,10 +2214,20 @@ function CreateCampaign() {
                             {recipients.filter(r => r.capable === true).length}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary }}>Campaign Cost</span>
+                        {recipients.filter(r => r.checking || r.capable === null).length > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary }}>Processing</span>
+                            <span style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.warning }}>
+                              {recipients.filter(r => r.checking || r.capable === null).length}
+                            </span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                          <span style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary }}>
+                            Campaign Cost
+                          </span>
                           <span style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.warning }}>
-                            ₹{(recipients.filter(r => r.capable === true).length * 1).toFixed(2)}
+                            ₹{(validRcsContacts.length * 1).toFixed(2)}
                           </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -1908,29 +2235,40 @@ function CreateCampaign() {
                           <span style={{
                             fontSize: '16px',
                             fontWeight: 600,
-                            color: user?.Wallet >= recipients.filter(r => r.capable === true).length * 1 ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.error
+                            color: balance >= validRcsContacts.length * 1 
+                              ? THEME_CONSTANTS.colors.success 
+                              : THEME_CONSTANTS.colors.error
                           }}>
-                            ₹{user?.Wallet?.toFixed(2) || '0.00'}
+                            {formattedBalance}
                           </span>
                         </div>
                       </div>
 
                       <div style={{
-                        background: user?.Wallet >= recipients.filter(r => r.capable === true).length * 1 ? '#f0f9ff' : '#fef2f2',
+                        background: balance >= validRcsContacts.length * 1 
+                          ? '#f0f9ff' 
+                          : '#fef2f2',
                         padding: '16px',
                         borderRadius: THEME_CONSTANTS.radius.md,
-                        border: `1px solid ${user?.Wallet >= recipients.filter(r => r.capable === true).length * 1 ? '#0ea5e9' : '#ef4444'}20`,
+                        border: `1px solid ${balance >= validRcsContacts.length * 1 
+                          ? '#0ea5e9' 
+                          : '#ef4444'}20`,
                       }}>
                         <div style={{
                           fontSize: '12px',
-                          color: user?.Wallet >= recipients.filter(r => r.capable === true).length * 1 ? '#0ea5e9' : '#ef4444',
+                          color: balance >= validRcsContacts.length * 1 
+                            ? '#0ea5e9' 
+                            : '#ef4444',
                           fontWeight: 600,
                           marginBottom: '4px'
                         }}>
-                          {user?.Wallet >= recipients.filter(r => r.capable === true).length * 1 ? '✓ READY TO SEND' : '⚠ INSUFFICIENT BALANCE'}
+                          {balance >= validRcsContacts.length * 1 
+                            ? '✓ READY TO SEND' 
+                            : '⚠ INSUFFICIENT BALANCE'
+                          }
                         </div>
                         <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary }}>
-                          {user?.Wallet >= recipients.filter(r => r.capable === true).length * 1
+                          {balance >= validRcsContacts.length * 1
                             ? 'Your campaign will be sent immediately after confirmation'
                             : 'Please add money to your wallet to proceed'
                           }
@@ -2025,7 +2363,6 @@ function CreateCampaign() {
           <Button
             key="submit"
             type="primary"
-            loading={checkingCapability}
             onClick={() => manualContactForm.submit()}
           >
             Add Contacts

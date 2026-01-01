@@ -83,34 +83,79 @@ export default function CreateTemplatePage() {
   // Form states
   const [editingTemplate, setEditingTemplate] = useState(editingTemplateFromState || null);
   const [formData, setFormData] = useState({
-    name: editingTemplateFromState?.name || '',
-    text: editingTemplateFromState?.text || '',
-    imageUrl: editingTemplateFromState?.imageUrl || '',
+    name: '',
+    text: '',
+    imageUrl: '',
   });
   const [mediaFile, setMediaFile] = useState(null);
-  const [messageType, setMessageType] = useState(editingTemplateFromState?.messageType || 'text');
-  const [actions, setActions] = useState(
-    editingTemplateFromState?.actions || [{ type: 'reply', title: '', payload: '' }]
-  );
-  const [richCard, setRichCard] = useState(
-    editingTemplateFromState?.richCard || { 
-      title: '', 
-      subtitle: '', 
-      imageUrl: '', 
-      actions: [],
-      mediaFile: null 
-    }
-  );
-  const [carouselItems, setCarouselItems] = useState(
-    editingTemplateFromState?.carouselItems || [
-      { title: '', subtitle: '', imageUrl: '', actions: [], mediaFile: null }
-    ]
-  );
-  const [carouselSuggestions, setCarouselSuggestions] = useState(
-    editingTemplateFromState?.carouselSuggestions || []
-  );
+  const [messageType, setMessageType] = useState('text');
+  const [actions, setActions] = useState([{ type: 'reply', title: '', payload: '' }]);
+  const [richCard, setRichCard] = useState({ 
+    title: '', 
+    subtitle: '', 
+    imageUrl: '', 
+    actions: [],
+    mediaFile: null 
+  });
+  const [carouselItems, setCarouselItems] = useState([
+    { title: '', subtitle: '', imageUrl: '', actions: [], mediaFile: null }
+  ]);
+  const [carouselSuggestions, setCarouselSuggestions] = useState([]);
   const [error, setError] = useState('');
   const [previewMode, setPreviewMode] = useState('desktop');
+  // Initialize form data when editing template changes
+  React.useEffect(() => {
+    if (editingTemplateFromState) {
+      setEditingTemplate(editingTemplateFromState);
+      setFormData({
+        name: editingTemplateFromState.name || '',
+        text: editingTemplateFromState.text || editingTemplateFromState.content?.body || editingTemplateFromState.content?.text || '',
+        imageUrl: editingTemplateFromState.imageUrl || editingTemplateFromState.content?.imageUrl || '',
+      });
+      setMessageType(editingTemplateFromState.templateType === 'plainText' ? 'text' :
+                    editingTemplateFromState.templateType === 'textWithAction' ? 'text-with-action' :
+                    editingTemplateFromState.templateType === 'richCard' ? 'rcs' : 'carousel');
+      
+      // Set actions for text-with-action
+      if (editingTemplateFromState.templateType === 'textWithAction' && editingTemplateFromState.content?.buttons) {
+        setActions(editingTemplateFromState.content.buttons.map(btn => ({
+          type: btn.actionType === 'openUri' ? 'url' : btn.actionType === 'dialPhone' ? 'call' : 'reply',
+          title: btn.label || '',
+          payload: btn.value || btn.uri || ''
+        })));
+      }
+      
+      // Set rich card data
+      if (editingTemplateFromState.templateType === 'richCard' && editingTemplateFromState.content) {
+        setRichCard({
+          title: editingTemplateFromState.content.title || '',
+          subtitle: editingTemplateFromState.content.subtitle || editingTemplateFromState.content.description || '',
+          imageUrl: editingTemplateFromState.content.imageUrl || '',
+          actions: editingTemplateFromState.content.actions?.map(action => ({
+            type: action.actionType === 'openUri' ? 'url' : action.actionType === 'dialPhone' ? 'call' : 'reply',
+            title: action.label || '',
+            payload: action.uri || ''
+          })) || [],
+          mediaFile: null
+        });
+      }
+      
+      // Set carousel data
+      if (editingTemplateFromState.templateType === 'carousel' && editingTemplateFromState.content?.cards) {
+        setCarouselItems(editingTemplateFromState.content.cards.map(card => ({
+          title: card.title || '',
+          subtitle: card.subtitle || card.description || '',
+          imageUrl: card.imageUrl || '',
+          actions: card.actions?.map(action => ({
+            type: action.actionType === 'openUri' ? 'url' : action.actionType === 'dialPhone' ? 'call' : 'reply',
+            title: action.label || '',
+            payload: action.uri || ''
+          })) || [],
+          mediaFile: null
+        })));
+      }
+    }
+  }, [editingTemplateFromState]);
 
   // Upload states
   const [uploadingIndexes, setUploadingIndexes] = useState(new Set());
@@ -159,7 +204,7 @@ export default function CreateTemplatePage() {
           });
         }
         
-        toast.success('Image uploaded successfully');
+        toast.success('✅ Image cropped and uploaded successfully!');
         setCropperOpen(false);
         setCropperImageUrl(null);
         if (cropperImageUrl) {
@@ -167,7 +212,7 @@ export default function CreateTemplatePage() {
         }
       }
     } catch (error) {
-      toast.error('Failed to upload image: ' + error.message);
+      toast.error('❌ Failed to upload image: ' + error.message);
     } finally {
       setCropperLoading(false);
     }
@@ -635,30 +680,59 @@ export default function CreateTemplatePage() {
         </Form.Item>
 
         <Form.Item label="Card Image">
-          <Upload
-            accept="image/*"
-            maxCount={1}
-            beforeUpload={(file) => handleImageSelect(file, 'rich_card')}
-            listType="picture-card"
-            showUploadList={false}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <CloudUploadOutlined style={{ fontSize: '32px', marginBottom: '8px' }} />
-              <div>Upload Image</div>
-            </div>
-          </Upload>
-          {richCard.imageUrl && (
-            <img
-              src={richCard.imageUrl}
-              alt="Preview"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '300px',
-                marginTop: '12px',
-                borderRadius: THEME_CONSTANTS.radius.md,
-              }}
-            />
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <Upload
+              accept="image/*"
+              maxCount={1}
+              beforeUpload={(file) => handleImageSelect(file, 'rich_card')}
+              listType="picture-card"
+              showUploadList={false}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <CloudUploadOutlined style={{ fontSize: '32px', marginBottom: '8px' }} />
+                <div>📸 Upload & Crop Image</div>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Click to select and crop</div>
+              </div>
+            </Upload>
+            {richCard.imageUrl && (
+              <div style={{ position: 'relative' }}>
+                <img
+                  src={richCard.imageUrl}
+                  alt="Preview"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '300px',
+                    marginTop: '12px',
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    border: '2px solid #e9ecef',
+                  }}
+                />
+                <Button
+                  size="small"
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '8px',
+                    background: 'rgba(0,0,0,0.7)',
+                    color: 'white',
+                    border: 'none'
+                  }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = e.target.files[0];
+                      if (file) handleImageSelect(file, 'rich_card');
+                    };
+                    input.click();
+                  }}
+                >
+                  ✂️ Re-crop
+                </Button>
+              </div>
+            )}
+          </div>
         </Form.Item>
 
         <Form.Item label="Card Actions">
@@ -790,30 +864,59 @@ export default function CreateTemplatePage() {
                 </Form.Item>
 
                 <Form.Item label="Item Image">
-                  <Upload
-                    accept="image/*"
-                    maxCount={1}
-                    beforeUpload={(file) => handleImageSelect(file, 'carousel', itemIndex)}
-                    listType="picture-card"
-                    showUploadList={false}
-                  >
-                    <div style={{ textAlign: 'center' }}>
-                      <CloudUploadOutlined style={{ fontSize: '32px', marginBottom: '8px' }} />
-                      <div>Upload Image</div>
-                    </div>
-                  </Upload>
-                  {item.imageUrl && (
-                    <img
-                      src={item.imageUrl}
-                      alt="Preview"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '200px',
-                        marginTop: '12px',
-                        borderRadius: THEME_CONSTANTS.radius.md,
-                      }}
-                    />
-                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <Upload
+                      accept="image/*"
+                      maxCount={1}
+                      beforeUpload={(file) => handleImageSelect(file, 'carousel', itemIndex)}
+                      listType="picture-card"
+                      showUploadList={false}
+                    >
+                      <div style={{ textAlign: 'center' }}>
+                        <CloudUploadOutlined style={{ fontSize: '32px', marginBottom: '8px' }} />
+                        <div>📸 Upload & Crop Image</div>
+                        <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Click to select and crop</div>
+                      </div>
+                    </Upload>
+                    {item.imageUrl && (
+                      <div style={{ position: 'relative' }}>
+                        <img
+                          src={item.imageUrl}
+                          alt="Preview"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '200px',
+                            marginTop: '12px',
+                            borderRadius: THEME_CONSTANTS.radius.md,
+                            border: '2px solid #e9ecef',
+                          }}
+                        />
+                        <Button
+                          size="small"
+                          style={{
+                            position: 'absolute',
+                            top: '16px',
+                            right: '8px',
+                            background: 'rgba(0,0,0,0.7)',
+                            color: 'white',
+                            border: 'none'
+                          }}
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = (e) => {
+                              const file = e.target.files[0];
+                              if (file) handleImageSelect(file, 'carousel', itemIndex);
+                            };
+                            input.click();
+                          }}
+                        >
+                          ✂️ Re-crop
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </Form.Item>
 
                 <Form.Item label="Item Actions">
@@ -1159,6 +1262,7 @@ export default function CreateTemplatePage() {
         onCropComplete={handleCropComplete}
         imageUrl={cropperImageUrl}
         loading={cropperLoading}
+        messageType={messageType === 'rcs' ? 'richCard' : messageType === 'carousel' ? 'carousel' : 'richCard'}
       />
 
       {/* Full Preview Modal */}

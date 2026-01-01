@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSelector } from 'react-redux';
 import {
   Card,
   Row,
@@ -7,6 +8,7 @@ import {
   Select,
   Grid,
   Breadcrumb,
+  DatePicker,
 } from "antd";
 import {
   LineChart,
@@ -30,10 +32,10 @@ import {
   CreditCardOutlined,
 } from "@ant-design/icons";
 import { THEME_CONSTANTS } from "../../theme";
-import { useAuth } from "../../context/AuthContext";
-import api from "../../helper/apiClient";
+import { _get } from '../../helper/apiClient.jsx';
 
 const { useBreakpoint } = Grid;
+const { RangePicker } = DatePicker;
 
 const revenueData = [
   { month: "Jan", revenue: 50000, users: 120 },
@@ -48,10 +50,12 @@ const revenueData = [
 
 function AdminReports() {
   const screens = useBreakpoint();
-  const { user } = useAuth();
+  const { user, token } = useSelector(state => state.auth);
   const [weeklyData, setweeklyData] = useState(null);
   const [monthlyData, setmonthlyData] = useState(null);
-  const [summary, setsummary] = useState(null)
+  const [summary, setsummary] = useState(null);
+  const [dateRange, setDateRange] = useState(null);
+  const [loading, setLoading] = useState(true);
   const stats = {
     totalRevenue: 425000,
     monthlyGrowth: 12.5,
@@ -74,16 +78,16 @@ function AdminReports() {
   async function fatchreport(userId) {
     try {
       let [monthlyData, weeklyData, summary] = await Promise.all([
-        api.getmonthlyliyanalytics(userId),
-        api.getweekliyanalytics(userId),
-        api.adminsummry(),
+        _get(`v1/dashboard/admin/monthly/${userId}`, {}, {}, token),
+        _get(`v1/dashboard/admin/weekly/${userId}`, {}, {}, token),
+        _get('v1/dashboard/admin/summary', {}, {}, token),
       ]);
 
-      setweeklyData(weeklyData?.data)
+      setweeklyData(weeklyData?.data?.data)
       console.log(weeklyData, "=================week");
-      setmonthlyData(monthlyData?.data)
+      setmonthlyData(monthlyData?.data?.data)
       console.log(monthlyData, "-------------------------month");
-      setsummary(summary?.data)
+      setsummary(summary?.data?.data)
      
     } catch (error) {
       console.log(error);
@@ -91,11 +95,10 @@ function AdminReports() {
   }
 
   useEffect(() => {
-    console.log(user);
-    if (user) {
+    if (user && token) {
       fatchreport(user._id);
     }
-  }, []);
+  }, [user, token, dateRange]);
 
   return (
     <>
@@ -203,6 +206,11 @@ function AdminReports() {
               </Col>
               <Col xs={24} lg={6} style={{ placeItems: "end" }}>
                 <div style={{ textAlign: { xs: "center", lg: "right" } }}>
+                  <RangePicker
+                    style={{ width: 200, marginBottom: 8 }}
+                    onChange={(dates) => setDateRange(dates)}
+                    placeholder={['Start Date', 'End Date']}
+                  />
                   <Select
                     style={{ width: 180 }}
                     defaultValue="6months"
