@@ -92,13 +92,24 @@ const ordersSlice = createSlice({
       state.socketConnected = action.payload;
     },
     updateCampaignFromSocket: (state, action) => {
-      const { campaignId, updateData } = action.payload;
+      const { campaignId, status, completedAt } = action.payload;
       // Update the order in the orders array if it exists
       const orderIndex = state.orders.findIndex(order => order._id === campaignId);
       if (orderIndex !== -1) {
         state.orders[orderIndex] = {
           ...state.orders[orderIndex],
-          ...updateData,
+          status: status || state.orders[orderIndex].status,
+          completedAt: completedAt || state.orders[orderIndex].completedAt,
+          lastSocketUpdate: new Date().toISOString()
+        };
+      }
+      
+      // Also update selected order if it matches
+      if (state.selectedOrder && state.selectedOrder._id === campaignId) {
+        state.selectedOrder = {
+          ...state.selectedOrder,
+          status: status || state.selectedOrder.status,
+          completedAt: completedAt || state.selectedOrder.completedAt,
           lastSocketUpdate: new Date().toISOString()
         };
       }

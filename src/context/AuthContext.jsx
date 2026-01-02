@@ -17,8 +17,15 @@ export const AuthProvider = ({ children }) => {
   const dispatch = useDispatch()
   const { user, token, isAuthenticated, loading } = useSelector(state => state.auth)
 
-  const login = (userData, token) => {
-    // Login is handled by Redux thunks
+  const login = (userData, authToken) => {
+    // Store in localStorage immediately
+    if (authToken) {
+      localStorage.setItem('token', authToken);
+    }
+    if (userData) {
+      localStorage.setItem('user', JSON.stringify(userData));
+    }
+    // Login state is handled by Redux thunks
   }
 
   const logout = () => {

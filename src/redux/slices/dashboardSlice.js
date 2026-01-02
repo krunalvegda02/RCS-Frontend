@@ -7,13 +7,13 @@ import { updateWalletBalance } from './authSlice';
 export const fetchDashboardStats = createAsyncThunkHandler(
   'dashboard/fetchStats',
   _get,
-  (payload) => `dashboard/stats/${payload.userId}`
+  (userId) => `dashboard/stats/${userId}`
 );
 
 export const fetchRecentOrders = createAsyncThunkHandler(
   'dashboard/fetchRecentOrders',
   _get,
-  (payload) => `dashboard/recent-orders/${payload.userId}`
+  (userId) => `dashboard/recent-campaigns/${userId}`
 );
 
 export const addWalletRequest = createAsyncThunkHandler(
@@ -64,7 +64,12 @@ const dashboardSlice = createSlice({
       })
       .addCase(fetchDashboardStats.fulfilled, (state, action) => {
         state.loading.stats = false;
-        state.stats = action.payload;
+        // Handle both response.data and response.data.data structures
+        const data = action.payload.data || action.payload;
+        state.stats = {
+          ...initialState.stats,
+          ...data
+        };
       })
       .addCase(fetchDashboardStats.rejected, (state, action) => {
         state.loading.stats = false;
@@ -78,7 +83,9 @@ const dashboardSlice = createSlice({
       })
       .addCase(fetchRecentOrders.fulfilled, (state, action) => {
         state.loading.orders = false;
-        state.recentOrders = Array.isArray(action.payload.data) ? action.payload.data : [];
+        // Handle both response.data and response.data.data structures
+        const data = action.payload.data || action.payload;
+        state.recentOrders = Array.isArray(data) ? data : [];
       })
       .addCase(fetchRecentOrders.rejected, (state, action) => {
         state.loading.orders = false;

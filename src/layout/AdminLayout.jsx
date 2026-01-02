@@ -20,6 +20,10 @@ import {
   SearchOutlined,
   SettingOutlined,
   MailOutlined,
+  FileTextOutlined,
+  FundOutlined,
+  WalletOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -107,30 +111,36 @@ export default function AdminLayout() {
 
   // Admin menu items
   const menuItems = [
-    {
-      key: '/admin',
-      icon: <DashboardOutlined className="text-xl" />,
-      label: 'Dashboard',
-      onClick: () => navigate('/admin'),
-    },
-    {
-      key: '/admin/users',
-      icon: <UserOutlined className="text-xl" />,
-      label: 'User Management',
-      onClick: () => navigate('/admin/users'),
-    },
-    {
-      key: '/admin/wallet-requests',
-      icon: <CreditCardOutlined className="text-xl" />,
-      label: 'Wallet Requests',
-      onClick: () => navigate('/admin/wallet-requests'),
-    },
-    {
-      key: '/admin/reports',
-      icon: <BarChartOutlined className="text-xl" />,
-      label: 'Reports',
-      onClick: () => navigate('/admin/reports'),
-    },
+  {
+    key: '/admin',
+    icon: <DashboardOutlined className="text-xl" />,
+    label: 'Dashboard',
+    onClick: () => navigate('/admin'),
+  },
+  {
+    key: '/admin/users',
+    icon: <TeamOutlined className="text-xl" />,
+    label: 'User Management',
+    onClick: () => navigate('/admin/users'),
+  },
+  {
+    key: '/admin/wallet-requests',
+    icon: <WalletOutlined className="text-xl" />,
+    label: 'Wallet Requests',
+    onClick: () => navigate('/admin/wallet-requests'),
+  },
+  {
+    key: '/admin/all-campaigns',
+    icon: <FundOutlined className="text-xl" />,
+    label: 'All Campaigns',
+    onClick: () => navigate('/admin/all-campaigns'),
+  },
+  {
+    key: '/admin/reports',
+    icon: <FileTextOutlined className="text-xl" />,
+    label: 'Reports',
+    onClick: () => navigate('/admin/reports'),
+  },
   ];
 
   const userMenuItems = [

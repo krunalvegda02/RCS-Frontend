@@ -140,8 +140,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.token = action.payload.token; // FIXED: Use token instead of jio_token
-        localStorage.setItem('token', action.payload.token); // FIXED: Use token instead of jio_token
+        // Handle both token and access_token from backend
+        const token = action.payload.access_token || action.payload.token;
+        state.token = token;
+        localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -162,8 +164,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.token = action.payload.token; // FIXED: Use token instead of jio_token
-        localStorage.setItem('token', action.payload.token); // FIXED: Use token instead of jio_token
+        // Handle both token and access_token from backend
+        const token = action.payload.access_token || action.payload.token;
+        state.token = token;
+        localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
       .addCase(registerUser.rejected, (state, action) => {

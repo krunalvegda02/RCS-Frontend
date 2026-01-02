@@ -59,6 +59,19 @@ import { io } from 'socket.io-client';
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
 
+// Professional message type mapping
+const MESSAGE_TYPE_MAPPING = {
+  'plainText': 'Text Message',
+  'carousel': 'Interactive Carousel',
+  'richCard': 'Rich Media Card',
+  'textWithAction': 'Action-Based Message'
+};
+
+// Get professional type name
+const getProfessionalTypeName = (type) => {
+  return MESSAGE_TYPE_MAPPING[type] || type || 'Standard Message';
+};
+
 export default function Orders() {
   const { user, token } = useAuth();
   const dispatch = useDispatch();
@@ -147,35 +160,41 @@ export default function Orders() {
 
       // Real-time stats updates
       newSocket.on('stats_update', (data) => {
+        console.log('📊 Stats update received:', data);
         dispatch(updateRealTimeStats({
           campaignId: data.campaignId,
           stats: data.stats
         }));
+      });
+
+      // Campaign status updates
+      newSocket.on('campaign_update', (data) => {
+        console.log('🔄 Campaign status update received:', data);
         
-        // Check if campaign should be marked as completed
-        const stats = data.stats;
-        const totalProcessed = (stats.sent || 0) + (stats.failed || 0) + (stats.bounced || 0);
-        const hasUnprocessed = (stats.pending || 0) > 0 || (stats.processing || 0) > 0;
+        // Update campaign status in real-time stats
+        dispatch(updateRealTimeStats({
+          campaignId: data.campaignId,
+          stats: { ...data.stats, status: data.status }
+        }));
         
-        if (!hasUnprocessed && totalProcessed > 0) {
-          // Campaign might be completed, trigger a refresh to get updated status
-          setTimeout(() => {
-            dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }));
-          }, 2000);
+        // Update the campaign in orders list
+        dispatch(updateCampaignFromSocket({
+          campaignId: data.campaignId,
+          status: data.status,
+          completedAt: data.completedAt
+        }));
+        
+        // Show toast notification for status changes
+        if (data.status === 'completed') {
+          toast.success('🎉 Campaign completed successfully!');
+        } else if (data.status === 'failed') {
+          toast.error('❌ Campaign failed!');
         }
       });
 
-      // Campaign updates
-      newSocket.on('campaign_update', (data) => {
-        dispatch(updateRealTimeStats({
-          campaignId: data.campaignId,
-          stats: data
-        }));
-      });
-
-      // Message status updates
+      // Message status updates with live events
       newSocket.on('message_status_update', (data) => {
-        // Add to live events
+        console.log('📨 Message status update:', data);
         dispatch(addLiveEvent({
           id: Date.now() + Math.random(),
           campaignId: data.campaignId,
@@ -185,6 +204,20 @@ export default function Orders() {
           timestamp: data.timestamp,
           eventType: data.eventType
         }));
+        
+        // Request updated stats for this campaign
+        newSocket.emit('request_stats', data.campaignId);
+        
+        // Refresh messages in modal if viewing this campaign
+        if (selectedOrder?._id === data.campaignId && showModal) {
+          setTimeout(() => {
+            dispatch(fetchCampaignMessages({ 
+              campaignId: data.campaignId, 
+              page: modalCurrentPage, 
+              limit: 20 
+            }));
+          }, 500);
+        }
       });
 
       // User interactions
@@ -199,6 +232,17 @@ export default function Orders() {
           text: data.text,
           timestamp: data.timestamp
         }));
+        
+        // Refresh messages in modal if viewing this campaign
+        if (selectedOrder?._id === data.campaignId && showModal) {
+          setTimeout(() => {
+            dispatch(fetchCampaignMessages({ 
+              campaignId: data.campaignId, 
+              page: modalCurrentPage, 
+              limit: 20 
+            }));
+          }, 500);
+        }
       });
 
       setSocket(newSocket);
@@ -212,15 +256,17 @@ export default function Orders() {
       console.warn('Failed to initialize socket connection:', error);
       dispatch(setSocketConnected(false));
     }
-  }, [token, user?._id, dispatch]);
+  }, [token, user?._id, dispatch, currentPage]);
 
-  const fetchAllCampaignStats = async () => {
-    for (const order of orders) {
-      if (order._id) {
-        dispatch(fetchRealTimeCampaignStats({ campaignId: order._id }));
-      }
+  // Force refresh when real-time stats change
+  useEffect(() => {
+    // Force component re-render when realTimeStats change
+    const hasStatusUpdates = Object.values(realTimeStats).some(stats => stats?.status);
+    if (hasStatusUpdates) {
+      // Component will automatically re-render due to realTimeStats dependency
+      console.log('📊 Real-time stats updated, component will re-render');
     }
-  };
+  }, [realTimeStats]);
 
   const getUniqueTypes = () => {
     if (!Array.isArray(orders)) return [];
@@ -236,150 +282,154 @@ export default function Orders() {
     const campaignId = order._id;
     const liveStats = realTimeStats[campaignId];
     
-    // Use real-time stats if available, fallback to order data
+    // Use real-time status if available, fallback to order status
+    const currentStatus = liveStats?.status || order?.status;
     const successCount = liveStats?.delivered || order?.successCount || 0;
     const failedCount = liveStats?.failed || order?.failedCount || 0;
     const sentCount = liveStats?.sent || order?.successCount || 0;
     const totalMessages = liveStats?.total || order?.cost || 0;
     const pendingCount = liveStats?.pending || 0;
-    const processingCount = liveStats?.processing || 0;
 
-    // Check campaign status first - prioritize backend status
-    const isCompleted = order?.status === 'completed';
-    const isProcessing = order?.status === 'processing' || order?.status === 'running';
-    const isFailed = order?.status === 'failed';
+    // Check campaign status first - prioritize real-time status
+    const isCompleted = currentStatus === 'completed';
+    const isProcessing = currentStatus === 'processing' || currentStatus === 'running';
+    const isFailed = currentStatus === 'failed';
     
     // If campaign is completed, show completed status
     if (isCompleted) {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
-          <div>
-            <Tag
-              color={THEME_CONSTANTS.colors.successLight}
-              style={{
-                color: THEME_CONSTANTS.colors.success,
-                border: `1px solid ${THEME_CONSTANTS.colors.success}`,
-                fontWeight: 600,
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                fontSize: '11px'
-              }}
-            >
-              ✅ Completed
-            </Tag>
-          </div>
-        </div>
+        <Tag
+          color="#f6ffed"
+          style={{
+            color: THEME_CONSTANTS.colors.success,
+            border: `1px solid ${THEME_CONSTANTS.colors.success}`,
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '11px'
+          }}
+        >
+          <CheckCircleOutlined style={{ marginRight: 4 }} />
+          Completed
+        </Tag>
       );
     }
 
     // If campaign failed
     if (isFailed) {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
-          <div>
-            <Tag
-              color={THEME_CONSTANTS.colors.dangerLight}
-              style={{
-                color: THEME_CONSTANTS.colors.danger,
-                border: `1px solid ${THEME_CONSTANTS.colors.danger}`,
-                fontWeight: 600,
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                fontSize: '11px'
-              }}
-            >
-              ❌ Failed
-            </Tag>
-          </div>
-        </div>
+        <Tag
+          color="#fff1f0"
+          style={{
+            color: '#ff4d4f',
+            border: '1px solid #ff4d4f',
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '11px'
+          }}
+        >
+          <CloseCircleOutlined style={{ marginRight: 4 }} />
+          Failed
+        </Tag>
       );
     }
 
-    // If campaign is still processing/running
-    if (isProcessing || pendingCount > 0 || processingCount > 0) {
+    // If campaign is processing/running or has pending messages
+    if (isProcessing || pendingCount > 0) {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
-          <div>
-            <Tag
-              color={THEME_CONSTANTS.colors.warningLight}
-              style={{
-                color: THEME_CONSTANTS.colors.warning,
-                border: `1px solid ${THEME_CONSTANTS.colors.warning}`,
-                fontWeight: 600,
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                fontSize: '11px'
-              }}
-            >
-              🔄 {isProcessing ? 'Processing' : 'Pending'}
-            </Tag>
-          </div>
-        </div>
+        <Tag
+          color="#e6f7ff"
+          style={{
+            color: '#1890ff',
+            border: '1px solid #1890ff',
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '11px'
+          }}
+        >
+          <ClockCircleOutlined style={{ marginRight: 4 }} />
+          Processing
+        </Tag>
       );
     }
 
-    // If no messages sent yet and campaign is not completed, show pending
-    if (sentCount === 0 && !isCompleted) {
+    // If no messages sent yet, show pending
+    if (sentCount === 0 && totalMessages > 0) {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
-          <div>
-            <Tag
-              color={THEME_CONSTANTS.colors.warningLight}
-              style={{
-                color: THEME_CONSTANTS.colors.warning,
-                border: `1px solid ${THEME_CONSTANTS.colors.warning}`,
-                fontWeight: 600,
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                fontSize: '11px'
-              }}
-            >
-              ⏳ Pending
-            </Tag>
-          </div>
-        </div>
+        <Tag
+          color="#fffbe6"
+          style={{
+            color: '#faad14',
+            border: '1px solid #faad14',
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '11px'
+          }}
+        >
+          <ClockCircleOutlined style={{ marginRight: 4 }} />
+          Pending
+        </Tag>
       );
     }
 
-    // Show status for active campaigns based on success rate
+    // Show status based on success rate for active campaigns
     const successRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
     
-    const getStatusText = () => {
-      if (successRate >= 80) return '✅ Success';
-      if (successRate > 0) return '⚠️ Partial';
-      return '❌ Failed';
-    };
+    if (successRate >= 80) {
+      return (
+        <Tag
+          color="#f6ffed"
+          style={{
+            color: THEME_CONSTANTS.colors.success,
+            border: `1px solid ${THEME_CONSTANTS.colors.success}`,
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '11px'
+          }}
+        >
+          <CheckCircleOutlined style={{ marginRight: 4 }} />
+          Success
+        </Tag>
+      );
+    } else if (successRate > 0) {
+      return (
+        <Tag
+          color="#fff7e6"
+          style={{
+            color: '#fa8c16',
+            border: '1px solid #fa8c16',
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '11px'
+          }}
+        >
+          <SendOutlined style={{ marginRight: 4 }} />
+          Partial
+        </Tag>
+      );
+    }
 
-    const getStatusColor = () => {
-      if (successRate >= 80) return THEME_CONSTANTS.colors.success;
-      if (successRate > 0) return THEME_CONSTANTS.colors.warning;
-      return THEME_CONSTANTS.colors.danger;
-    };
-
-    const getStatusBg = () => {
-      if (successRate >= 80) return THEME_CONSTANTS.colors.successLight;
-      if (successRate > 0) return THEME_CONSTANTS.colors.warningLight;
-      return THEME_CONSTANTS.colors.dangerLight;
-    };
-
+    // Default status
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
-        <div>
-          <Tag
-            color={getStatusBg()}
-            style={{
-              color: getStatusColor(),
-              border: `1px solid ${getStatusColor()}`,
-              fontWeight: 600,
-              padding: '4px 8px',
-              borderRadius: THEME_CONSTANTS.radius.sm,
-              fontSize: '11px'
-            }}
-          >
-            {getStatusText()}
-          </Tag>
-        </div>
-      </div>
+      <Tag
+        color="#f5f5f5"
+        style={{
+          color: '#8c8c8c',
+          border: '1px solid #d9d9d9',
+          fontWeight: 600,
+          padding: '4px 8px',
+          borderRadius: THEME_CONSTANTS.radius.sm,
+          fontSize: '11px'
+        }}
+      >
+        <ClockCircleOutlined style={{ marginRight: 4 }} />
+        Pending
+      </Tag>
     );
   };
 
@@ -395,6 +445,8 @@ export default function Orders() {
       // Join campaign room for real-time updates
       if (socket) {
         socket.emit('join_campaign', order._id);
+        // Request immediate stats update
+        socket.emit('request_stats', order._id);
       }
     }
   };
@@ -427,20 +479,17 @@ export default function Orders() {
       filtered = filtered.filter(order => {
         const campaignId = order._id;
         const liveStats = realTimeStats[campaignId];
-        const successCount = liveStats?.delivered || order?.successCount || 0;
-        const failedCount = liveStats?.failed || order?.failedCount || 0;
-        const totalMessages = liveStats?.total || order?.cost || 0;
-        const successRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
+        
+        // Use real-time status if available, fallback to order status
+        const currentStatus = liveStats?.status || order?.status;
         
         switch (statusFilter) {
           case 'completed':
-            return order?.status === 'completed';
+            return currentStatus === 'completed';
           case 'processing':
-            return order?.status === 'processing' || order?.status === 'running';
+            return currentStatus === 'processing' || currentStatus === 'running';
           case 'failed':
-            return successRate === 0 && totalMessages > 0;
-          case 'pending':
-            return successCount === 0 && !order?.status === 'completed';
+            return currentStatus === 'failed';
           default:
             return true;
         }
@@ -565,21 +614,42 @@ export default function Orders() {
       title: 'Message Type',
       dataIndex: 'type',
       key: 'type',
-      render: (type) => (
-        <Tag
-          style={{
-            background: type === 'SMS' ? '#e6f7ff' : '#f6f8fb',
-            color: type === 'SMS' ? THEME_CONSTANTS.colors.primary : '#667085',
-            border: 'none',
-            fontWeight: 600,
-            padding: '4px 12px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '12px',
-          }}
-        >
-          {type}
-        </Tag>
-      ),
+      render: (type) => {
+        const professionalName = getProfessionalTypeName(type);
+        
+        const getTypeColor = (type) => {
+          switch (type) {
+            case 'plainText':
+              return { bg: '#e6f7ff', color: '#1890ff' };
+            case 'carousel':
+              return { bg: '#f6ffed', color: '#52c41a' };
+            case 'richCard':
+              return { bg: '#fff2e8', color: '#fa8c16' };
+            case 'textWithAction':
+              return { bg: '#f9f0ff', color: '#722ed1' };
+            default:
+              return { bg: '#f6f8fb', color: '#667085' };
+          }
+        };
+        
+        const colors = getTypeColor(type);
+        
+        return (
+          <Tag
+            style={{
+              background: colors.bg,
+              color: colors.color,
+              border: `1px solid ${colors.color}20`,
+              fontWeight: 600,
+              padding: '6px 12px',
+              borderRadius: THEME_CONSTANTS.radius.md,
+              fontSize: '12px',
+            }}
+          >
+            {professionalName}
+          </Tag>
+        );
+      },
       width: '12%',
     },
     {
@@ -593,16 +663,19 @@ export default function Orders() {
       ),
       width: '12%',
     },
-    {title: 'Success / Failed',
+    {
+      title: 'Success / Failed',
       key: 'results',
       render: (text, record) => {
         const campaignId = record._id;
         const liveStats = realTimeStats[campaignId];
+        
+        // Use delivered count as success count (messages that reached recipients)
         const successCount = liveStats?.delivered || record?.successCount || 0;
         const failedCount = liveStats?.failed || record?.failedCount || 0;
         const totalMessages = liveStats?.total || record?.cost || 0;
         
-        // Calculate delivery rate
+        // Calculate delivery rate based on delivered messages
         const deliveryRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
         
         return (
@@ -984,7 +1057,6 @@ export default function Orders() {
                   { label: 'Completed', value: 'completed' },
                   { label: 'Processing', value: 'processing' },
                   { label: 'Failed', value: 'failed' },
-                  { label: 'Pending', value: 'pending' },
                 ]}
               />
             </Col>
@@ -999,8 +1071,11 @@ export default function Orders() {
                 style={{ width: '100%' }}
                 size="large"
                 options={[
-                  { label: 'All Types', value: 'all' },
-                  ...getUniqueTypes().map((type) => ({ label: type, value: type })),
+                  { label: 'All Message Types', value: 'all' },
+                  ...getUniqueTypes().map((type) => ({ 
+                    label: getProfessionalTypeName(type), 
+                    value: type 
+                  })),
                 ]}
               />
             </Col>
@@ -1138,50 +1213,17 @@ export default function Orders() {
                 pagination={{
                   current: currentPage,
                   pageSize: 10,
-                  total: filteredOrders.length,
+                  total: pagination?.total || filteredOrders.length,
                   onChange: (page) => {
                     setCurrentPage(page);
+                    dispatch(fetchOrders({ userId: user._id, page, limit: 10 }));
                   },
-                  showSizeChanger: false,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
                   showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} campaigns`,
-                  style: { padding: '16px 32px' }
                 }}
-                scroll={{ 
-                  x: 1200, 
-                  y: 600 
-                }}
-                sticky={{
-                  offsetHeader: 0,
-                  offsetScroll: 0,
-                  getContainer: () => window,
-                }}
-                size="middle"
-                bordered={false}
-                style={{ 
-                  '.ant-table-thead > tr > th': {
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 1,
-                    background: '#fafafa',
-                    borderBottom: '2px solid #f0f0f0',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    color: '#4a5568',
-                    padding: '16px 12px'
-                  },
-                  '.ant-table-tbody > tr': {
-                    transition: 'all 0.2s ease'
-                  },
-                  '.ant-table-tbody > tr:hover': {
-                    background: '#f8fafc',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                  },
-                  '.ant-table-tbody > tr > td': {
-                    padding: '16px 12px',
-                    borderBottom: '1px solid #f1f5f9'
-                  }
-                }}
+                scroll={{ x: 1200 }}
+                style={{ padding: '0 32px 32px 32px' }}
               />
             </>
           )}
@@ -1316,9 +1358,9 @@ export default function Orders() {
                       }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
                         <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: THEME_CONSTANTS.colors.successLight, borderRadius: '50%', opacity: 0.3 }} />
                         <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: THEME_CONSTANTS.colors.success }}>
-                          {liveStats.delivered || modalOrder?.totalDelivered || 0}
+                          {liveStats.delivered || modalOrder?.successCount || 0}
                         </div>
-                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 500 }}>Delivered</div>
+                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 500 }}>Successfully Delivered</div>
                       </Card>
                     </Col>
 

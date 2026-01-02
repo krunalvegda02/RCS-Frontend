@@ -54,7 +54,6 @@ const { useBreakpoint } = Grid;
 
 export default function Dashboard() {
   const { user, refreshUser } = useAuth();
-  const { balance, formattedBalance } = useWallet();
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const dispatch = useDispatch();
@@ -75,10 +74,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user?._id) {
+      console.log('Fetching dashboard data for user:', user._id);
       dispatch(fetchDashboardStats(user._id));
       dispatch(fetchRecentOrders(user._id));
     }
   }, [user, dispatch]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Dashboard state:', { stats, recentOrders, loading, error });
+  }, [stats, recentOrders, loading, error]);
 
   const handleAddMoney = async () => {
     if (addAmount && Number.parseFloat(addAmount) > 0) {
@@ -113,6 +118,10 @@ export default function Dashboard() {
       style: 'currency',
       currency: 'INR',
     }).format(value);
+
+  // Get wallet balance from user context
+  const balance = user?.wallet?.balance || 0;
+  const formattedBalance = formatCurrency(balance);
 
   const messageColumns = [
     {
@@ -503,15 +512,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      ₹{loading.orders ? 0 : (() => {
-                        const totalCost = recentOrders.reduce((total, report) => {
-                          console.log("report:", report);
-                          return total + (report.cost || 0);
-                        }, 0);
-                        console.log("Total cost calculated:", totalCost);
-                        console.log("Message reports:", recentOrders);
-                        return totalCost;
-                      })()}
+                      ₹{loading.orders ? 0 : (Array.isArray(recentOrders) ? recentOrders.reduce((total, report) => total + (report.cost || 0), 0) : 0)}
                     </span>
                     <span 
                       style={{ 
@@ -523,7 +524,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <Progress
-                    percent={balance && recentOrders.length > 0 ? Math.min(100, Math.round(((recentOrders.reduce((total, report) => total + (report.cost || 0), 0)) / balance) * 100)) : 0}
+                    percent={balance && Array.isArray(recentOrders) && recentOrders.length > 0 ? Math.min(100, Math.round(((recentOrders.reduce((total, report) => total + (report.cost || 0), 0)) / balance) * 100)) : 0}
                     strokeColor={{ '0%': THEME_CONSTANTS.colors.primary, '100%': THEME_CONSTANTS.colors.primaryDark }}
                   />
                 </div>
@@ -557,7 +558,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency((balance || 0) - (loading.orders ? 0 : recentOrders.reduce((total, report) => total + (report.cost || 0), 0)))}}
+                      {formatCurrency((balance || 0) - (Array.isArray(recentOrders) ? recentOrders.reduce((total, report) => total + (report.cost || 0), 0) : 0))}}
                     </span>
                   </div>
                   <p 
@@ -615,7 +616,11 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? '-' : stats.totalCampaigns}
+                      {loading.stats ? (
+                        <Spin size="small" />
+                      ) : (
+                        stats?.totalCampaigns || 0
+                      )}
                     </h3>
                   </div>
                   <div
@@ -635,18 +640,18 @@ export default function Dashboard() {
                     <MessageOutlined />
                   </div>
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: THEME_CONSTANTS.spacing.xs,
-                    fontSize: THEME_CONSTANTS.typography.bodySmall.size,
-                    color: THEME_CONSTANTS.colors.success,
-                    fontWeight: THEME_CONSTANTS.typography.label.weight,
-                  }}
-                >
-                  <ArrowUpOutlined /> {loading.stats ? '-' : stats.totalCampaigns > 0 ? `${Math.max(0, stats.totalCampaigns - (stats.totalCampaigns - 2))} new this month` : 'No new campaigns'}
-                </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: THEME_CONSTANTS.spacing.xs,
+                      fontSize: THEME_CONSTANTS.typography.bodySmall.size,
+                      color: THEME_CONSTANTS.colors.success,
+                      fontWeight: THEME_CONSTANTS.typography.label.weight,
+                    }}
+                  >
+                    <ArrowUpOutlined /> {loading.stats ? '-' : ((stats?.totalCampaigns || 0) > 0 ? `${Math.min(stats.totalCampaigns, 5)} active campaigns` : 'No campaigns yet')}
+                  </div>
               </Card>
             </Col>
 
@@ -689,7 +694,11 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? '-' : stats.sendtoteltemplet}
+                      {loading.stats ? (
+                        <Spin size="small" />
+                      ) : (
+                        stats?.sendtoteltemplet || 0
+                      )}
                     </h3>
                   </div>
                   <div
@@ -760,7 +769,12 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? '-' : (stats.totalMessages / 1000).toFixed(1)}K
+                      {loading.stats ? (
+                        <Spin size="small" />
+                      ) : (() => {
+                        const totalMessages = stats?.totalMessages || 0;
+                        return totalMessages >= 1000 ? (totalMessages / 1000).toFixed(1) + 'K' : totalMessages;
+                      })()}
                     </h3>
                   </div>
                   <div
@@ -831,8 +845,10 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? '-' : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
+                      {loading.stats ? (
+                        <Spin size="small" />
+                      ) : (() => {
+                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
                         return totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
                       })()}%
                     </h3>
@@ -863,8 +879,8 @@ export default function Dashboard() {
                   }}
                 >
                   {loading.stats ? 'Loading...' : (() => {
-                    const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                    const successRate = totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100) : 0;
+                    const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                    const successRate = totalSent > 0 ? (((stats?.totalSuccessCount || 0) / totalSent) * 100) : 0;
                     return successRate >= 90 ? 'Excellent performance.' : totalSent > 0 ? 'Good performance.' : 'No data yet.';
                   })()}
                 </p>
@@ -929,13 +945,13 @@ export default function Dashboard() {
                           fontSize: THEME_CONSTANTS.typography.body.size,
                         }}
                       >
-                        {loading.stats ? '-' : stats.totalSuccessCount}
+                        {loading.stats ? '-' : (stats?.totalSuccessCount || 0)}
                       </span>
                     </div>
                     <Progress
                       percent={loading.stats ? 0 : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                        return totalSent > 0 ? Math.round((stats.totalSuccessCount / totalSent) * 100) : 0;
+                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                        return totalSent > 0 ? Math.round(((stats?.totalSuccessCount || 0) / totalSent) * 100) : 0;
                       })()}
                       strokeColor={THEME_CONSTANTS.colors.success}
                     />
@@ -967,13 +983,13 @@ export default function Dashboard() {
                           fontSize: THEME_CONSTANTS.typography.body.size,
                         }}
                       >
-                        {loading.stats ? '-' : stats.totalFailedCount}
+                        {loading.stats ? '-' : (stats?.totalFailedCount || 0)}
                       </span>
                     </div>
                     <Progress
                       percent={loading.stats ? 0 : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                        return totalSent > 0 ? Math.round((stats.totalFailedCount / totalSent) * 100) : 0;
+                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                        return totalSent > 0 ? Math.round(((stats?.totalFailedCount || 0) / totalSent) * 100) : 0;
                       })()}
                       strokeColor={THEME_CONSTANTS.colors.danger}
                     />
@@ -1005,8 +1021,8 @@ export default function Dashboard() {
                         }}
                       >
                         {loading.stats ? '-' : (() => {
-                          const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                          return totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
+                          const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                          return totalSent > 0 ? (((stats?.totalSuccessCount || 0) / totalSent) * 100).toFixed(1) : 0;
                         })()}%
                       </span>
                     </p>
@@ -1071,7 +1087,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? '-' : stats.totalMessages}
+                      {loading.stats ? '-' : (stats?.totalMessages || 0)}
                     </span>
                   </div>
 
@@ -1103,7 +1119,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {loading.stats ? '-' : stats.totalSuccessCount}
+                      {loading.stats ? '-' : (stats?.totalSuccessCount || 0)}
                     </span>
                   </div>
 
@@ -1135,7 +1151,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.danger,
                       }}
                     >
-                      {loading.stats ? '-' : stats.totalFailedCount}
+                      {loading.stats ? '-' : (stats?.totalFailedCount || 0)}
                     </span>
                   </div>
                 </Space>
@@ -1190,21 +1206,12 @@ export default function Dashboard() {
             <div style={{ overflowX: 'auto' }}>
               {loading.orders ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '50px',
-                      borderRadius: '50%',
-                      borderTop: `4px solid ${THEME_CONSTANTS.colors.primary}`,
-                      borderRight: `4px solid transparent`,
-                      animation: 'spin 1s linear infinite',
-                    }}
-                  />
+                  <Spin size="large" />
                   <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
                     Loading campaign data...
                   </p>
                 </div>
-              ) : recentOrders.length === 0 ? (
+              ) : !Array.isArray(recentOrders) || recentOrders.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
                   <MessageOutlined style={{ fontSize: '48px', color: `${THEME_CONSTANTS.colors.textSecondary}40`, marginBottom: '16px' }} />
                   <p style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, margin: 0 }}>
@@ -1219,7 +1226,7 @@ export default function Dashboard() {
                   columns={messageColumns}
                   dataSource={recentOrders.slice(0, 5)}
                   rowKey="_id"
-                  pagination={{ pageSize: 5 }}
+                  pagination={false}
                   style={{ borderCollapse: 'collapse' }}
                   scroll={{ x: 800 }}
                 />

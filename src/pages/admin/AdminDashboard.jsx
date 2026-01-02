@@ -630,7 +630,7 @@ function AdminDashboard() {
               value={stats.totalUsers || 0}
               color={THEME_CONSTANTS.colors.primary}
               bgColor={THEME_CONSTANTS.colors.primaryLight}
-              trend={2.5}
+              // trend={2.5}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -640,7 +640,7 @@ function AdminDashboard() {
               value={stats.totalMessages || 0}
               color={THEME_CONSTANTS.colors.success}
               bgColor={THEME_CONSTANTS.colors.successLight}
-              trend={5.2}
+              // trend={5.2}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -650,7 +650,7 @@ function AdminDashboard() {
               value={stats.pendingRequests || 0}
               color={THEME_CONSTANTS.colors.warning}
               bgColor={THEME_CONSTANTS.colors.warningLight}
-              trend={-1.3}
+              // trend={-1.3}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -660,7 +660,7 @@ function AdminDashboard() {
               value={formatCurrency(stats.totalWalletBalance || 0)}
               color={THEME_CONSTANTS.colors.danger}
               bgColor={THEME_CONSTANTS.colors.dangerLight}
-              trend={3.8}
+              // trend={3.8}
             />
           </Col>
         </Row>

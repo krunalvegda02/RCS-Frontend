@@ -19,7 +19,18 @@ export default function Login() {
   const navigate = useNavigate();
   const screens = useBreakpoint();
   
-  const { loading } = useSelector(state => state.auth);
+  const { loading, isAuthenticated, user } = useSelector(state => state.auth);
+
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   // Reset loading state on component mount
   React.useEffect(() => {
@@ -29,7 +40,7 @@ export default function Login() {
   const onFinish = async (values) => {
     try {
       setError('');
-      dispatch(clearError()); // Clear any previous errors
+      dispatch(clearError());
       
       const credentials = {
         emailorphone: values.email,
@@ -39,14 +50,17 @@ export default function Login() {
       const result = await dispatch(loginUser(credentials)).unwrap();
       
       if (result.success) {
+        // Update auth context immediately
+        await login(result.user, result.access_token || result.token);
+        
         toast.success('Login successful!');
-        setTimeout(() => {
-          if (result.user.role === 'admin') {
-            navigate('/admin');
-          } else {
-            navigate('/');
-          }
-        }, 500);
+        
+        // Navigate immediately without setTimeout
+        if (result.user.role === 'admin') {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
       }
     } catch (error) {
       const errorMsg = error || 'Login failed';

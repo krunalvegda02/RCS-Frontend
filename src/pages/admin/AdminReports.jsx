@@ -55,16 +55,6 @@ function AdminReports() {
   const [monthlyData, setmonthlyData] = useState(null);
   const [summary, setsummary] = useState(null);
   const [dateRange, setDateRange] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const stats = {
-    totalRevenue: 425000,
-    monthlyGrowth: 12.5,
-    totalMessages: 28750,
-    messageGrowth: 8.3,
-    activeUsers: 142,
-    userGrowth: 5.2,
-    successRate: 98.5,
-  };
 
   const formatCurrency = (value) => `₹${value?.toLocaleString("en-IN") || 0}`;
 
@@ -280,18 +270,7 @@ function AdminReports() {
                     >
                       {formatCurrency(summary?.totalAmount)}
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: THEME_CONSTANTS.spacing.xs,
-                        fontSize: THEME_CONSTANTS.typography.caption.size,
-                        color: THEME_CONSTANTS.colors.success,
-                      }}
-                    >
-                      <ArrowUpOutlined style={{ fontSize: "11px" }} />
-                      <span>{summary?.totalGrowth} this month</span>
-                    </div>
+                  
                   </div>
                   <div
                     style={{
@@ -440,7 +419,7 @@ function AdminReports() {
                     >
                       {summary?.activeUsers}
                     </div>
-                    <div
+                    {/* <div
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -451,7 +430,7 @@ function AdminReports() {
                     >
                       <ArrowUpOutlined style={{ fontSize: "11px" }} />
                       <span>{summary?.activeUserGrowth} growth</span>
-                    </div>
+                    </div> */}
                   </div>
                   <div
                     style={{
@@ -520,7 +499,7 @@ function AdminReports() {
                     >
                       {summary?.successRate}
                     </div>
-                    <div
+                    {/* <div
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -531,7 +510,7 @@ function AdminReports() {
                     >
                       <ArrowUpOutlined style={{ fontSize: "11px" }} />
                       <span>Excellent</span>
-                    </div>
+                    </div> */}
                   </div>
                   <div
                     style={{

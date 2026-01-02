@@ -9,7 +9,6 @@ import dashboardSlice from './slices/dashboardSlice.js';
 import ordersSlice from './slices/ordersSlice.js';
 import messageSlice from './slices/messageSlice.js';
 import realtimeSlice from './slices/realtimeSlice.js';
-import campaignReportSlice from './slices/campaignReportSlice.js';
 import uploadSlice from './slices/uploadSlice.js';
 import adminSlice from './slices/adminSlice.js';
 import walletSlice from './slices/walletSlice.js';
@@ -29,7 +28,6 @@ const rootReducer = combineReducers({
   orders: ordersSlice,
   messages: messageSlice,
   realtime: realtimeSlice,
-  campaignReports: campaignReportSlice,
   upload: uploadSlice,
   admin: adminSlice,
   wallet: walletSlice,

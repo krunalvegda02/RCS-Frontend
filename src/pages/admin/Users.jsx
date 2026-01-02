@@ -86,16 +86,11 @@ function UserManagement() {
   const openTransactionModal = async (user) => {
     setSelectedUser(user);
     setIsTransactionModalVisible(true);
-    // Use transactions from user's wallet if available, otherwise fetch from API
-    if (user.wallet?.transactions && user.wallet.transactions.length > 0) {
-      // Use existing transactions from user data
-      dispatch({ type: 'admin/getUserTransactionHistory/fulfilled', payload: { data: user.wallet.transactions } });
-    } else {
-      try {
-        await dispatch(getUserTransactionHistory({ userId: user._id })).unwrap();
-      } catch (error) {
-        message.error('Failed to load transaction history');
-      }
+    // Always fetch fresh transaction data from API when modal opens
+    try {
+      await dispatch(getUserTransactionHistory({ userId: user._id })).unwrap();
+    } catch (error) {
+      message.error('Failed to load transaction history');
     }
   };
 
@@ -141,7 +136,12 @@ function UserManagement() {
   const handleCreateUser = async () => {
     try {
       const values = await createUserForm.validateFields();
-      await dispatch(createUser(values)).unwrap();
+      // Ensure role is set to USER (uppercase)
+      const userData = {
+        ...values,
+        role: 'USER'
+      };
+      await dispatch(createUser(userData)).unwrap();
       message.success('User created successfully!');
       setIsCreateUserModalVisible(false);
       createUserForm.resetFields();
@@ -376,7 +376,7 @@ function UserManagement() {
               onClick={() => handleToggleStatus(record._id, record.isActive)}
             />
           </Tooltip>
-          <Tooltip title="Delete">
+          {/* <Tooltip title="Delete">
             <Button
               danger
               size="small"
@@ -384,7 +384,7 @@ function UserManagement() {
               onClick={() => handleDeleteUser(record._id, record.name)}
               style={{ borderRadius: THEME_CONSTANTS.radius.sm }}
             />
-          </Tooltip>
+          </Tooltip> */}
         </Space>
       ),
     },
@@ -638,16 +638,20 @@ function UserManagement() {
             <Col span={12}>
               <Form.Item
                 label="Status"
-                name="isActive"
-                valuePropName="checked"
               >
-                <Select
-                  placeholder="Select status"
-                  options={[
-                    { label: 'Active', value: true },
-                    { label: 'Inactive', value: false }
-                  ]}
-                />
+                <Tag
+                  icon={selectedUser?.isActive ? <CheckOutlined /> : <CloseOutlined />}
+                  color={selectedUser?.isActive ? '#F6FFED' : '#FFF1F0'}
+                  style={{
+                    color: selectedUser?.isActive ? THEME_CONSTANTS.colors.success : '#FF4D4F',
+                    border: `1px solid ${selectedUser?.isActive ? THEME_CONSTANTS.colors.success : '#FF4D4F'}`,
+                    fontWeight: 500,
+                    padding: '4px 12px',
+                    borderRadius: THEME_CONSTANTS.radius.sm,
+                  }}
+                >
+                  {selectedUser?.isActive ? 'Active' : 'Inactive'}
+                </Tag>
               </Form.Item>
             </Col>
           </Row>
@@ -664,7 +668,7 @@ function UserManagement() {
         }}
         onOk={handleCreateUser}
         confirmLoading={loading.createUser}
-        width={window.innerWidth <= 768 ? '95vw' : 600}
+        width={window.innerWidth <= 768 ? '95vw' : 800}
       >
         <Form
           form={createUserForm}
@@ -742,6 +746,34 @@ function UserManagement() {
                   formatter={(value) => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={(value) => value.replace(/₹\s?|(,*)/g, '')}
                 />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Client ID"
+                name="clientId"
+              >
+                <Input placeholder="Enter Jio RCS Client ID (optional)" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Client Secret"
+                name="clientSecret"
+              >
+                <Input.Password placeholder="Enter Jio RCS Client Secret (optional)" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Assistant ID"
+                name="assistantId"
+              >
+                <Input placeholder="Enter Jio RCS Assistant ID (optional)" />
               </Form.Item>
             </Col>
           </Row>
