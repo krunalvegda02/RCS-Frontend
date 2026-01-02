@@ -678,6 +678,8 @@ export default function Orders() {
                         color: THEME_CONSTANTS.colors.text,
                         marginBottom: THEME_CONSTANTS.spacing.sm,
                         lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
+                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                        letterSpacing: '-0.02em',
                         '@media (max-width: 768px)': {
                           fontSize: THEME_CONSTANTS.typography.h2.size,
                         }
@@ -689,7 +691,9 @@ export default function Orders() {
                         fontSize: THEME_CONSTANTS.typography.body.size,
                         fontWeight: 500,
                         lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0
+                        margin: 0,
+                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                        letterSpacing: '-0.01em'
                       }}>
                         Manage and track all your message campaigns with detailed insights and performance metrics.
                       </p>
@@ -707,6 +711,11 @@ export default function Orders() {
                       style={{
                         background: THEME_CONSTANTS.colors.primary,
                         borderColor: THEME_CONSTANTS.colors.primary,
+                        height: '44px',
+                        padding: '0 24px',
+                        fontSize: '15px',
+                        fontWeight: 600,
+                        borderRadius: '8px'
                       }}
                     >
                       Export Report
@@ -715,6 +724,13 @@ export default function Orders() {
                       icon={<ReloadOutlined />}
                       onClick={() => dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }))}
                       loading={loading.orders}
+                      style={{
+                        height: '44px',
+                        padding: '0 20px',
+                        fontSize: '15px',
+                        fontWeight: 500,
+                        borderRadius: '8px'
+                      }}
                     >
                       Refresh
                     </Button>

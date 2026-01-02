@@ -8,50 +8,20 @@ import {
   Card,
   Button,
   Upload,
-  Table,
   Modal,
   Space,
-  Tooltip,
-  Empty,
   Divider,
   Row,
   Col,
-  Tag,
   Grid,
   Breadcrumb,
-  Tabs,
-  Popconfirm,
-  Spin,
-  Progress,
-  Slider,
 } from 'antd';
 import {
   PlusOutlined,
   DeleteOutlined,
-  EditOutlined,
   CloudUploadOutlined,
   HomeOutlined,
-  FileTextOutlined,
   FormOutlined,
-  CopyOutlined,
-  CheckCircleOutlined,
-  CloseOutlined,
-  ReloadOutlined,
-  AppstoreOutlined,
-  UnorderedListOutlined,
-  PhoneOutlined,
-  LinkOutlined,
-  MessageOutlined,
-  MobileOutlined,
-  DownloadOutlined,
-  ClearOutlined,
-  CheckOutlined,
-  ExclamationCircleOutlined,
-  BorderOutlined,
-  RotateLeftOutlined,
-  RotateRightOutlined,
-  ZoomInOutlined,
-  ZoomOutOutlined,
   ArrowLeftOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
@@ -90,17 +60,16 @@ export default function CreateTemplatePage() {
   const [mediaFile, setMediaFile] = useState(null);
   const [messageType, setMessageType] = useState('text');
   const [actions, setActions] = useState([{ type: 'reply', title: '', payload: '' }]);
-  const [richCard, setRichCard] = useState({ 
-    title: '', 
-    subtitle: '', 
-    imageUrl: '', 
+  const [richCard, setRichCard] = useState({
+    title: '',
+    subtitle: '',
+    imageUrl: '',
     actions: [],
-    mediaFile: null 
+    mediaFile: null
   });
   const [carouselItems, setCarouselItems] = useState([
     { title: '', subtitle: '', imageUrl: '', actions: [], mediaFile: null }
   ]);
-  const [carouselSuggestions, setCarouselSuggestions] = useState([]);
   const [error, setError] = useState('');
   const [previewMode, setPreviewMode] = useState('desktop');
   // Initialize form data when editing template changes
@@ -113,9 +82,9 @@ export default function CreateTemplatePage() {
         imageUrl: editingTemplateFromState.imageUrl || editingTemplateFromState.content?.imageUrl || '',
       });
       setMessageType(editingTemplateFromState.templateType === 'plainText' ? 'text' :
-                    editingTemplateFromState.templateType === 'textWithAction' ? 'text-with-action' :
-                    editingTemplateFromState.templateType === 'richCard' ? 'rcs' : 'carousel');
-      
+        editingTemplateFromState.templateType === 'textWithAction' ? 'text-with-action' :
+          editingTemplateFromState.templateType === 'richCard' ? 'rcs' : 'carousel');
+
       // Set actions for text-with-action
       if (editingTemplateFromState.templateType === 'textWithAction' && editingTemplateFromState.content?.buttons) {
         setActions(editingTemplateFromState.content.buttons.map(btn => ({
@@ -124,7 +93,7 @@ export default function CreateTemplatePage() {
           payload: btn.value || btn.uri || ''
         })));
       }
-      
+
       // Set rich card data
       if (editingTemplateFromState.templateType === 'richCard' && editingTemplateFromState.content) {
         setRichCard({
@@ -139,7 +108,7 @@ export default function CreateTemplatePage() {
           mediaFile: null
         });
       }
-      
+
       // Set carousel data
       if (editingTemplateFromState.templateType === 'carousel' && editingTemplateFromState.content?.cards) {
         setCarouselItems(editingTemplateFromState.content.cards.map(card => ({
@@ -159,7 +128,7 @@ export default function CreateTemplatePage() {
 
   // Upload states
   const [uploadingIndexes, setUploadingIndexes] = useState(new Set());
-  
+
   // Image cropper states
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperImageUrl, setCropperImageUrl] = useState(null);
@@ -184,14 +153,14 @@ export default function CreateTemplatePage() {
   // Handle crop completion
   const handleCropComplete = async (croppedFile, cropData) => {
     if (!croppedFile) return;
-    
+
     setCropperLoading(true);
     try {
       const url = await uploadFileToServer(croppedFile);
-      
+
       if (url) {
         const { type, index } = cropperTarget;
-        
+
         if (type === 'main') {
           setFormData(prev => ({ ...prev, imageUrl: url }));
         } else if (type === 'rich_card') {
@@ -203,7 +172,7 @@ export default function CreateTemplatePage() {
             return updated;
           });
         }
-        
+
         toast.success('✅ Image cropped and uploaded successfully!');
         setCropperOpen(false);
         setCropperImageUrl(null);
@@ -231,9 +200,9 @@ export default function CreateTemplatePage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const result = await dispatch(uploadFile(formData)).unwrap();
-      
+
       if (result.success && result.data?.url) {
         return result.data.url;
       } else {
@@ -241,12 +210,12 @@ export default function CreateTemplatePage() {
       }
     } catch (error) {
       console.error('Upload error:', error);
-      
+
       if (error.includes('Session expired')) {
         toast.error('Session expired. Please login again.');
         return null;
       }
-      
+
       toast.error('File upload failed: ' + error);
       return null;
     }
@@ -268,15 +237,15 @@ export default function CreateTemplatePage() {
       }
 
       // Validate actions have titles for text-with-action
-      const validActions = messageType === 'text-with-action' 
+      const validActions = messageType === 'text-with-action'
         ? actions.filter(action => action.title && action.title.trim())
         : [];
-      
+
       if (messageType === 'text-with-action' && validActions.length === 0) {
         toast.error('At least one action button is required for text with actions');
         return;
       }
-      
+
       // Validate carousel items
       let validCarouselItems = [];
       if (messageType === 'carousel') {
@@ -284,7 +253,7 @@ export default function CreateTemplatePage() {
           ...item,
           actions: item.actions.filter(action => action.title && action.title.trim())
         })).filter(item => item.title && item.title.trim() && item.actions.length > 0);
-        
+
         if (validCarouselItems.length === 0) {
           toast.error('At least one carousel item with title and actions is required');
           return;
@@ -306,7 +275,7 @@ export default function CreateTemplatePage() {
 
       // Build content object based on template type
       let content = {};
-      
+
       if (messageType === 'text') {
         content = { body: formData.text };
       } else if (messageType === 'text-with-action') {
@@ -349,18 +318,18 @@ export default function CreateTemplatePage() {
       const templateData = {
         name: formData.name,
         description: formData.text || richCard.subtitle || '',
-        templateType: messageType === 'text' ? 'plainText' : 
-                     messageType === 'text-with-action' ? 'textWithAction' :
-                     messageType === 'rcs' ? 'richCard' : 'carousel',
+        templateType: messageType === 'text' ? 'plainText' :
+          messageType === 'text-with-action' ? 'textWithAction' :
+            messageType === 'rcs' ? 'richCard' : 'carousel',
         content
       };
 
       let result;
       if (editingTemplate) {
         console.log('Updating template with data:', templateData);
-        result = await dispatch(updateTemplate({ 
-          id: editingTemplate._id, 
-          ...templateData 
+        result = await dispatch(updateTemplate({
+          id: editingTemplate._id,
+          ...templateData
         })).unwrap();
         console.log('Update result:', result);
         toast.success('Template updated successfully');
@@ -398,7 +367,7 @@ export default function CreateTemplatePage() {
     setFormData({ ...formData, name: e.target.value });
   };
 
- 
+
 
 
   const handleActionChange = (index, field, value) => {
@@ -470,573 +439,453 @@ export default function CreateTemplatePage() {
     setCarouselItems(updated);
   };
 
-  const handleCarouselSuggestionChange = (index, value) => {
-    const updated = [...carouselSuggestions];
-    updated[index] = value;
-    setCarouselSuggestions(updated);
-  };
 
-  const handleAddCarouselSuggestion = () => {
-    setCarouselSuggestions([...carouselSuggestions, '']);
-  };
-
-  const handleRemoveCarouselSuggestion = (index) => {
-    setCarouselSuggestions(carouselSuggestions.filter((_, i) => i !== index));
-  };
 
   const handleShowPreview = () => {
+    let content = {};
+
+    if (messageType === 'text') {
+      content = { body: formData.text };
+    } else if (messageType === 'text-with-action') {
+      content = {
+        text: formData.text,
+        buttons: actions.map(a => ({
+          label: a.title,
+          value: a.payload,
+          actionType: a.type === 'url' ? 'openUri' : a.type === 'call' ? 'dialPhone' : 'postback'
+        }))
+      };
+    } else if (messageType === 'rcs') {
+      content = {
+        title: richCard.title,
+        subtitle: richCard.subtitle,
+        imageUrl: richCard.imageUrl,
+        actions: richCard.actions.map(a => ({
+          label: a.title,
+          uri: a.payload,
+          actionType: a.type === 'url' ? 'openUri' : a.type === 'call' ? 'dialPhone' : 'postback'
+        }))
+      };
+    } else if (messageType === 'carousel') {
+      content = {
+        cards: carouselItems.map(item => ({
+          title: item.title,
+          subtitle: item.subtitle,
+          imageUrl: item.imageUrl,
+          actions: item.actions.map(a => ({
+            label: a.title,
+            uri: a.payload,
+            actionType: a.type === 'url' ? 'openUri' : a.type === 'call' ? 'dialPhone' : 'postback'
+          }))
+        }))
+      };
+    }
+
     const previewTemplateData = {
       _id: editingTemplate?._id,
       name: formData.name,
-      messageType,
-      text: formData.text,
-      actions: messageType === 'text-with-action' ? actions : [],
-      richCard: messageType === 'rcs' ? richCard : null,
-      carouselItems: messageType === 'carousel' ? carouselItems : null,
-      carouselSuggestions: messageType === 'carousel' ? carouselSuggestions : null,
+      templateType: messageType === 'text' ? 'plainText' :
+        messageType === 'text-with-action' ? 'textWithAction' :
+          messageType === 'rcs' ? 'richCard' : 'carousel',
+      content
     };
     setPreviewData(previewTemplateData);
     setPreviewOpen(true);
   };
 
   const renderTextTemplateForm = () => (
-    <Card style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
-      <Form layout="vertical">
-        <Form.Item label="Template Name" required>
-          <Input
-            placeholder="e.g., Welcome Message"
-            value={formData.name}
-            onChange={handleNameChange}
-            style={{
-              borderRadius: THEME_CONSTANTS.radius.md,
-              padding: '8px 12px',
-            }}
-          />
-        </Form.Item>
+    <Card style={{ marginBottom: '24px', border: '1px solid #e8e8e8', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }} bodyStyle={{ padding: '32px' }}>
+      <div style={{ marginBottom: '28px' }}>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Template Name <span style={{ color: '#ff4d4f' }}>*</span></label>
+        <Input
+          placeholder="e.g., Welcome Message"
+          value={formData.name}
+          onChange={handleNameChange}
+          style={{ height: '52px', fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0' }}
+        />
+      </div>
 
-        <Form.Item label="Message Text" required>
-          <Input.TextArea
-            rows={6}
-            placeholder="Enter your message text here..."
-            value={formData.text}
-            onChange={handleTextChange}
-            style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-          />
-        </Form.Item>
-
-
-      </Form>
+      <div>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Message Text <span style={{ color: '#ff4d4f' }}>*</span></label>
+        <Input.TextArea
+          rows={8}
+          placeholder="Enter your message text here..."
+          value={formData.text}
+          onChange={handleTextChange}
+          style={{ fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0', lineHeight: '1.6' }}
+        />
+      </div>
     </Card>
   );
 
   const renderTextWithActionForm = () => (
-    <Card style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
-      <Form layout="vertical">
-        <Form.Item label="Template Name" required>
-          <Input
-            placeholder="e.g., Welcome with Actions"
-            value={formData.name}
-            onChange={handleNameChange}
-            style={{
-              borderRadius: THEME_CONSTANTS.radius.md,
-              padding: '8px 12px',
-            }}
-          />
-        </Form.Item>
+    <Card style={{ marginBottom: '24px', border: '1px solid #e8e8e8', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }} bodyStyle={{ padding: '32px' }}>
+      <div style={{ marginBottom: '28px' }}>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Template Name <span style={{ color: '#ff4d4f' }}>*</span></label>
+        <Input
+          placeholder="e.g., Welcome with Actions"
+          value={formData.name}
+          onChange={handleNameChange}
+          style={{ height: '52px', fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0' }}
+        />
+      </div>
 
-        <Form.Item label="Message Text" required>
-          <Input.TextArea
-            rows={6}
-            placeholder="Enter your message text here..."
-            value={formData.text}
-            onChange={handleTextChange}
-            style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-          />
-        </Form.Item>
+      <div style={{ marginBottom: '28px' }}>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Message Text <span style={{ color: '#ff4d4f' }}>*</span></label>
+        <Input.TextArea
+          rows={8}
+          placeholder="Enter your message text here..."
+          value={formData.text}
+          onChange={handleTextChange}
+          style={{ fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0', lineHeight: '1.6' }}
+        />
+      </div>
 
-        <Form.Item label="Action Buttons" required>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            {actions.map((action, index) => (
-              <div key={index} style={{
-                padding: THEME_CONSTANTS.spacing.md,
-                border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                borderRadius: THEME_CONSTANTS.radius.md,
-                display: 'flex',
-                gap: THEME_CONSTANTS.spacing.md,
-                flexWrap: 'wrap',
-                alignItems: 'flex-end'
-              }}>
-                <div style={{ flex: 0.5, minWidth: '120px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                    Action Type
-                  </label>
+      <div>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '14px', display: 'block' }}>Action Buttons <span style={{ color: '#ff4d4f' }}>*</span></label>
+        <Space direction="vertical" style={{ width: '100%', gap: '16px' }}>
+          {actions.map((action, index) => (
+            <div key={index} style={{ padding: '24px', background: '#fafafa', border: '2px solid #e8e8e8', borderRadius: '12px' }}>
+              <Row gutter={[16, 16]}>
+                <Col span={24} md={6}>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Type</label>
                   <Select
                     value={action.type}
                     onChange={(value) => handleActionChange(index, 'type', value)}
-                    style={{ marginTop: '4px', width: '100%' }}
+                    style={{ width: '100%', height: '48px' }}
                     options={[
-                      { label: 'Reply', value: 'reply' },
-                      { label: 'URL', value: 'url' },
-                      { label: 'Call', value: 'call' },
+                      { label: '💬 Reply', value: 'reply' },
+                      { label: '🔗 URL', value: 'url' },
+                      { label: '📞 Call', value: 'call' },
                     ]}
                   />
-                </div>
-                <div style={{ flex: 1, minWidth: '150px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                    Button Title
-                  </label>
+                </Col>
+                <Col span={24} md={9}>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Button Label</label>
                   <Input
                     placeholder="e.g., Learn More"
                     value={action.title}
                     onChange={(e) => handleActionChange(index, 'title', e.target.value)}
-                    style={{ marginTop: '4px' }}
+                    style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
                   />
-                </div>
-                <div style={{ flex: 1, minWidth: '150px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                    {action.type === 'url' ? 'URL' : action.type === 'call' ? 'Phone Number' : 'Payload'}
-                  </label>
+                </Col>
+                <Col span={24} md={7}>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>{action.type === 'url' ? 'URL' : action.type === 'call' ? 'Phone' : 'Payload'}</label>
                   <Input
                     placeholder={action.type === 'url' ? 'https://example.com' : action.type === 'call' ? '+1234567890' : 'response_text'}
                     value={action.payload}
                     onChange={(e) => handleActionChange(index, 'payload', e.target.value)}
-                    style={{ marginTop: '4px' }}
+                    style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
                   />
-                </div>
+                </Col>
                 {actions.length > 1 && (
-                  <Button
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => handleRemoveAction(index)}
-                  />
+                  <Col span={24} md={2} style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <Button danger icon={<DeleteOutlined />} onClick={() => handleRemoveAction(index)} style={{ height: '48px', width: '100%' }} />
+                  </Col>
                 )}
-              </div>
-            ))}
-            <Button
-              type="dashed"
-              block
-              icon={<PlusOutlined />}
-              onClick={handleAddAction}
-            >
-              Add Action Button
-            </Button>
-          </Space>
-        </Form.Item>
-
-        <Form.Item label="Suggestions">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            {actions.map((action, index) => (
-              <Input
-                key={index}
-                placeholder={`Suggestion ${index + 1}`}
-                value={action.suggestion || ''}
-                onChange={(e) => handleActionChange(index, 'suggestion', e.target.value)}
-              />
-            ))}
-          </Space>
-        </Form.Item>
-      </Form>
-    </Card>
-  );
-
-
-  const renderRichCardForm = () => (
-    <Card style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
-      <Form layout="vertical">
-        <Form.Item label="Template Name" required>
-          <Input
-            placeholder="e.g., Rich Card"
-            value={formData.name}
-            onChange={handleNameChange}
-            style={{
-              borderRadius: THEME_CONSTANTS.radius.md,
-              padding: '8px 12px',
-            }}
-          />
-        </Form.Item>
-
-        <Form.Item label="Card Title" required>
-          <Input
-            placeholder="e.g., Product Details"
-            value={richCard.title}
-            onChange={(e) => setRichCard({ ...richCard, title: e.target.value })}
-            style={{
-              borderRadius: THEME_CONSTANTS.radius.md,
-              padding: '8px 12px',
-            }}
-          />
-        </Form.Item>
-
-        <Form.Item label="Card Subtitle">
-          <Input
-            placeholder="e.g., Limited Time Offer"
-            value={richCard.subtitle}
-            onChange={(e) => setRichCard({ ...richCard, subtitle: e.target.value })}
-            style={{
-              borderRadius: THEME_CONSTANTS.radius.md,
-              padding: '8px 12px',
-            }}
-          />
-        </Form.Item>
-
-        <Form.Item label="Card Image">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <Upload
-              accept="image/*"
-              maxCount={1}
-              beforeUpload={(file) => handleImageSelect(file, 'rich_card')}
-              listType="picture-card"
-              showUploadList={false}
-            >
-              <div style={{ textAlign: 'center' }}>
-                <CloudUploadOutlined style={{ fontSize: '32px', marginBottom: '8px' }} />
-                <div>📸 Upload & Crop Image</div>
-                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Click to select and crop</div>
-              </div>
-            </Upload>
-            {richCard.imageUrl && (
-              <div style={{ position: 'relative' }}>
-                <img
-                  src={richCard.imageUrl}
-                  alt="Preview"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '300px',
-                    marginTop: '12px',
-                    borderRadius: THEME_CONSTANTS.radius.md,
-                    border: '2px solid #e9ecef',
-                  }}
-                />
-                <Button
-                  size="small"
-                  style={{
-                    position: 'absolute',
-                    top: '16px',
-                    right: '8px',
-                    background: 'rgba(0,0,0,0.7)',
-                    color: 'white',
-                    border: 'none'
-                  }}
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.onchange = (e) => {
-                      const file = e.target.files[0];
-                      if (file) handleImageSelect(file, 'rich_card');
-                    };
-                    input.click();
-                  }}
-                >
-                  ✂️ Re-crop
-                </Button>
-              </div>
-            )}
-          </div>
-        </Form.Item>
-
-        <Form.Item label="Card Actions">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            {richCard.actions.map((action, index) => (
-              <div key={index} style={{
-                padding: THEME_CONSTANTS.spacing.md,
-                border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                borderRadius: THEME_CONSTANTS.radius.md,
-                display: 'flex',
-                gap: THEME_CONSTANTS.spacing.md,
-                flexWrap: 'wrap',
-                alignItems: 'flex-end'
-              }}>
-                <div style={{ flex: 0.5, minWidth: '120px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                    Action Type
-                  </label>
-                  <Select
-                    value={action.type}
-                    onChange={(value) => handleRichCardActionChange(index, 'type', value)}
-                    style={{ marginTop: '4px', width: '100%' }}
-                    options={[
-                      { label: 'Reply', value: 'reply' },
-                      { label: 'URL', value: 'url' },
-                      { label: 'Call', value: 'call' },
-                    ]}
-                  />
-                </div>
-                <div style={{ flex: 1, minWidth: '150px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                    Action Title
-                  </label>
-                  <Input
-                    placeholder="e.g., View Details"
-                    value={action.title}
-                    onChange={(e) => handleRichCardActionChange(index, 'title', e.target.value)}
-                    style={{ marginTop: '4px' }}
-                  />
-                </div>
-                <div style={{ flex: 1, minWidth: '150px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                    {action.type === 'url' ? 'URL' : action.type === 'call' ? 'Phone Number' : 'Payload'}
-                  </label>
-                  <Input
-                    placeholder={action.type === 'url' ? 'https://example.com' : action.type === 'call' ? '+1234567890' : 'response_text'}
-                    value={action.payload}
-                    onChange={(e) => handleRichCardActionChange(index, 'payload', e.target.value)}
-                    style={{ marginTop: '4px' }}
-                  />
-                </div>
-                {richCard.actions.length > 1 && (
-                  <Button
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => handleRemoveRichCardAction(index)}
-                  />
-                )}
-              </div>
-            ))}
-            <Button
-              type="dashed"
-              block
-              icon={<PlusOutlined />}
-              onClick={handleAddRichCardAction}
-            >
-              Add Action
-            </Button>
-          </Space>
-        </Form.Item>
-      </Form>
-    </Card>
-  );
-
-  const renderCarouselForm = () => (
-    <Card style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
-      <Form layout="vertical">
-        <Form.Item label="Template Name" required>
-          <Input
-            placeholder="e.g., Product Carousel"
-            value={formData.name}
-            onChange={handleNameChange}
-            style={{
-              borderRadius: THEME_CONSTANTS.radius.md,
-              padding: '8px 12px',
-            }}
-          />
-        </Form.Item>
-
-        <Divider orientation="left">Carousel Items</Divider>
-
-        <Space direction="vertical" style={{ width: '100%' }}>
-          {carouselItems.map((item, itemIndex) => (
-            <Card
-              key={itemIndex}
-              style={{
-                border: `2px solid ${THEME_CONSTANTS.colors.primaryLight}`,
-                borderRadius: THEME_CONSTANTS.radius.md,
-              }}
-              title={`Item ${itemIndex + 1}`}
-              extra={
-                carouselItems.length > 1 && (
-                  <Button
-                    danger
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    onClick={() => handleRemoveCarouselItem(itemIndex)}
-                  >
-                    Remove
-                  </Button>
-                )
-              }
-            >
-              <Form layout="vertical">
-                <Form.Item label="Item Title">
-                  <Input
-                    placeholder="e.g., Product 1"
-                    value={item.title}
-                    onChange={(e) => handleCarouselItemChange(itemIndex, 'title', e.target.value)}
-                  />
-                </Form.Item>
-
-                <Form.Item label="Item Subtitle">
-                  <Input
-                    placeholder="e.g., Description"
-                    value={item.subtitle}
-                    onChange={(e) => handleCarouselItemChange(itemIndex, 'subtitle', e.target.value)}
-                  />
-                </Form.Item>
-
-                <Form.Item label="Item Image">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <Upload
-                      accept="image/*"
-                      maxCount={1}
-                      beforeUpload={(file) => handleImageSelect(file, 'carousel', itemIndex)}
-                      listType="picture-card"
-                      showUploadList={false}
-                    >
-                      <div style={{ textAlign: 'center' }}>
-                        <CloudUploadOutlined style={{ fontSize: '32px', marginBottom: '8px' }} />
-                        <div>📸 Upload & Crop Image</div>
-                        <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Click to select and crop</div>
-                      </div>
-                    </Upload>
-                    {item.imageUrl && (
-                      <div style={{ position: 'relative' }}>
-                        <img
-                          src={item.imageUrl}
-                          alt="Preview"
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: '200px',
-                            marginTop: '12px',
-                            borderRadius: THEME_CONSTANTS.radius.md,
-                            border: '2px solid #e9ecef',
-                          }}
-                        />
-                        <Button
-                          size="small"
-                          style={{
-                            position: 'absolute',
-                            top: '16px',
-                            right: '8px',
-                            background: 'rgba(0,0,0,0.7)',
-                            color: 'white',
-                            border: 'none'
-                          }}
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = (e) => {
-                              const file = e.target.files[0];
-                              if (file) handleImageSelect(file, 'carousel', itemIndex);
-                            };
-                            input.click();
-                          }}
-                        >
-                          ✂️ Re-crop
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </Form.Item>
-
-                <Form.Item label="Item Actions">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    {item.actions.map((action, actionIndex) => (
-                      <div key={actionIndex} style={{
-                        padding: THEME_CONSTANTS.spacing.md,
-                        border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                        borderRadius: THEME_CONSTANTS.radius.md,
-                        display: 'flex',
-                        gap: THEME_CONSTANTS.spacing.md,
-                        flexWrap: 'wrap',
-                        alignItems: 'flex-end'
-                      }}>
-                        <div style={{ flex: 0.5, minWidth: '120px' }}>
-                          <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                            Action Type
-                          </label>
-                          <Select
-                            value={action.type}
-                            onChange={(value) => handleCarouselActionChange(itemIndex, actionIndex, 'type', value)}
-                            style={{ marginTop: '4px', width: '100%' }}
-                            options={[
-                              { label: 'Reply', value: 'reply' },
-                              { label: 'URL', value: 'url' },
-                              { label: 'Call', value: 'call' },
-                            ]}
-                          />
-                        </div>
-                        <div style={{ flex: 1, minWidth: '150px' }}>
-                          <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                            Action Title
-                          </label>
-                          <Input
-                            placeholder="e.g., Buy"
-                            value={action.title}
-                            onChange={(e) => handleCarouselActionChange(itemIndex, actionIndex, 'title', e.target.value)}
-                            style={{ marginTop: '4px' }}
-                          />
-                        </div>
-                        <div style={{ flex: 1, minWidth: '150px' }}>
-                          <label style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                            {action.type === 'url' ? 'URL' : action.type === 'call' ? 'Phone Number' : 'Payload'}
-                          </label>
-                          <Input
-                            placeholder={action.type === 'url' ? 'https://example.com' : action.type === 'call' ? '+1234567890' : 'response_text'}
-                            value={action.payload}
-                            onChange={(e) => handleCarouselActionChange(itemIndex, actionIndex, 'payload', e.target.value)}
-                            style={{ marginTop: '4px' }}
-                          />
-                        </div>
-                        {item.actions.length > 1 && (
-                          <Button
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={() => handleRemoveCarouselAction(itemIndex, actionIndex)}
-                          />
-                        )}
-                      </div>
-                    ))}
-                    <Button
-                      type="dashed"
-                      block
-                      icon={<PlusOutlined />}
-                      onClick={() => handleAddCarouselAction(itemIndex)}
-                    >
-                      Add Action
-                    </Button>
-                  </Space>
-                </Form.Item>
-              </Form>
-            </Card>
-          ))}
-
-          <Button
-            type="dashed"
-            block
-            icon={<PlusOutlined />}
-            onClick={handleAddCarouselItem}
-          >
-            Add Carousel Item
-          </Button>
-        </Space>
-
-        <Divider orientation="left">Carousel Suggestions</Divider>
-
-        <Space direction="vertical" style={{ width: '100%' }}>
-          {carouselSuggestions.map((suggestion, index) => (
-            <div key={index} style={{
-              display: 'flex',
-              gap: THEME_CONSTANTS.spacing.md,
-              flexWrap: 'wrap',
-              alignItems: 'flex-end'
-            }}>
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <Input
-                  placeholder="e.g., View All Products"
-                  value={suggestion}
-                  onChange={(e) => handleCarouselSuggestionChange(index, e.target.value)}
-                />
-              </div>
-              {carouselSuggestions.length > 0 && (
-                <Button
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => handleRemoveCarouselSuggestion(index)}
-                />
-              )}
+              </Row>
             </div>
           ))}
           <Button
             type="dashed"
             block
             icon={<PlusOutlined />}
-            onClick={handleAddCarouselSuggestion}
+            onClick={handleAddAction}
+            style={{ height: '52px', fontSize: '15px', fontWeight: 600, borderWidth: '2px', borderRadius: '10px' }}
           >
-            Add Suggestion
+            Add Action Button
           </Button>
         </Space>
-      </Form>
+      </div>
+    </Card>
+  );
+
+
+  const renderRichCardForm = () => (
+    <Card style={{ marginBottom: '24px', border: '1px solid #e8e8e8', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }} bodyStyle={{ padding: '32px' }}>
+      <div style={{ marginBottom: '28px' }}>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Template Name <span style={{ color: '#ff4d4f' }}>*</span></label>
+        <Input
+          placeholder="e.g., Rich Card"
+          value={formData.name}
+          onChange={handleNameChange}
+          style={{ height: '52px', fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0' }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '28px' }}>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Card Title <span style={{ color: '#ff4d4f' }}>*</span></label>
+        <Input
+          placeholder="e.g., Product Details"
+          value={richCard.title}
+          onChange={(e) => setRichCard({ ...richCard, title: e.target.value })}
+          style={{ height: '52px', fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0' }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '28px' }}>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Card Subtitle</label>
+        <Input
+          placeholder="e.g., Limited Time Offer"
+          value={richCard.subtitle}
+          onChange={(e) => setRichCard({ ...richCard, subtitle: e.target.value })}
+          style={{ height: '52px', fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0' }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '28px' }}>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Card Image</label>
+        {!richCard.imageUrl ? (
+          <Upload
+            accept="image/*"
+            maxCount={1}
+            beforeUpload={(file) => handleImageSelect(file, 'rich_card')}
+            listType="picture-card"
+            showUploadList={false}
+            style={{ width: '100%', height: "140px", border: '1.5px dashed #d9d9d9', borderRadius: '12px', cursor: 'pointer' }}
+          >
+            <div style={{ padding: '40px 100px', textAlign: 'center' }}>
+              <CloudUploadOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '12px', marginTop: '20px' }} />
+              <div style={{ fontSize: '16px', fontWeight: 600, color: '#262626', marginBottom: '6px' }}> Upload & Crop Image</div>
+              <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '20px' }}>Click to select and crop your image</div>
+            </div>
+          </Upload>
+        ) : (
+          <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '2px solid #e8e8e8' }}>
+            <img src={richCard.imageUrl} alt="Preview" style={{ width: '100%', maxHeight: '320px', objectFit: 'cover', display: 'block' }} />
+            <Button
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', height: '40px', padding: '0 20px', fontWeight: 600 }}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (e) => {
+                  const file = e.target.files[0];
+                  if (file) handleImageSelect(file, 'rich_card');
+                };
+                input.click();
+              }}
+            >
+              ✂️ Re-crop Image
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '14px', display: 'block' }}>Card Actions</label>
+        <Space direction="vertical" style={{ width: '100%', gap: '16px' }}>
+          {richCard.actions.map((action, index) => (
+            <div key={index} style={{ padding: '24px', background: '#fafafa', border: '2px solid #e8e8e8', borderRadius: '12px' }}>
+              <Row gutter={[16, 16]}>
+                <Col span={24} md={8}>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Type</label>
+                  <Select
+                    value={action.type}
+                    onChange={(value) => handleRichCardActionChange(index, 'type', value)}
+                    style={{ width: '100%', height: '48px' }}
+                    options={[
+                      { label: '💬 Reply', value: 'reply' },
+                      { label: '🔗 URL', value: 'url' },
+                      { label: '📞 Call', value: 'call' },
+                    ]}
+                  />
+                </Col>
+                <Col span={24} md={8}>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Action Label</label>
+                  <Input
+                    placeholder="e.g., View Details"
+                    value={action.title}
+                    onChange={(e) => handleRichCardActionChange(index, 'title', e.target.value)}
+                    style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+                  />
+                </Col>
+                <Col span={24} md={6}>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>{action.type === 'url' ? 'URL' : action.type === 'call' ? 'Phone' : 'Payload'}</label>
+                  <Input
+                    placeholder={action.type === 'url' ? 'https://example.com' : action.type === 'call' ? '+1234567890' : 'response_text'}
+                    value={action.payload}
+                    onChange={(e) => handleRichCardActionChange(index, 'payload', e.target.value)}
+                    style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+                  />
+                </Col>
+                {richCard.actions.length > 1 && (
+                  <Col span={24} md={2} style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <Button danger icon={<DeleteOutlined />} onClick={() => handleRemoveRichCardAction(index)} style={{ height: '48px', width: '100%' }} />
+                  </Col>
+                )}
+              </Row>
+            </div>
+          ))}
+          <Button
+            type="dashed"
+            block
+            icon={<PlusOutlined />}
+            onClick={handleAddRichCardAction}
+            style={{ height: '52px', fontSize: '15px', fontWeight: 600, borderWidth: '2px', borderRadius: '10px' }}
+          >
+            Add Action Button
+          </Button>
+        </Space>
+      </div>
+    </Card>
+  );
+
+  const renderCarouselForm = () => (
+    <Card style={{ marginBottom: '24px', border: '1px solid #e8e8e8', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }} bodyStyle={{ padding: '32px' }}>
+      <div style={{ marginBottom: '28px' }}>
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Template Name <span style={{ color: '#ff4d4f' }}>*</span></label>
+        <Input
+          placeholder="e.g., Product Carousel"
+          value={formData.name}
+          onChange={handleNameChange}
+          style={{ height: '52px', fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0' }}
+        />
+      </div>
+
+      <Divider style={{ margin: '32px 0', borderColor: '#e8e8e8' }}>Carousel Items</Divider>
+
+      <Space direction="vertical" style={{ width: '100%', gap: '20px' }}>
+        {carouselItems.map((item, itemIndex) => (
+          <Card
+            key={itemIndex}
+            style={{ border: '2px solid #e8e8e8', borderRadius: '12px', background: '#fafafa' }}
+            title={<span style={{ fontSize: '15px', fontWeight: 600 }}>Item {itemIndex + 1}</span>}
+            extra={
+              carouselItems.length > 1 && (
+                <Button danger icon={<DeleteOutlined />} onClick={() => handleRemoveCarouselItem(itemIndex)} style={{ height: '36px', fontWeight: 600 }}>Remove</Button>
+              )
+            }
+            bodyStyle={{ padding: '24px' }}
+          >
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Item Title</label>
+              <Input
+                placeholder="e.g., Product 1"
+                value={item.title}
+                onChange={(e) => handleCarouselItemChange(itemIndex, 'title', e.target.value)}
+                style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Item Subtitle</label>
+              <Input
+                placeholder="e.g., Description"
+                value={item.subtitle}
+                onChange={(e) => handleCarouselItemChange(itemIndex, 'subtitle', e.target.value)}
+                style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Item Image</label>
+              {!item.imageUrl ? (
+                <Upload
+                  accept="image/*"
+                  maxCount={1}
+                  beforeUpload={(file) => handleImageSelect(file, 'carousel', itemIndex)}
+                  listType="picture-card"
+                  showUploadList={false}
+                  style={{ width: '100%', height: "140px", border: '1.5px dashed #d9d9d9', borderRadius: '12px', cursor: 'pointer' }}
+                >
+                  <div style={{ padding: '40px 100px', textAlign: 'center' }}>
+                    <CloudUploadOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '12px', marginTop: '20px' }} />
+                    <div style={{ fontSize: '16px', fontWeight: 600, color: '#262626', marginBottom: '6px' }}> Upload & Crop Image</div>
+                    <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '20px' }}>Click to select and crop your image</div>
+                  </div>
+                </Upload>
+              ) : (
+                <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: '2px solid #e8e8e8' }}>
+                  <img src={item.imageUrl} alt="Preview" style={{ width: '100%', maxHeight: '240px', objectFit: 'cover', display: 'block' }} />
+                  <Button
+                    style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', height: '36px', padding: '0 16px', fontWeight: 600 }}
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) handleImageSelect(file, 'carousel', itemIndex);
+                      };
+                      input.click();
+                    }}
+                  >
+                    ✂️ Re-crop
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '12px' }}>Item Actions</label>
+              <Space direction="vertical" style={{ width: '100%', gap: '12px' }}>
+                {item.actions.map((action, actionIndex) => (
+                  <div key={actionIndex} style={{ padding: '16px', background: '#fff', border: '2px solid #e8e8e8', borderRadius: '10px' }}>
+                    <Row gutter={[12, 12]}>
+                      <Col span={24} md={6}>
+                        <label style={{ fontSize: '13px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '6px' }}>Type</label>
+                        <Select
+                          value={action.type}
+                          onChange={(value) => handleCarouselActionChange(itemIndex, actionIndex, 'type', value)}
+                          style={{ width: '100%', height: '44px' }}
+                          options={[
+                            { label: '💬 Reply', value: 'reply' },
+                            { label: '🔗 URL', value: 'url' },
+                            { label: '📞 Call', value: 'call' },
+                          ]}
+                        />
+                      </Col>
+                      <Col span={24} md={9}>
+                        <label style={{ fontSize: '13px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '6px' }}>Label</label>
+                        <Input
+                          placeholder="e.g., Buy Now"
+                          value={action.title}
+                          onChange={(e) => handleCarouselActionChange(itemIndex, actionIndex, 'title', e.target.value)}
+                          style={{ height: '44px', fontSize: '14px', padding: '10px 14px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+                        />
+                      </Col>
+                      <Col span={24} md={7}>
+                        <label style={{ fontSize: '13px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '6px' }}>{action.type === 'url' ? 'URL' : action.type === 'call' ? 'Phone' : 'Payload'}</label>
+                        <Input
+                          placeholder={action.type === 'url' ? 'https://example.com' : action.type === 'call' ? '+1234567890' : 'response_text'}
+                          value={action.payload}
+                          onChange={(e) => handleCarouselActionChange(itemIndex, actionIndex, 'payload', e.target.value)}
+                          style={{ height: '44px', fontSize: '14px', padding: '10px 14px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+                        />
+                      </Col>
+                      {item.actions.length > 1 && (
+                        <Col span={24} md={2} style={{ display: 'flex', alignItems: 'flex-end' }}>
+                          <Button danger icon={<DeleteOutlined />} onClick={() => handleRemoveCarouselAction(itemIndex, actionIndex)} style={{ height: '44px', width: '100%' }} />
+                        </Col>
+                      )}
+                    </Row>
+                  </div>
+                ))}
+                <Button
+                  type="dashed"
+                  block
+                  icon={<PlusOutlined />}
+                  onClick={() => handleAddCarouselAction(itemIndex)}
+                  style={{ height: '48px', fontSize: '14px', fontWeight: 600, borderWidth: '2px', borderRadius: '8px' }}
+                >
+                  Add Action Button
+                </Button>
+              </Space>
+            </div>
+          </Card>
+        ))}
+
+        <Button
+          type="dashed"
+          block
+          icon={<PlusOutlined />}
+          onClick={handleAddCarouselItem}
+          style={{ height: '52px', fontSize: '15px', fontWeight: 600, borderWidth: '2px', borderRadius: '10px' }}
+        >
+          Add Carousel Item
+        </Button>
+      </Space>
     </Card>
   );
 
@@ -1062,9 +911,9 @@ export default function CreateTemplatePage() {
               <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>Home</span>
             </Breadcrumb.Item>
             <Breadcrumb.Item>
-              <span 
+              <span
                 onClick={() => navigate('/templates')}
-                style={{ 
+                style={{
                   color: THEME_CONSTANTS.colors.primary,
                   fontWeight: THEME_CONSTANTS.typography.h6.weight,
                   cursor: 'pointer'
@@ -1074,7 +923,7 @@ export default function CreateTemplatePage() {
               </span>
             </Breadcrumb.Item>
             <Breadcrumb.Item>
-              <span style={{ 
+              <span style={{
                 color: THEME_CONSTANTS.colors.primary,
                 fontWeight: THEME_CONSTANTS.typography.h6.weight
               }}>
@@ -1112,18 +961,22 @@ export default function CreateTemplatePage() {
                       color: THEME_CONSTANTS.colors.text,
                       marginBottom: THEME_CONSTANTS.spacing.sm,
                       lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
+                      fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                      letterSpacing: '-0.02em'
                     }}>
-                      {editingTemplate ? '✏️ Edit Template' : '➕ Create New Template'}
+                      {editingTemplate ? 'Template Update' : 'Create New Template'}
                     </h1>
                     <p style={{
                       color: THEME_CONSTANTS.colors.textSecondary,
                       fontSize: THEME_CONSTANTS.typography.body.size,
                       fontWeight: 500,
                       lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                      margin: 0
+                      margin: 0,
+                      fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                      letterSpacing: '-0.01em'
                     }}>
-                      {editingTemplate 
-                        ? 'Modify your message template settings' 
+                      {editingTemplate
+                        ? 'Modify your message template as needed for your campaigns'
                         : 'Create a new message template for your campaigns'}
                     </p>
                   </div>
@@ -1135,6 +988,13 @@ export default function CreateTemplatePage() {
                 <Button
                   icon={<ArrowLeftOutlined />}
                   onClick={() => navigate('/templates')}
+                  style={{
+                    height: '44px',
+                    padding: '0 24px',
+                    fontSize: '15px',
+                    fontWeight: 500,
+                    borderRadius: '8px'
+                  }}
                 >
                   Back to Templates
                 </Button>
@@ -1147,20 +1007,21 @@ export default function CreateTemplatePage() {
         <Row gutter={[24, 24]}>
           <Col xs={24} lg={16}>
             {/* Message Type Selection */}
-            <Card style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
-              <Form.Item label="Select Message Type" required>
-                <Select
-                  value={messageType}
-                  onChange={setMessageType}
-                  options={[
-                    { label: 'Text Message', value: 'text' },
-                    { label: 'Text with Actions', value: 'text-with-action' },
-                    { label: 'Rich Card', value: 'rcs' },
-                    { label: 'Carousel', value: 'carousel' },
-                  ]}
-                  style={{ height: '40px' }}
-                />
-              </Form.Item>
+            <Card style={{ marginBottom: '24px', border: '1px solid #e8e8e8', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }} bodyStyle={{ padding: '32px' }}>
+              <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '12px', display: 'block' }}>Select Message Type <span style={{ color: '#ff4d4f' }}>*</span></label>
+              <Select
+                value={messageType}
+                onChange={setMessageType}
+                options={[
+                  { label: 'Text Message', value: 'text' },
+                  { label: 'Text with Actions', value: 'text-with-action' },
+                  { label: 'Rich Card', value: 'rcs' },
+                  { label: 'Carousel', value: 'carousel' },
+                ]}
+                dropdownStyle={{ fontSize: '16px' }}
+               
+                style={{ width: '100%', height: '52px', fontSize: '15px' , }}
+              />
             </Card>
 
             {/* Conditional Forms */}
@@ -1170,42 +1031,52 @@ export default function CreateTemplatePage() {
             {messageType === 'carousel' && renderCarouselForm()}
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: THEME_CONSTANTS.spacing.md, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '32px' }}>
               <Button
                 type="primary"
-                size="large"
                 loading={templateLoading}
                 onClick={handleSaveTemplate}
                 style={{
                   background: THEME_CONSTANTS.colors.primary,
                   border: 'none',
-                  fontWeight: THEME_CONSTANTS.typography.label.weight,
-                  borderRadius: THEME_CONSTANTS.radius.md,
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  height: '56px',
+                  padding: '0 40px',
+                  fontSize: '16px',
+                  boxShadow: '0 4px 12px rgba(24,144,255,0.3)'
                 }}
               >
                 {editingTemplate ? 'Update Template' : 'Save Template'}
               </Button>
               <Button
-                size="large"
                 onClick={handleShowPreview}
                 style={{
                   border: `2px solid ${THEME_CONSTANTS.colors.primary}`,
                   color: THEME_CONSTANTS.colors.primary,
-                  fontWeight: THEME_CONSTANTS.typography.label.weight,
-                  borderRadius: THEME_CONSTANTS.radius.md,
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  height: '56px',
+                  padding: '0 40px',
+                  fontSize: '16px',
+                  background: '#fff'
                 }}
               >
-                Preview Template
+                Preview
               </Button>
               <Button
-                size="large"
                 onClick={() => navigate('/templates')}
                 style={{
-                  fontWeight: THEME_CONSTANTS.typography.label.weight,
-                  borderRadius: THEME_CONSTANTS.radius.md,
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  height: '56px',
+                  padding: '0 40px',
+                  fontSize: '16px',
+                  border: '2px solid #d9d9d9',
+                  background: '#fff'
                 }}
               >
-                Cancel
+                ❌ Cancel
               </Button>
             </div>
           </Col>
@@ -1214,42 +1085,69 @@ export default function CreateTemplatePage() {
           <Col xs={24} lg={8}>
             <Card
               style={{
-                borderRadius: THEME_CONSTANTS.radius.lg,
-                border: 'none',
-                boxShadow: THEME_CONSTANTS.shadow.base,
+                borderRadius: '12px',
+                border: '1px solid #e8e8e8',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                 position: 'sticky',
                 top: '20px'
               }}
               title={
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <EyeOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 600 }}>
+                  <EyeOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
                   <span>Live Preview</span>
                 </div>
               }
+              bodyStyle={{ padding: '16px', background: '#f5f7fa' }}
             >
-              <div style={{ 
-                minHeight: '300px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                overflow: 'hidden',
-                width: '100%'
-              }}>
-                <div style={{ width: '100%', maxWidth: '100%' }}>
-                  <RCSMessagePreview 
-                    data={{
-                      _id: editingTemplate?._id,
-                      name: formData.name,
-                      messageType,
+              <RCSMessagePreview
+                data={(() => {
+                  let content = {};
+                  if (messageType === 'text') {
+                    content = { body: formData.text };
+                  } else if (messageType === 'text-with-action') {
+                    content = {
                       text: formData.text,
-                      actions: messageType === 'text-with-action' ? actions : [],
-                      richCard: messageType === 'rcs' ? richCard : null,
-                      carouselItems: messageType === 'carousel' ? carouselItems : null,
-                      carouselSuggestions: messageType === 'carousel' ? carouselSuggestions : null,
-                    }}
-                  />
-                </div>
-              </div>
+                      buttons: actions.map(a => ({
+                        label: a.title,
+                        value: a.payload,
+                        actionType: a.type === 'url' ? 'openUri' : a.type === 'call' ? 'dialPhone' : 'postback'
+                      }))
+                    };
+                  } else if (messageType === 'rcs') {
+                    content = {
+                      title: richCard.title,
+                      subtitle: richCard.subtitle,
+                      imageUrl: richCard.imageUrl,
+                      actions: richCard.actions.map(a => ({
+                        label: a.title,
+                        uri: a.payload,
+                        actionType: a.type === 'url' ? 'openUri' : a.type === 'call' ? 'dialPhone' : 'postback'
+                      }))
+                    };
+                  } else if (messageType === 'carousel') {
+                    content = {
+                      cards: carouselItems.map(item => ({
+                        title: item.title,
+                        subtitle: item.subtitle,
+                        imageUrl: item.imageUrl,
+                        actions: item.actions.map(a => ({
+                          label: a.title,
+                          uri: a.payload,
+                          actionType: a.type === 'url' ? 'openUri' : a.type === 'call' ? 'dialPhone' : 'postback'
+                        }))
+                      }))
+                    };
+                  }
+                  return {
+                    _id: editingTemplate?._id,
+                    name: formData.name,
+                    templateType: messageType === 'text' ? 'plainText' :
+                      messageType === 'text-with-action' ? 'textWithAction' :
+                        messageType === 'rcs' ? 'richCard' : 'carousel',
+                    content
+                  };
+                })()}
+              />
             </Card>
           </Col>
         </Row>
@@ -1269,33 +1167,19 @@ export default function CreateTemplatePage() {
       {previewOpen && previewData && (
         <Modal
           title={
-            <div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>
-                Full Template Preview
-              </div>
-              <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>
-                {getMessageTypeLabel ? getMessageTypeLabel(previewData.messageType) : previewData.messageType}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 600 }}>
+              <EyeOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
+              <span>Template Preview - {previewData.name}</span>
             </div>
           }
           open={previewOpen}
           onCancel={() => setPreviewOpen(false)}
-          width={800}
+          width={480}
           footer={null}
-          bodyStyle={{ padding: '24px' }}
-          style={{ maxWidth: '90vw' }}
+          bodyStyle={{ padding: '24px', background: '#f5f7fa' }}
+          centered
         >
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            maxHeight: '600px',
-            overflowY: 'auto',
-            width: '100%'
-          }}>
-            <div style={{ width: '100%', maxWidth: '100%' }}>
-              <RCSMessagePreview data={previewData} />
-            </div>
-          </div>
+          <RCSMessagePreview data={previewData} />
         </Modal>
       )}
     </div>

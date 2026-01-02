@@ -107,10 +107,10 @@ export default function TemplatePage() {
             <FileTextOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
           </div>
           <div>
-            <div style={{ fontWeight: 600, color: '#000', fontSize: '14px' }}>
+            <div style={{ fontWeight: 600, color: '#000', fontSize: '14px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', letterSpacing: '-0.01em' }}>
               {text}
             </div>
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
               ID: {record._id?.slice(-8) || 'N/A'}
             </div>
           </div>
@@ -131,6 +131,8 @@ export default function TemplatePage() {
             fontWeight: 600,
             padding: '6px 12px',
             borderRadius: '8px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            letterSpacing: '-0.01em'
           }}
         >
           {getMessageTypeLabel ? getMessageTypeLabel(type) : type}
@@ -161,8 +163,8 @@ export default function TemplatePage() {
           <Tooltip title="View Template">
             <Button
               type="text"
-              size="small"
-              icon={<EyeOutlined />}
+              size="medium"
+              icon={<EyeOutlined style={{ fontSize: 20 }} />}
               onClick={() => handlePreview(record)}
               style={{ color: THEME_CONSTANTS.colors.primary }}
             />
@@ -171,7 +173,7 @@ export default function TemplatePage() {
             <Button
               type="text"
               size="small"
-              icon={<EditOutlined />}
+              icon={<EditOutlined style={{ fontSize: 20 }} />}
               onClick={() => handleEdit(record)}
               style={{ color: '#1890ff' }}
             />
@@ -185,7 +187,11 @@ export default function TemplatePage() {
               cancelText="Cancel"
               okType="danger"
             >
-              <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+              <Button
+                type="text"
+                size="small"
+                icon={<DeleteOutlined style={{ fontSize: 20 }} />}
+                danger />
             </Popconfirm>
           </Tooltip>
         </Space>
@@ -195,7 +201,7 @@ export default function TemplatePage() {
   ];
 
   return (
-    <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh' }}>
+    <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
       <div style={{
         maxWidth: THEME_CONSTANTS.layout.maxContentWidth,
         margin: '0 auto',
@@ -209,16 +215,19 @@ export default function TemplatePage() {
         }}>
           <Breadcrumb style={{
             marginBottom: THEME_CONSTANTS.spacing.md,
-            fontSize: THEME_CONSTANTS.typography.caption.size
+            fontSize: '13px',
+            fontFamily: THEME_CONSTANTS.typography.fontFamily,
+            fontWeight: 500
           }}>
             <Breadcrumb.Item>
-              <HomeOutlined style={{ marginRight: '6px' }} />
-              <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>Home</span>
+              <HomeOutlined style={{ marginRight: '6px', fontSize: '12px' }} />
+              <span style={{ color: THEME_CONSTANTS.colors.textMuted, letterSpacing: '-0.01em' }}>Home</span>
             </Breadcrumb.Item>
             <Breadcrumb.Item>
               <span style={{
                 color: THEME_CONSTANTS.colors.primary,
-                fontWeight: THEME_CONSTANTS.typography.h6.weight
+                fontWeight: 600,
+                letterSpacing: '-0.01em'
               }}>
                 Templates
               </span>
@@ -249,20 +258,24 @@ export default function TemplatePage() {
                 <Col xs={24} sm={20} md={21} lg={21}>
                   <div>
                     <h1 style={{
-                      fontSize: THEME_CONSTANTS.typography.h1.size,
-                      fontWeight: THEME_CONSTANTS.typography.h1.weight,
-                      color: THEME_CONSTANTS.colors.text,
-                      marginBottom: THEME_CONSTANTS.spacing.sm,
-                      lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
+                      fontSize: '34px',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      marginBottom: '10px',
+                      lineHeight: 1.2,
+                      fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                      letterSpacing: '-0.03em'
                     }}>
                       Message Templates 📝
                     </h1>
                     <p style={{
-                      color: THEME_CONSTANTS.colors.textSecondary,
-                      fontSize: THEME_CONSTANTS.typography.body.size,
-                      fontWeight: 500,
-                      lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                      margin: 0
+                      color: '#64748b',
+                      fontSize: '15px',
+                      fontWeight: 450,
+                      lineHeight: 1.6,
+                      margin: 0,
+                      fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                      letterSpacing: '-0.01em'
                     }}>
                       Create, manage and organize your message templates for quick campaign creation.
                     </p>
@@ -280,8 +293,13 @@ export default function TemplatePage() {
                     style={{
                       background: THEME_CONSTANTS.colors.primary,
                       border: 'none',
-                      fontWeight: THEME_CONSTANTS.typography.label.weight,
-                      borderRadius: THEME_CONSTANTS.radius.md,
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      height: '44px',
+                      padding: '0 24px',
+                      fontSize: '15px',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                      letterSpacing: '-0.01em'
                     }}
                   >
                     Create Template
@@ -290,6 +308,14 @@ export default function TemplatePage() {
                     icon={<ReloadOutlined />}
                     onClick={loadTemplates}
                     loading={templatesLoading}
+                    style={{
+                      height: '44px',
+                      padding: '0 20px',
+                      fontSize: '15px',
+                      fontWeight: 500,
+                      borderRadius: '8px',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+                    }}
                   >
                     Refresh
                   </Button>
@@ -324,6 +350,8 @@ export default function TemplatePage() {
                 fontSize: THEME_CONSTANTS.typography.h5.size,
                 fontWeight: THEME_CONSTANTS.typography.h5.weight,
                 color: THEME_CONSTANTS.colors.text,
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                letterSpacing: '-0.01em'
               }}
             >
               All Templates ({templates.length})
@@ -333,17 +361,17 @@ export default function TemplatePage() {
             {templatesLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
                 <Spin size="large" />
-                <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
+                <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
                   Loading templates...
                 </p>
               </div>
             ) : templates.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
                 <FileTextOutlined style={{ fontSize: '48px', color: `${THEME_CONSTANTS.colors.textSecondary}40`, marginBottom: '16px' }} />
-                <p style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, margin: 0 }}>
+                <p style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, margin: 0, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', letterSpacing: '-0.01em' }}>
                   No templates found
                 </p>
-                <p style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, margin: '8px 0 0 0' }}>
+                <p style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, margin: '8px 0 0 0', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
                   Create your first template to get started
                 </p>
                 <Button
@@ -380,28 +408,19 @@ export default function TemplatePage() {
         {/* Preview Modal */}
         <Modal
           title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <EyeOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 600, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', letterSpacing: '-0.01em' }}>
+              <EyeOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
               <span>Template Preview - {previewTemplate?.name}</span>
             </div>
           }
           open={previewOpen}
           onCancel={() => setPreviewOpen(false)}
           footer={null}
-          width={800}
-          bodyStyle={{ padding: '24px' }}
-          style={{ maxWidth: '90vw' }}
+          width={480}
+          bodyStyle={{ padding: '24px', background: '#f5f7fa' }}
+          centered
         >
-          {previewTemplate && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              maxHeight: '600px',
-              overflowY: 'auto',
-            }}>
-              <RCSMessagePreview data={previewTemplate} />
-            </div>
-          )}
+          {previewTemplate && <RCSMessagePreview data={previewTemplate} />}
         </Modal>
       </div>
     </div>

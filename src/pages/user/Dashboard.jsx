@@ -48,6 +48,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { fetchDashboardStats, fetchRecentOrders, addWalletRequest } from '../../redux/slices/dashboardSlice';
+import { useWallet } from '../../hooks/useWallet';
 
 const { useBreakpoint } = Grid;
 
@@ -56,6 +57,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const dispatch = useDispatch();
+  const { balance, availableBalance, blockedBalance, formattedBalance, formattedAvailableBalance, formattedBlockedBalance } = useWallet();
 
   const { stats, recentOrders, loading, error } = useSelector(state => state.dashboard);
 
@@ -71,12 +73,31 @@ export default function Dashboard() {
     joinedDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A',
   });
 
+  const messageReports = recentOrders || [];
+  const safeStats = {
+    totalCampaigns: stats?.totalCampaigns || 0,
+    totalMessages: stats?.totalMessages || 0,
+    sentMessages: stats?.sentMessages || 0,
+    failedMessages: stats?.failedMessages || 0,
+    pendingMessages: stats?.pendingMessages || 0,
+    totalCost: stats?.totalCost || 0,
+    totalSuccessCount: stats?.totalSuccessCount || 0,
+    totalFailedCount: stats?.totalFailedCount || 0,
+    sendtoteltemplet: stats?.sendtoteltemplet || 0,
+  };
+
   useEffect(() => {
     if (user?._id) {
+      console.log('Dashboard: Fetching data for user:', user._id);
       dispatch(fetchDashboardStats(user._id));
       dispatch(fetchRecentOrders(user._id));
     }
   }, [user, dispatch]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Dashboard Redux State:', { stats, recentOrders, loading, error });
+  }, [stats, recentOrders, loading, error]);
 
   const handleAddMoney = async () => {
     if (addAmount && Number.parseFloat(addAmount) > 0) {
@@ -111,10 +132,6 @@ export default function Dashboard() {
       style: 'currency',
       currency: 'INR',
     }).format(value);
-
-  // Get wallet balance from user context
-  const balance = user?.wallet?.balance || 0;
-  const formattedBalance = formatCurrency(balance);
 
   const messageColumns = [
     {
@@ -355,6 +372,8 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                         marginBottom: THEME_CONSTANTS.spacing.sm,
                         lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
+                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                        letterSpacing: '-0.02em'
                       }}>
                         Welcome back, {user?.companyname || 'User'} 👋
                       </h1>
@@ -363,7 +382,9 @@ export default function Dashboard() {
                         fontSize: THEME_CONSTANTS.typography.body.size,
                         fontWeight: 500,
                         lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0
+                        margin: 0,
+                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                        letterSpacing: '-0.01em'
                       }}>
                         Manage your campaigns, templates, and track your message delivery metrics all in one place.
                       </p>
@@ -378,6 +399,13 @@ export default function Dashboard() {
                       icon={<ReloadOutlined />}
                       onClick={handleRefresh}
                       loading={refreshing}
+                      style={{
+                        height: '44px',
+                        padding: '0 20px',
+                        fontSize: '15px',
+                        fontWeight: 500,
+                        borderRadius: '8px'
+                      }}
                     >
                       Refresh
                     </Button>
@@ -437,7 +465,7 @@ export default function Dashboard() {
                       WebkitTextFillColor: 'transparent',
                     }}
                   >
-                    {formatCurrency(user?.Wallet || 0)}
+                    {formattedBalance}
                   </h2>
                   <p
                     style={{
@@ -487,7 +515,7 @@ export default function Dashboard() {
                       color: THEME_CONSTANTS.colors.textMuted,
                     }}
                   >
-                    Credits Used This Month
+                    Blocked Balance
                   </p>
                   <div
                     style={{
@@ -505,15 +533,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      ₹{loading ? 0 : (() => {
-                        const totalCost = messageReports.reduce((total, report) => {
-                          console.log("report:", report);
-                          return total + (report.cost || 0);
-                        }, 0);
-                        console.log("Total cost calculated:", totalCost);
-                        console.log("Message reports:", messageReports);
-                        return totalCost;
-                      })()}
+                      ₹{safeStats.totalCost.toLocaleString()}
                     </span>
                     <span
                       style={{
@@ -521,11 +541,11 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.textMuted
                       }}
                     >
-                      of {formatCurrency(user?.Wallet || 0)}
+                      of {formattedBalance}
                     </span>
                   </div>
                   <Progress
-                    percent={user?.Wallet && messageReports.length > 0 ? Math.min(100, Math.round(((messageReports.reduce((total, report) => total + (report.cost || 0), 0)) / user.Wallet) * 100)) : 0}
+                    percent={balance > 0 ? Math.min(100, Math.round((safeStats.totalCost / balance) * 100)) : 0}
                     strokeColor={{ '0%': THEME_CONSTANTS.colors.primary, '100%': THEME_CONSTANTS.colors.primaryDark }}
                   />
                 </div>
@@ -542,7 +562,7 @@ export default function Dashboard() {
                       color: THEME_CONSTANTS.colors.textMuted,
                     }}
                   >
-                    Remaining Balance
+                    Available Balance
                   </p>
                   <div
                     style={{
@@ -559,7 +579,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency((user?.Wallet || 0) - (loading ? 0 : messageReports.reduce((total, report) => total + (report.cost || 0), 0)))}
+                      {formattedAvailableBalance}
                     </span>
                   </div>
                   <p
@@ -617,7 +637,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : stats.totalCampaigns}
+                      {loading.stats ? '-' : safeStats.totalCampaigns}
                     </h3>
                   </div>
                   <div
@@ -647,7 +667,7 @@ export default function Dashboard() {
                     fontWeight: THEME_CONSTANTS.typography.label.weight,
                   }}
                 >
-                  <ArrowUpOutlined /> {loading ? '-' : stats.totalCampaigns > 0 ? `${Math.max(0, stats.totalCampaigns - (stats.totalCampaigns - 2))} new this month` : 'No new campaigns'}
+                  <ArrowUpOutlined /> {loading.stats ? '-' : safeStats.totalCampaigns > 0 ? `${Math.max(0, safeStats.totalCampaigns - (safeStats.totalCampaigns - 2))} new this month` : 'No new campaigns'}
                 </div>
               </Card>
             </Col>
@@ -691,7 +711,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : stats.sendtoteltemplet}
+                      {loading.stats ? '-' : safeStats.sendtoteltemplet}
                     </h3>
                   </div>
                   <div
@@ -762,7 +782,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : (stats.totalMessages / 1000).toFixed(1)}K
+                      {loading.stats ? '-' : (safeStats.totalMessages / 1000).toFixed(1)}K
                     </h3>
                   </div>
                   <div
@@ -833,9 +853,9 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                        return totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
+                      {loading.stats ? '-' : (() => {
+                        const totalSent = safeStats.totalSuccessCount + safeStats.totalFailedCount;
+                        return totalSent > 0 ? ((safeStats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
                       })()}%
                     </h3>
                   </div>
@@ -864,9 +884,9 @@ export default function Dashboard() {
                     fontWeight: THEME_CONSTANTS.typography.label.weight,
                   }}
                 >
-                  {loading ? 'Loading...' : (() => {
-                    const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                    const successRate = totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100) : 0;
+                  {loading.stats ? 'Loading...' : (() => {
+                    const totalSent = safeStats.totalSuccessCount + safeStats.totalFailedCount;
+                    const successRate = totalSent > 0 ? ((safeStats.totalSuccessCount / totalSent) * 100) : 0;
                     return successRate >= 90 ? 'Excellent performance.' : totalSent > 0 ? 'Good performance.' : 'No data yet.';
                   })()}
                 </p>
@@ -931,13 +951,13 @@ export default function Dashboard() {
                           fontSize: THEME_CONSTANTS.typography.body.size,
                         }}
                       >
-                        {loading ? '-' : stats.totalSuccessCount}
+                        {loading.stats ? '-' : safeStats.totalSuccessCount}
                       </span>
                     </div>
                     <Progress
-                      percent={loading ? 0 : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                        return totalSent > 0 ? Math.round((stats.totalSuccessCount / totalSent) * 100) : 0;
+                      percent={loading.stats ? 0 : (() => {
+                        const totalSent = safeStats.totalSuccessCount + safeStats.totalFailedCount;
+                        return totalSent > 0 ? Math.round((safeStats.totalSuccessCount / totalSent) * 100) : 0;
                       })()}
                       strokeColor={THEME_CONSTANTS.colors.success}
                     />
@@ -969,13 +989,13 @@ export default function Dashboard() {
                           fontSize: THEME_CONSTANTS.typography.body.size,
                         }}
                       >
-                        {loading ? '-' : stats.totalFailedCount}
+                        {loading.stats ? '-' : safeStats.totalFailedCount}
                       </span>
                     </div>
                     <Progress
-                      percent={loading ? 0 : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                        return totalSent > 0 ? Math.round((stats.totalFailedCount / totalSent) * 100) : 0;
+                      percent={loading.stats ? 0 : (() => {
+                        const totalSent = safeStats.totalSuccessCount + safeStats.totalFailedCount;
+                        return totalSent > 0 ? Math.round((safeStats.totalFailedCount / totalSent) * 100) : 0;
                       })()}
                       strokeColor={THEME_CONSTANTS.colors.danger}
                     />
@@ -1006,9 +1026,9 @@ export default function Dashboard() {
                           color: THEME_CONSTANTS.colors.success,
                         }}
                       >
-                        {loading ? '-' : (() => {
-                          const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                          return totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
+                        {loading.stats ? '-' : (() => {
+                          const totalSent = safeStats.totalSuccessCount + safeStats.totalFailedCount;
+                          return totalSent > 0 ? ((safeStats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
                         })()}%
                       </span>
                     </p>
@@ -1073,7 +1093,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : stats.totalMessages}
+                      {loading.stats ? '-' : safeStats.totalMessages}
                     </span>
                   </div>
 
@@ -1105,7 +1125,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {loading ? '-' : stats.totalSuccessCount}
+                      {loading.stats ? '-' : safeStats.totalSuccessCount}
                     </span>
                   </div>
 
@@ -1137,7 +1157,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.danger,
                       }}
                     >
-                      {loading ? '-' : stats.totalFailedCount}
+                      {loading.stats ? '-' : safeStats.totalFailedCount}
                     </span>
                   </div>
                 </Space>
@@ -1190,7 +1210,7 @@ export default function Dashboard() {
               </Button>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              {loading ? (
+              {loading.orders ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
                   <div
                     style={{

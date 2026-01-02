@@ -86,6 +86,7 @@ export const THEME_CONSTANTS = {
   // TYPOGRAPHY
   // ============================================================================
   typography: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     h1: {
       size: '32px',
       weight: 700,
@@ -267,6 +268,14 @@ export const THEME_CONSTANTS = {
       small: '12px',
       medium: '14px',
       large: '16px',
+    },
+    // Standard button style
+    standard: {
+      height: '44px',
+      padding: '0 24px',
+      fontSize: '15px',
+      fontWeight: 500,
+      borderRadius: '8px',
     },
   },
 

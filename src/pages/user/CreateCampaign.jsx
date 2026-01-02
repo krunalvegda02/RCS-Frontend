@@ -1348,7 +1348,7 @@ function CreateCampaign() {
                         marginBottom: THEME_CONSTANTS.spacing.sm,
                         lineHeight: THEME_CONSTANTS.typography.h1.lineHeight
                       }}>
-                        Bulk Message Campaign 📨
+                        Bulk Message Campaign 
                       </h1>
                       <p style={{
                         color: THEME_CONSTANTS.colors.textSecondary,
@@ -1363,7 +1363,7 @@ function CreateCampaign() {
                   </Col>
                 </Row>
               </Col>
-              <Col xs={24} lg={6}>
+              {/* <Col xs={24} lg={6}>
                 <div style={{ marginTop: '16px' }}>
                   <Row gutter={[12, 12]}>
                     <Col xs={12} sm={12}>
@@ -1391,7 +1391,7 @@ function CreateCampaign() {
                     </Col>
                   </Row>
                 </div>
-              </Col>
+              </Col> */}
             </Row>
           </div>
 

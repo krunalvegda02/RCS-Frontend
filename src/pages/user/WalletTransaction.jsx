@@ -220,7 +220,9 @@ const WalletTransaction = () => {
                         fontWeight: THEME_CONSTANTS.typography.h1.weight,
                         color: THEME_CONSTANTS.colors.text,
                         marginBottom: THEME_CONSTANTS.spacing.sm,
-                        lineHeight: THEME_CONSTANTS.typography.h1.lineHeight
+                        lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
+                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                        letterSpacing: '-0.02em'
                       }}>
                         Wallet & Transactions 💳
                       </h1>
@@ -229,7 +231,9 @@ const WalletTransaction = () => {
                         fontSize: 'clamp(13px, 2.5vw, 14px)',
                         fontWeight: 500,
                         lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0
+                        margin: 0,
+                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                        letterSpacing: '-0.01em'
                       }}>
                         Manage your wallet balance and view transaction history
                       </p>
@@ -247,7 +251,9 @@ const WalletTransaction = () => {
                     style={{
                       borderRadius: THEME_CONSTANTS.radius.md,
                       fontWeight: 600,
-                      height: 44,
+                      height: '44px',
+                      padding: '0 24px',
+                      fontSize: '15px'
                     }}
                     block={window.innerWidth <= 576}
                   >
