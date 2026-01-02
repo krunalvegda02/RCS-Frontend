@@ -558,7 +558,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency((balance || 0) - (Array.isArray(recentOrders) ? recentOrders.reduce((total, report) => total + (report.cost || 0), 0) : 0))}}
+                      {formatCurrency((balance || 0) - (Array.isArray(recentOrders) ? recentOrders.reduce((total, report) => total + (report.cost || 0), 0) : 0))}
                     </span>
                   </div>
                   <p 

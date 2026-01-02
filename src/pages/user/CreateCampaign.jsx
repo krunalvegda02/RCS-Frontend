@@ -216,7 +216,7 @@ const VirtualizedContactList = ({ contacts, deleteContact, loading }) => {
 
 function CreateCampaign() {
   const { user, token } = useSelector(state => state.auth);
-  const { balance, currency, formattedBalance } = useWallet();
+  const { balance, availableBalance, blockedBalance, currency, formattedBalance, formattedAvailableBalance, checkBalance, hasBlockedBalance } = useWallet();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [form] = Form.useForm();
@@ -739,8 +739,7 @@ function CreateCampaign() {
 
       // Estimate cost only for valid RCS contacts
       const estimatedCost = validRcsContacts.length * 1;
-      if (balance < estimatedCost) {
-        message.error(`Insufficient credits! Required: ₹${estimatedCost}, Available: ${formattedBalance}`);
+      if (!checkBalance(estimatedCost)) {
         setShowAddMoney(true);
         return;
       }
@@ -921,7 +920,64 @@ function CreateCampaign() {
           }
         } catch (error) {
           hideLoading();
-          throw error;
+          
+          // Handle blocked balance error
+          if (error?.response?.data?.blockedBalance > 0) {
+            const errorData = error.response.data;
+            const activeCampaigns = errorData.activeCampaigns || [];
+            
+            Modal.error({
+              title: 'Insufficient Available Balance',
+              width: 600,
+              content: (
+                <div>
+                  <p style={{ fontSize: '14px', marginBottom: '16px' }}>
+                    <strong>₹{errorData.blockedBalance?.toLocaleString()}</strong> is currently blocked and being used in active campaigns.
+                  </p>
+                  
+                  {activeCampaigns.length > 0 && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: '#6b7280' }}>Active Campaigns:</div>
+                      {activeCampaigns.map((camp, idx) => (
+                        <div key={idx} style={{
+                          background: '#f9fafb',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          marginBottom: '6px',
+                          fontSize: '13px'
+                        }}>
+                          📊 {camp.name} - <strong>₹{camp.blockedAmount?.toLocaleString()}</strong> blocked
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div style={{
+                    background: '#fef3c7',
+                    border: '1px solid #fbbf24',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    fontSize: '13px'
+                  }}>
+                    <div><strong>Total Balance:</strong> ₹{errorData.totalBalance?.toLocaleString()}</div>
+                    <div><strong>Blocked:</strong> ₹{errorData.blockedBalance?.toLocaleString()}</div>
+                    <div><strong>Available:</strong> ₹{errorData.available?.toLocaleString()}</div>
+                    <div style={{ marginTop: '8px', color: '#92400e' }}>
+                      <strong>Required:</strong> ₹{errorData.required?.toLocaleString()}
+                    </div>
+                  </div>
+                  
+                  <p style={{ fontSize: '13px', marginTop: '16px', color: '#6b7280' }}>
+                    Please wait for active campaigns to complete or add more balance to your wallet.
+                  </p>
+                </div>
+              ),
+              okText: 'Add Balance',
+              onOk: () => setShowAddMoney(true)
+            });
+          } else {
+            throw error;
+          }
         }
       }
     } catch (error) {
@@ -942,7 +998,7 @@ function CreateCampaign() {
     setFooter('');
     setButtons([]);
     setCarouselCards([]);
-    setRecipients([]); // Clear recipients array completely
+    setRecipients([]);
     setCampaignName('');
     setUploadedFile(null);
     
@@ -954,10 +1010,10 @@ function CreateCampaign() {
     setTemplateSearch('');
     setTemplateFilter('all');
     
-    // Force re-render by clearing any cached state
-    setTimeout(() => {
-      setRecipients([]); // Double-clear to ensure state is reset
-    }, 100);
+    // Reset upload state
+    resetUpload();
+    
+    message.success('All fields cleared');
   };
 
   // Download Demo Excel
@@ -1666,6 +1722,8 @@ function CreateCampaign() {
                           size="small"
                           onClick={() => {
                             setRecipients([]);
+                            setUploadedFile(null);
+                            resetUpload();
                             message.success('All contacts cleared');
                           }}
                         >
@@ -1778,9 +1836,16 @@ function CreateCampaign() {
                       <Col xs={12} sm={6}>
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 'clamp(20px, 4vw, 24px)', fontWeight: 700, color: THEME_CONSTANTS.colors.warning }}>
-                            {formattedBalance}
+                            {formattedAvailableBalance}
                           </div>
-                          <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary }}>Wallet Balance</div>
+                          <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary }}>
+                            Available Balance
+                            {hasBlockedBalance && (
+                              <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.error, marginTop: '2px' }}>
+                                (₹{blockedBalance.toLocaleString()} blocked)
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </Col>
                     </Row>
