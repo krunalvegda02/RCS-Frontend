@@ -59,19 +59,6 @@ import { io } from 'socket.io-client';
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
 
-// Professional message type mapping
-const MESSAGE_TYPE_MAPPING = {
-  'plainText': 'Text Message',
-  'carousel': 'Interactive Carousel',
-  'richCard': 'Rich Media Card',
-  'textWithAction': 'Action-Based Message'
-};
-
-// Get professional type name
-const getProfessionalTypeName = (type) => {
-  return MESSAGE_TYPE_MAPPING[type] || type || 'Standard Message';
-};
-
 export default function Orders() {
   const { user, token } = useAuth();
   const dispatch = useDispatch();
@@ -160,41 +147,23 @@ export default function Orders() {
 
       // Real-time stats updates
       newSocket.on('stats_update', (data) => {
-        console.log('📊 Stats update received:', data);
         dispatch(updateRealTimeStats({
           campaignId: data.campaignId,
           stats: data.stats
         }));
       });
 
-      // Campaign status updates
+      // Campaign updates
       newSocket.on('campaign_update', (data) => {
-        console.log('🔄 Campaign status update received:', data);
-        
-        // Update campaign status in real-time stats
         dispatch(updateRealTimeStats({
           campaignId: data.campaignId,
-          stats: { ...data.stats, status: data.status }
+          stats: data
         }));
-        
-        // Update the campaign in orders list
-        dispatch(updateCampaignFromSocket({
-          campaignId: data.campaignId,
-          status: data.status,
-          completedAt: data.completedAt
-        }));
-        
-        // Show toast notification for status changes
-        if (data.status === 'completed') {
-          toast.success('🎉 Campaign completed successfully!');
-        } else if (data.status === 'failed') {
-          toast.error('❌ Campaign failed!');
-        }
       });
 
-      // Message status updates with live events
+      // Message status updates
       newSocket.on('message_status_update', (data) => {
-        console.log('📨 Message status update:', data);
+        // Add to live events
         dispatch(addLiveEvent({
           id: Date.now() + Math.random(),
           campaignId: data.campaignId,
@@ -204,20 +173,6 @@ export default function Orders() {
           timestamp: data.timestamp,
           eventType: data.eventType
         }));
-        
-        // Request updated stats for this campaign
-        newSocket.emit('request_stats', data.campaignId);
-        
-        // Refresh messages in modal if viewing this campaign
-        if (selectedOrder?._id === data.campaignId && showModal) {
-          setTimeout(() => {
-            dispatch(fetchCampaignMessages({ 
-              campaignId: data.campaignId, 
-              page: modalCurrentPage, 
-              limit: 20 
-            }));
-          }, 500);
-        }
       });
 
       // User interactions
@@ -232,17 +187,6 @@ export default function Orders() {
           text: data.text,
           timestamp: data.timestamp
         }));
-        
-        // Refresh messages in modal if viewing this campaign
-        if (selectedOrder?._id === data.campaignId && showModal) {
-          setTimeout(() => {
-            dispatch(fetchCampaignMessages({ 
-              campaignId: data.campaignId, 
-              page: modalCurrentPage, 
-              limit: 20 
-            }));
-          }, 500);
-        }
       });
 
       setSocket(newSocket);
@@ -256,17 +200,15 @@ export default function Orders() {
       console.warn('Failed to initialize socket connection:', error);
       dispatch(setSocketConnected(false));
     }
-  }, [token, user?._id, dispatch, currentPage]);
+  }, [token, user?._id, dispatch]);
 
-  // Force refresh when real-time stats change
-  useEffect(() => {
-    // Force component re-render when realTimeStats change
-    const hasStatusUpdates = Object.values(realTimeStats).some(stats => stats?.status);
-    if (hasStatusUpdates) {
-      // Component will automatically re-render due to realTimeStats dependency
-      console.log('📊 Real-time stats updated, component will re-render');
+  const fetchAllCampaignStats = async () => {
+    for (const order of orders) {
+      if (order._id) {
+        dispatch(fetchRealTimeCampaignStats({ campaignId: order._id }));
+      }
     }
-  }, [realTimeStats]);
+  };
 
   const getUniqueTypes = () => {
     if (!Array.isArray(orders)) return [];
@@ -281,155 +223,97 @@ export default function Orders() {
   const getStatusBadge = (order) => {
     const campaignId = order._id;
     const liveStats = realTimeStats[campaignId];
+    console.log(liveStats,":===========")
     
-    // Use real-time status if available, fallback to order status
-    const currentStatus = liveStats?.status || order?.status;
+    // Use real-time stats if available, fallback to order data
     const successCount = liveStats?.delivered || order?.successCount || 0;
     const failedCount = liveStats?.failed || order?.failedCount || 0;
     const sentCount = liveStats?.sent || order?.successCount || 0;
     const totalMessages = liveStats?.total || order?.cost || 0;
-    const pendingCount = liveStats?.pending || 0;
 
-    // Check campaign status first - prioritize real-time status
-    const isCompleted = currentStatus === 'completed';
-    const isProcessing = currentStatus === 'processing' || currentStatus === 'running';
-    const isFailed = currentStatus === 'failed';
+    // Check campaign status first
+    const isCompleted = order?.status === 'completed';
+    const isProcessing = order?.status === 'processing' || order?.status === 'running';
     
     // If campaign is completed, show completed status
     if (isCompleted) {
       return (
-        <Tag
-          color="#f6ffed"
-          style={{
-            color: THEME_CONSTANTS.colors.success,
-            border: `1px solid ${THEME_CONSTANTS.colors.success}`,
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          <CheckCircleOutlined style={{ marginRight: 4 }} />
-          Completed
-        </Tag>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
+          <div>
+            <Tag
+              color="#f6ffed"
+              style={{
+                color: THEME_CONSTANTS.colors.success,
+                border: `1px solid ${THEME_CONSTANTS.colors.success}`,
+                fontWeight: 600,
+                padding: '4px 8px',
+                borderRadius: THEME_CONSTANTS.radius.sm,
+                fontSize: '11px'
+              }}
+            >
+              Completed
+            </Tag>
+          </div>
+        </div>
       );
     }
 
-    // If campaign failed
-    if (isFailed) {
+    // If no messages sent yet and campaign is not completed, show pending
+    if (sentCount === 0 && !isCompleted) {
       return (
-        <Tag
-          color="#fff1f0"
-          style={{
-            color: '#ff4d4f',
-            border: '1px solid #ff4d4f',
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          <CloseCircleOutlined style={{ marginRight: 4 }} />
-          Failed
-        </Tag>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
+          <div>
+            <Tag
+              color="#fffbe6"
+              style={{
+                color: '#faad14',
+                border: '1px solid #faad14',
+                fontWeight: 600,
+                padding: '4px 8px',
+                borderRadius: THEME_CONSTANTS.radius.sm,
+                fontSize: '11px'
+              }}
+            >
+              {isProcessing ? 'Processing' : 'Pending'}
+            </Tag>
+          </div>
+        </div>
       );
     }
 
-    // If campaign is processing/running or has pending messages
-    if (isProcessing || pendingCount > 0) {
-      return (
-        <Tag
-          color="#e6f7ff"
-          style={{
-            color: '#1890ff',
-            border: '1px solid #1890ff',
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          <ClockCircleOutlined style={{ marginRight: 4 }} />
-          Processing
-        </Tag>
-      );
-    }
-
-    // If no messages sent yet, show pending
-    if (sentCount === 0 && totalMessages > 0) {
-      return (
-        <Tag
-          color="#fffbe6"
-          style={{
-            color: '#faad14',
-            border: '1px solid #faad14',
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          <ClockCircleOutlined style={{ marginRight: 4 }} />
-          Pending
-        </Tag>
-      );
-    }
-
-    // Show status based on success rate for active campaigns
+    // Show status for active campaigns
     const successRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
     
-    if (successRate >= 80) {
-      return (
-        <Tag
-          color="#f6ffed"
-          style={{
-            color: THEME_CONSTANTS.colors.success,
-            border: `1px solid ${THEME_CONSTANTS.colors.success}`,
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          <CheckCircleOutlined style={{ marginRight: 4 }} />
-          Success
-        </Tag>
-      );
-    } else if (successRate > 0) {
-      return (
-        <Tag
-          color="#fff7e6"
-          style={{
-            color: '#fa8c16',
-            border: '1px solid #fa8c16',
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          <SendOutlined style={{ marginRight: 4 }} />
-          Partial
-        </Tag>
-      );
-    }
+    const getStatusText = () => {
+      if (successRate >= 80) return 'Success';
+      if (successRate > 0) return 'Partial';
+      return 'Failed';
+    };
 
-    // Default status
+    const getStatusColor = () => {
+      if (successRate >= 80) return THEME_CONSTANTS.colors.success;
+      if (successRate > 0) return '#fa8c16';
+      return '#ff4d4f';
+    };
+
     return (
-      <Tag
-        color="#f5f5f5"
-        style={{
-          color: '#8c8c8c',
-          border: '1px solid #d9d9d9',
-          fontWeight: 600,
-          padding: '4px 8px',
-          borderRadius: THEME_CONSTANTS.radius.sm,
-          fontSize: '11px'
-        }}
-      >
-        <ClockCircleOutlined style={{ marginRight: 4 }} />
-        Pending
-      </Tag>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
+        <div>
+          <Tag
+            color={successRate >= 80 ? "#f6ffed" : successRate > 0 ? "#fff7e6" : "#fff1f0"}
+            style={{
+              color: getStatusColor(),
+              border: `1px solid ${getStatusColor()}`,
+              fontWeight: 600,
+              padding: '4px 8px',
+              borderRadius: THEME_CONSTANTS.radius.sm,
+              fontSize: '11px'
+            }}
+          >
+            {getStatusText()}
+          </Tag>
+        </div>
+      </div>
     );
   };
 
@@ -445,8 +329,6 @@ export default function Orders() {
       // Join campaign room for real-time updates
       if (socket) {
         socket.emit('join_campaign', order._id);
-        // Request immediate stats update
-        socket.emit('request_stats', order._id);
       }
     }
   };
@@ -479,17 +361,20 @@ export default function Orders() {
       filtered = filtered.filter(order => {
         const campaignId = order._id;
         const liveStats = realTimeStats[campaignId];
-        
-        // Use real-time status if available, fallback to order status
-        const currentStatus = liveStats?.status || order?.status;
+        const successCount = liveStats?.delivered || order?.successCount || 0;
+        const failedCount = liveStats?.failed || order?.failedCount || 0;
+        const totalMessages = liveStats?.total || order?.cost || 0;
+        const successRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
         
         switch (statusFilter) {
           case 'completed':
-            return currentStatus === 'completed';
+            return order?.status === 'completed';
           case 'processing':
-            return currentStatus === 'processing' || currentStatus === 'running';
+            return order?.status === 'processing' || order?.status === 'running';
           case 'failed':
-            return currentStatus === 'failed';
+            return successRate === 0 && totalMessages > 0;
+          case 'pending':
+            return successCount === 0 && !order?.status === 'completed';
           default:
             return true;
         }
@@ -584,7 +469,7 @@ export default function Orders() {
 
   const columns = [
     {
-      title: ' ID',
+      title: 'ID',
       dataIndex: '_id',
       key: 'id',
       render: (text, record, index) => (
@@ -614,42 +499,21 @@ export default function Orders() {
       title: 'Message Type',
       dataIndex: 'type',
       key: 'type',
-      render: (type) => {
-        const professionalName = getProfessionalTypeName(type);
-        
-        const getTypeColor = (type) => {
-          switch (type) {
-            case 'plainText':
-              return { bg: '#e6f7ff', color: '#1890ff' };
-            case 'carousel':
-              return { bg: '#f6ffed', color: '#52c41a' };
-            case 'richCard':
-              return { bg: '#fff2e8', color: '#fa8c16' };
-            case 'textWithAction':
-              return { bg: '#f9f0ff', color: '#722ed1' };
-            default:
-              return { bg: '#f6f8fb', color: '#667085' };
-          }
-        };
-        
-        const colors = getTypeColor(type);
-        
-        return (
-          <Tag
-            style={{
-              background: colors.bg,
-              color: colors.color,
-              border: `1px solid ${colors.color}20`,
-              fontWeight: 600,
-              padding: '6px 12px',
-              borderRadius: THEME_CONSTANTS.radius.md,
-              fontSize: '12px',
-            }}
-          >
-            {professionalName}
-          </Tag>
-        );
-      },
+      render: (type) => (
+        <Tag
+          style={{
+            background: type === 'SMS' ? '#e6f7ff' : '#f6f8fb',
+            color: type === 'SMS' ? THEME_CONSTANTS.colors.primary : '#667085',
+            border: 'none',
+            fontWeight: 600,
+            padding: '4px 12px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '12px',
+          }}
+        >
+          {type}
+        </Tag>
+      ),
       width: '12%',
     },
     {
@@ -663,19 +527,16 @@ export default function Orders() {
       ),
       width: '12%',
     },
-    {
-      title: 'Success / Failed',
+    {title: 'Success / Failed',
       key: 'results',
       render: (text, record) => {
         const campaignId = record._id;
         const liveStats = realTimeStats[campaignId];
-        
-        // Use delivered count as success count (messages that reached recipients)
         const successCount = liveStats?.delivered || record?.successCount || 0;
         const failedCount = liveStats?.failed || record?.failedCount || 0;
         const totalMessages = liveStats?.total || record?.cost || 0;
         
-        // Calculate delivery rate based on delivered messages
+        // Calculate delivery rate
         const deliveryRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
         
         return (
@@ -1008,35 +869,35 @@ export default function Orders() {
         {/* Enhanced Filters */}
         <Card
           style={{
-            borderRadius: THEME_CONSTANTS.radius.xl,
-            border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-            background: THEME_CONSTANTS.colors.surface,
-            boxShadow: THEME_CONSTANTS.shadow.lg,
+            borderRadius: '16px',
+            border: 'none',
+            background: 'white',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
             marginBottom: '32px',
           }}
           bodyStyle={{ padding: '32px' }}
         >
           <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, margin: 0, marginBottom: '8px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1a202c', margin: 0, marginBottom: '8px' }}>
               🔍 Filter & Search
             </h3>
-            <p style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary, margin: 0 }}>
+            <p style={{ fontSize: '14px', color: '#718096', margin: 0 }}>
               Use filters to find specific campaigns and analyze performance
             </p>
           </div>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={6}>
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Search Campaigns</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Search Campaigns</label>
               </div>
               <Input
                 placeholder="Search by name or ID..."
-                prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textMuted }} />}
+                prefix={<SearchOutlined style={{ color: '#a0aec0' }} />}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 style={{
-                  borderRadius: THEME_CONSTANTS.radius.md,
-                  border: `2px solid ${THEME_CONSTANTS.colors.border}`,
+                  borderRadius: '8px',
+                  border: '2px solid #e2e8f0',
                   padding: '8px 12px',
                   fontSize: '14px'
                 }}
@@ -1045,7 +906,7 @@ export default function Orders() {
 
             <Col xs={24} sm={12} md={6}>
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Status Filter</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Status Filter</label>
               </div>
               <Select
                 value={statusFilter}
@@ -1057,13 +918,14 @@ export default function Orders() {
                   { label: 'Completed', value: 'completed' },
                   { label: 'Processing', value: 'processing' },
                   { label: 'Failed', value: 'failed' },
+                  { label: 'Pending', value: 'pending' },
                 ]}
               />
             </Col>
 
             <Col xs={24} sm={12} md={6}>
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Message Type</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Message Type</label>
               </div>
               <Select
                 value={typeFilter}
@@ -1071,18 +933,15 @@ export default function Orders() {
                 style={{ width: '100%' }}
                 size="large"
                 options={[
-                  { label: 'All Message Types', value: 'all' },
-                  ...getUniqueTypes().map((type) => ({ 
-                    label: getProfessionalTypeName(type), 
-                    value: type 
-                  })),
+                  { label: 'All Types', value: 'all' },
+                  ...getUniqueTypes().map((type) => ({ label: type, value: type })),
                 ]}
               />
             </Col>
 
             <Col xs={24} sm={12} md={6}>
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Campaign Name</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Campaign Name</label>
               </div>
               <Select
                 value={campaignFilter}
@@ -1101,19 +960,19 @@ export default function Orders() {
 
             <Col xs={24} md={12}>
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Date Range</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Date Range</label>
               </div>
               <RangePicker
                 value={dateRange}
                 onChange={setDateRange}
-                style={{ width: '100%', height: '40px', borderRadius: THEME_CONSTANTS.radius.md }}
+                style={{ width: '100%', height: '40px', borderRadius: '8px' }}
                 format="DD/MM/YYYY"
               />
             </Col>
 
             <Col xs={24} md={12}>
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Sort Order</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Sort Order</label>
               </div>
               <Button
                 icon={<FilterOutlined />}
@@ -1121,10 +980,10 @@ export default function Orders() {
                 style={{ 
                   width: '100%', 
                   height: '40px',
-                  borderRadius: THEME_CONSTANTS.radius.md,
-                  border: `2px solid ${THEME_CONSTANTS.colors.border}`,
-                  background: sortOrder === 'newest' ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.surface,
-                  color: sortOrder === 'newest' ? 'white' : THEME_CONSTANTS.colors.text
+                  borderRadius: '8px',
+                  border: '2px solid #e2e8f0',
+                  background: sortOrder === 'newest' ? '#667eea' : 'white',
+                  color: sortOrder === 'newest' ? 'white' : '#4a5568'
                 }}
               >
                 {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
@@ -1136,20 +995,20 @@ export default function Orders() {
         {/* Enhanced Campaign Table */}
         <Card
           style={{
-            borderRadius: THEME_CONSTANTS.radius.xl,
-            border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-            background: THEME_CONSTANTS.colors.surface,
-            boxShadow: THEME_CONSTANTS.shadow.lg,
+            borderRadius: '16px',
+            border: 'none',
+            background: 'white',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
           }}
           bodyStyle={{ padding: 0 }}
         >
-          <div style={{ padding: '32px 32px 24px 32px', borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
+          <div style={{ padding: '32px 32px 24px 32px', borderBottom: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ fontSize: '20px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, margin: 0, marginBottom: '4px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1a202c', margin: 0, marginBottom: '4px' }}>
                   📈 Campaign Overview
                 </h3>
-                <p style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary, margin: 0 }}>
+                <p style={{ fontSize: '14px', color: '#718096', margin: 0 }}>
                   {filteredOrders.length} of {orders?.length || 0} campaigns shown
                 </p>
               </div>
@@ -1213,17 +1072,50 @@ export default function Orders() {
                 pagination={{
                   current: currentPage,
                   pageSize: 10,
-                  total: pagination?.total || filteredOrders.length,
+                  total: filteredOrders.length,
                   onChange: (page) => {
                     setCurrentPage(page);
-                    dispatch(fetchOrders({ userId: user._id, page, limit: 10 }));
                   },
-                  showSizeChanger: true,
-                  showQuickJumper: true,
+                  showSizeChanger: false,
                   showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} campaigns`,
+                  style: { padding: '16px 32px' }
                 }}
-                scroll={{ x: 1200 }}
-                style={{ padding: '0 32px 32px 32px' }}
+                scroll={{ 
+                  x: 1200, 
+                  y: 600 
+                }}
+                sticky={{
+                  offsetHeader: 0,
+                  offsetScroll: 0,
+                  getContainer: () => window,
+                }}
+                size="middle"
+                bordered={false}
+                style={{ 
+                  '.ant-table-thead > tr > th': {
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                    background: '#fafafa',
+                    borderBottom: '2px solid #f0f0f0',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    color: '#4a5568',
+                    padding: '16px 12px'
+                  },
+                  '.ant-table-tbody > tr': {
+                    transition: 'all 0.2s ease'
+                  },
+                  '.ant-table-tbody > tr:hover': {
+                    background: '#f8fafc',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                  },
+                  '.ant-table-tbody > tr > td': {
+                    padding: '16px 12px',
+                    borderBottom: '1px solid #f1f5f9'
+                  }
+                }}
               />
             </>
           )}
@@ -1243,12 +1135,12 @@ export default function Orders() {
         className="campaign-details-modal"
       >
         {modalOrder && (
-          <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100%' }}>
+          <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', minHeight: '100%' }}>
             {/* Enhanced Header */}
             <div style={{
-              background: THEME_CONSTANTS.colors.primary,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               padding: '32px',
-              borderRadius: `${THEME_CONSTANTS.radius.lg} ${THEME_CONSTANTS.radius.lg} 0 0`,
+              borderRadius: '12px 12px 0 0',
               position: 'relative',
               overflow: 'hidden'
             }}>
@@ -1261,7 +1153,7 @@ export default function Orders() {
                       width: '64px',
                       height: '64px',
                       background: 'rgba(255,255,255,0.2)',
-                      borderRadius: THEME_CONSTANTS.radius.xl,
+                      borderRadius: '16px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1297,7 +1189,7 @@ export default function Orders() {
             </div>
 
             {/* Professional Stats Grid */}
-            <div style={{ padding: '32px', background: THEME_CONSTANTS.colors.background }}>
+            <div style={{ padding: '32px', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }}>
               {(() => {
                 const campaignId = selectedOrder?._id;
                 const liveStats = realTimeStats[campaignId] || {};
@@ -1306,121 +1198,127 @@ export default function Orders() {
                   <Row gutter={[24, 24]} style={{ marginBottom: '40px' }}>
                     <Col xs={12} sm={8} md={4}>
                       <Card style={{
-                        background: THEME_CONSTANTS.colors.surface,
-                        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                        borderRadius: THEME_CONSTANTS.radius.xl,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none',
+                        borderRadius: '16px',
                         textAlign: 'center',
-                        boxShadow: THEME_CONSTANTS.shadow.lg,
+                        boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
                         height: '120px',
                         overflow: 'hidden',
                         position: 'relative',
                         transition: 'all 0.3s ease'
                       }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: THEME_CONSTANTS.colors.primaryLight, borderRadius: '50%', opacity: 0.3 }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: THEME_CONSTANTS.colors.primary }}>
+                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
+                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
+                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: 'white' }}>
                           {liveStats.total || modalOrder?.cost || 0}
                         </div>
-                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 500 }}>Total Recipients</div>
+                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>Total Recipients</div>
                       </Card>
                     </Col>
 
                     <Col xs={12} sm={8} md={4}>
                       <Card style={{
-                        background: THEME_CONSTANTS.colors.surface,
-                        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                        borderRadius: THEME_CONSTANTS.radius.xl,
+                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                        border: 'none',
+                        borderRadius: '16px',
                         textAlign: 'center',
-                        boxShadow: THEME_CONSTANTS.shadow.lg,
+                        boxShadow: '0 8px 32px rgba(79, 172, 254, 0.3)',
                         height: '120px',
                         overflow: 'hidden',
                         position: 'relative',
                         transition: 'all 0.3s ease'
                       }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: THEME_CONSTANTS.colors.primaryLight, borderRadius: '50%', opacity: 0.3 }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: THEME_CONSTANTS.colors.primary }}>
+                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
+                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
+                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: 'white' }}>
                           {liveStats.sent || modalOrder?.successCount || 0}
                         </div>
-                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 500 }}>Successfully Sent</div>
+                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>Successfully Sent</div>
                       </Card>
                     </Col>
 
                     <Col xs={12} sm={8} md={4}>
                       <Card style={{
-                        background: THEME_CONSTANTS.colors.surface,
-                        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                        borderRadius: THEME_CONSTANTS.radius.xl,
+                        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                        border: 'none',
+                        borderRadius: '16px',
                         textAlign: 'center',
-                        boxShadow: THEME_CONSTANTS.shadow.lg,
+                        boxShadow: '0 8px 32px rgba(17, 153, 142, 0.3)',
                         height: '120px',
                         overflow: 'hidden',
                         position: 'relative',
                         transition: 'all 0.3s ease'
                       }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: THEME_CONSTANTS.colors.successLight, borderRadius: '50%', opacity: 0.3 }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: THEME_CONSTANTS.colors.success }}>
-                          {liveStats.delivered || modalOrder?.successCount || 0}
+                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
+                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
+                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: 'white' }}>
+                          {liveStats.delivered || modalOrder?.totalDelivered || 0}
                         </div>
-                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 500 }}>Successfully Delivered</div>
+                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>Delivered</div>
                       </Card>
                     </Col>
 
                     <Col xs={12} sm={8} md={4}>
                       <Card style={{
-                        background: THEME_CONSTANTS.colors.surface,
-                        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                        borderRadius: THEME_CONSTANTS.radius.xl,
+                        background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                        border: 'none',
+                        borderRadius: '16px',
                         textAlign: 'center',
-                        boxShadow: THEME_CONSTANTS.shadow.lg,
+                        boxShadow: '0 8px 32px rgba(168, 237, 234, 0.2)',
                         height: '120px',
                         overflow: 'hidden',
                         position: 'relative',
                         transition: 'all 0.3s ease'
                       }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: THEME_CONSTANTS.colors.warningLight, borderRadius: '50%', opacity: 0.3 }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: THEME_CONSTANTS.colors.warning }}>
+                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }} />
+                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
+                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#2d3748' }}>
                           {liveStats.read || modalOrder?.totalRead || 0}
                         </div>
-                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 500 }}>Read</div>
+                        <div style={{ fontSize: '13px', color: '#4a5568', fontWeight: 500 }}>Read</div>
                       </Card>
                     </Col>
 
                     <Col xs={12} sm={8} md={4}>
                       <Card style={{
-                        background: THEME_CONSTANTS.colors.surface,
-                        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                        borderRadius: THEME_CONSTANTS.radius.xl,
+                        background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+                        border: 'none',
+                        borderRadius: '16px',
                         textAlign: 'center',
-                        boxShadow: THEME_CONSTANTS.shadow.lg,
+                        boxShadow: '0 8px 32px rgba(255, 107, 107, 0.3)',
                         height: '120px',
                         overflow: 'hidden',
                         position: 'relative',
                         transition: 'all 0.3s ease'
                       }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: THEME_CONSTANTS.colors.dangerLight, borderRadius: '50%', opacity: 0.3 }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: THEME_CONSTANTS.colors.danger }}>
+                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
+                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
+                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: 'white' }}>
                           {liveStats.failed || modalOrder?.failedCount || 0}
                         </div>
-                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 500 }}>Failed</div>
+                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>Failed</div>
                       </Card>
                     </Col>
 
                     <Col xs={12} sm={8} md={4}>
                       <Card style={{
-                        background: THEME_CONSTANTS.colors.surface,
-                        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                        borderRadius: THEME_CONSTANTS.radius.xl,
+                        background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                        border: 'none',
+                        borderRadius: '16px',
                         textAlign: 'center',
-                        boxShadow: THEME_CONSTANTS.shadow.lg,
+                        boxShadow: '0 8px 32px rgba(255, 236, 210, 0.2)',
                         height: '120px',
                         overflow: 'hidden',
                         position: 'relative',
                         transition: 'all 0.3s ease'
                       }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: THEME_CONSTANTS.colors.primaryLight, borderRadius: '50%', opacity: 0.3 }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: THEME_CONSTANTS.colors.primary }}>
+                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }} />
+                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
+                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#2d3748' }}>
                           {liveStats.interactions || modalOrder?.userClickCount || 0}
                         </div>
-                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 500 }}>Interactions</div>
+                        <div style={{ fontSize: '13px', color: '#4a5568', fontWeight: 500 }}>Interactions</div>
                       </Card>
                     </Col>
                   </Row>
@@ -1429,18 +1327,18 @@ export default function Orders() {
 
               {/* Enhanced Message Details Table */}
               <Card style={{
-                background: THEME_CONSTANTS.colors.surface,
-                border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                borderRadius: THEME_CONSTANTS.radius.xl,
+                background: 'white',
+                border: 'none',
+                borderRadius: '16px',
                 marginBottom: '24px',
-                boxShadow: THEME_CONSTANTS.shadow.lg
+                boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
               }} bodyStyle={{ padding: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
                   <div>
-                    <h3 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: THEME_CONSTANTS.colors.text, marginBottom: '4px' }}>
+                    <h3 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: '#1a202c', marginBottom: '4px' }}>
                       📋 Message Details
                     </h3>
-                    <p style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary, margin: 0 }}>
+                    <p style={{ fontSize: '14px', color: '#718096', margin: 0 }}>
                       {messagesPagination?.total || 0} total messages • Real-time tracking
                     </p>
                   </div>
@@ -1450,10 +1348,10 @@ export default function Orders() {
                     onClick={() => dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page: modalCurrentPage, limit: 20 }))}
                     loading={loading.messages}
                     style={{
-                      borderRadius: THEME_CONSTANTS.radius.md,
-                      background: THEME_CONSTANTS.colors.primary,
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       border: 'none',
-                      boxShadow: THEME_CONSTANTS.shadow.md
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
                     }}
                   >
                     Refresh Data

@@ -33,47 +33,56 @@ apiClient.interceptors.request.use(
     }
 );
 
-// Response interceptor to handle token expiration and auto-refresh
+// Response interceptor to handle token expiration
+let isHandlingAuth = false;
+
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
         
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            const errorMessage = error.response?.data?.message || '';
+        // Handle 401 errors (Unauthorized)
+        if (error.response?.status === 401 && !originalRequest._isRetry) {
+            originalRequest._isRetry = true;
+            
             const currentPath = window.location.pathname;
+            const isAuthPage = ['/login'].some(path => 
+                currentPath.includes(path)
+            );
             
-            // Check if it's a token expiration issue
-            const isTokenExpired = errorMessage.toLowerCase().includes('token expired') || 
-                                  errorMessage.toLowerCase().includes('expired');
-            
-            const isAuthError = errorMessage.toLowerCase().includes('token') || 
-                               errorMessage.toLowerCase().includes('unauthorized') ||
-                               errorMessage.toLowerCase().includes('authentication') ||
-                               errorMessage.toLowerCase().includes('invalid token');
-            
-            // Only redirect if not already on auth pages and if it's a real auth error
-            if (isAuthError &&
-                !currentPath.includes('/login') && 
-                !currentPath.includes('/register') && 
-                !currentPath.includes('/join') && 
-                !currentPath.includes('/reset-password')) {
+            // Don't redirect if already on auth page or already handling auth
+            if (!isAuthPage && !isHandlingAuth) {
+                isHandlingAuth = true;
                 
-                // Clear any stored auth data
+                // Determine redirect reason
+                const errorMessage = error.response?.data?.message || '';
+                let reason = 'unauthorized';
+                
+                if (errorMessage.toLowerCase().includes('expired')) {
+                    reason = 'session_expired';
+                } else if (errorMessage.toLowerCase().includes('invalid')) {
+                    reason = 'token_invalid';
+                }
+                
+                // Clear auth data
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 
-                // Dispatch logout action if Redux store is available
+                // Dispatch logout to Redux store
                 if (window.__REDUX_STORE__) {
                     window.__REDUX_STORE__.dispatch({ type: 'auth/logout' });
                 }
                 
-                // Redirect to login
+                // Reset flag after a delay
                 setTimeout(() => {
-                    window.location.href = '/login';
-                }, 100);
+                    isHandlingAuth = false;
+                }, 1000);
+                
+                // Redirect to login with reason
+                window.location.replace(`/login?reason=${reason}`);
             }
         }
+        
         return Promise.reject(error);
     }
 );

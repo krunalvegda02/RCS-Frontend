@@ -46,5 +46,10 @@ const store = configureStore({
     }),
 });
 
+// Make store available globally for apiClient interceptor
+if (typeof window !== 'undefined') {
+  window.__REDUX_STORE__ = store;
+}
+
 export const persistor = persistStore(store);
 export default store;

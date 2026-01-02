@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Card, Form, Input, Button, Typography, Checkbox, Alert, Row, Col, Grid } from 'antd';
 import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone, MailOutlined, CheckCircleOutlined, MessageOutlined, BarChartOutlined, SendOutlined } from '@ant-design/icons';
@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { THEME_CONSTANTS } from '../theme';
 import { loginUser, clearError, resetLoading } from '../redux/slices/authSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -17,27 +17,53 @@ export default function Login() {
   const { login } = useAuth();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const screens = useBreakpoint();
+  const hasRedirected = useRef(false);
   
   const { loading, isAuthenticated, user } = useSelector(state => state.auth);
 
-  // Redirect if already authenticated
-  React.useEffect(() => {
-    if (isAuthenticated && user) {
-      if (user.role === 'admin') {
-        navigate('/admin', { replace: true });
-      } else {
-        navigate('/', { replace: true });
+  // Get redirect reason from URL or location state
+  const redirectReason = new URLSearchParams(location.search).get('reason') || location.state?.reason;
+
+  // Show redirect message
+  useEffect(() => {
+    if (redirectReason) {
+      const messages = {
+        'session_expired': 'Your session has expired. Please login again.',
+        'unauthorized': 'Please login to access this page.',
+        'token_invalid': 'Your session is invalid. Please login again.',
+        'logged_out': 'You have been logged out successfully.'
+      };
+      
+      const message = messages[redirectReason] || 'Please login to continue.';
+      toast.error(message, { duration: 4000 });
+      
+      // Clear URL params
+      if (redirectReason) {
+        window.history.replaceState({}, document.title, '/login');
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [redirectReason]);
 
-  // Reset loading state on component mount
-  React.useEffect(() => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user && !loading && !hasRedirected.current) {
+      hasRedirected.current = true;
+      const targetPath = user.role?.toLowerCase() === 'admin' ? '/admin' : '/';
+      navigate(targetPath, { replace: true });
+    }
+  }, [isAuthenticated, user, loading, navigate]);
+
+  // Clear error on mount
+  useEffect(() => {
+    dispatch(clearError());
     dispatch(resetLoading());
   }, [dispatch]);
 
   const onFinish = async (values) => {
+    if (loading) return; // Prevent double submission
+    
     try {
       setError('');
       dispatch(clearError());
@@ -49,21 +75,18 @@ export default function Login() {
       
       const result = await dispatch(loginUser(credentials)).unwrap();
       
-      if (result.success) {
-        // Update auth context immediately
-        await login(result.user, result.access_token || result.token);
+      if (result.success && result.user) {
+        // Call login for compatibility
+        login(result.user, result.access_token || result.token);
         
         toast.success('Login successful!');
         
-        // Navigate immediately without setTimeout
-        if (result.user.role === 'admin') {
-          navigate('/admin', { replace: true });
-        } else {
-          navigate('/', { replace: true });
-        }
+        // Navigate based on role
+        const targetPath = result.user.role?.toLowerCase() === 'admin' ? '/admin' : '/';
+        navigate(targetPath, { replace: true });
       }
     } catch (error) {
-      const errorMsg = error || 'Login failed';
+      const errorMsg = error || 'Login failed. Please try again.';
       toast.error(errorMsg);
       setError(errorMsg);
     }

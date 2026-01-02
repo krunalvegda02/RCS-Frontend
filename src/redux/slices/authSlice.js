@@ -66,9 +66,9 @@ export const updateUserWallet = createAsyncThunkHandler(
 );
 
 const initialState = {
-  user: JSON.parse(localStorage.getItem('user')) || null,
-  token: localStorage.getItem('token'),
-  isAuthenticated: !!localStorage.getItem('token') && !!localStorage.getItem('user'),
+  user: null,
+  token: null,
+  isAuthenticated: false,
   loading: false,
   error: null,
   jioConfig: null,
@@ -83,9 +83,32 @@ const initialState = {
   },
 };
 
+// Helper to initialize state from localStorage
+const getInitialAuthState = () => {
+  try {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    
+    if (token && userStr) {
+      const user = JSON.parse(userStr);
+      return {
+        ...initialState,
+        user,
+        token,
+        isAuthenticated: true,
+      };
+    }
+  } catch (error) {
+    console.error('Error loading auth state:', error);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
+  return initialState;
+};
+
 const authSlice = createSlice({
   name: 'auth',
-  initialState,
+  initialState: getInitialAuthState(),
   reducers: {
     loginStart: (state) => {
       state.loading = true;
@@ -110,8 +133,15 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.loading = false;
       state.error = null;
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      state.jioConfig = null;
+      
+      // Clear localStorage
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } catch (error) {
+        console.error('Error clearing localStorage:', error);
+      }
     },
     updateUser: (state, action) => {
       state.user = { ...state.user, ...action.payload };
@@ -138,13 +168,24 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
-        state.user = action.payload.user;
-        // Handle both token and access_token from backend
+        state.error = null;
+        
         const token = action.payload.access_token || action.payload.token;
-        state.token = token;
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(action.payload.user));
+        const user = action.payload.user;
+        
+        if (token && user) {
+          state.isAuthenticated = true;
+          state.user = user;
+          state.token = token;
+          
+          // Persist to localStorage
+          try {
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+          } catch (error) {
+            console.error('Error saving to localStorage:', error);
+          }
+        }
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
@@ -152,6 +193,14 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
+        
+        // Clear localStorage on login failure
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        } catch (error) {
+          console.error('Error clearing localStorage:', error);
+        }
       })
 
     // Register
@@ -162,13 +211,24 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
-        state.user = action.payload.user;
-        // Handle both token and access_token from backend
+        state.error = null;
+        
         const token = action.payload.access_token || action.payload.token;
-        state.token = token;
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(action.payload.user));
+        const user = action.payload.user;
+        
+        if (token && user) {
+          state.isAuthenticated = true;
+          state.user = user;
+          state.token = token;
+          
+          // Persist to localStorage
+          try {
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+          } catch (error) {
+            console.error('Error saving to localStorage:', error);
+          }
+        }
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
@@ -178,20 +238,41 @@ const authSlice = createSlice({
     // Refresh Token
     builder
       .addCase(refreshToken.fulfilled, (state, action) => {
-        state.token = action.payload.token; // FIXED: Use token instead of data.token
-        localStorage.setItem('token', action.payload.token); // FIXED: Use token instead of data.token
+        const token = action.payload.access_token || action.payload.token;
+        if (token) {
+          state.token = token;
+          try {
+            localStorage.setItem('token', token);
+          } catch (error) {
+            console.error('Error saving token:', error);
+          }
+        }
       })
 
     // Get Profile
     builder
       .addCase(fetchProfile.fulfilled, (state, action) => {
-        state.user = action.payload.data;
+        if (action.payload.data) {
+          state.user = action.payload.data;
+          try {
+            localStorage.setItem('user', JSON.stringify(action.payload.data));
+          } catch (error) {
+            console.error('Error saving user:', error);
+          }
+        }
       })
 
     // Update Profile
     builder
       .addCase(updateProfile.fulfilled, (state, action) => {
-        state.user = action.payload.data;
+        if (action.payload.data) {
+          state.user = action.payload.data;
+          try {
+            localStorage.setItem('user', JSON.stringify(action.payload.data));
+          } catch (error) {
+            console.error('Error saving user:', error);
+          }
+        }
       })
 
     // Jio Config
