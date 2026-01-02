@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useWallet } from '../../hooks/useWallet';
 import {
   Card,
   Row,
@@ -57,33 +56,27 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const dispatch = useDispatch();
-  
+
   const { stats, recentOrders, loading, error } = useSelector(state => state.dashboard);
-  
+
   const [refreshing, setRefreshing] = useState(false);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addAmount, setAddAmount] = useState('');
 
   const [userProfile] = useState({
-    name: user?.companyname || 'User',
-    phone: user?.phone || '+91-9876543210',
-    email: user?.email || 'user@example.com',
-    plan: user?.plan || 'Standard',
+    name: user?.companyname,
+    phone: user?.phone,
+    email: user?.email,
+    plan: user?.plan,
     joinedDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A',
   });
 
   useEffect(() => {
     if (user?._id) {
-      console.log('Fetching dashboard data for user:', user._id);
       dispatch(fetchDashboardStats(user._id));
       dispatch(fetchRecentOrders(user._id));
     }
   }, [user, dispatch]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log('Dashboard state:', { stats, recentOrders, loading, error });
-  }, [stats, recentOrders, loading, error]);
 
   const handleAddMoney = async () => {
     if (addAmount && Number.parseFloat(addAmount) > 0) {
@@ -92,7 +85,7 @@ export default function Dashboard() {
           amount: Number.parseFloat(addAmount),
           userId: user._id,
         })).unwrap();
-        
+
         toast.success(`Wallet recharge request of ₹${addAmount} submitted for admin approval!`);
         setAddAmount('');
         setShowAddMoney(false);
@@ -192,21 +185,21 @@ export default function Dashboard() {
         const failedCount = record.failedCount || 0;
         const totalSent = successCount + failedCount;
         const rate = totalSent > 0 ? Math.round((successCount / totalSent) * 100) : 0;
-        
+
         const getProgressColor = () => {
           if (rate >= 90) return THEME_CONSTANTS.colors.success;
           if (rate >= 70) return THEME_CONSTANTS.colors.primary;
           if (rate >= 50) return '#fa8c16';
           return '#ff4d4f';
         };
-        
+
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontWeight: 600, color: getProgressColor(), fontSize: '13px' }}>{rate}%</span>
-            <Progress 
-              percent={rate} 
-              size="small" 
-              style={{ width: '50px' }} 
+            <Progress
+              percent={rate}
+              size="small"
+              style={{ width: '50px' }}
               strokeColor={getProgressColor()}
               showInfo={false}
             />
@@ -224,7 +217,7 @@ export default function Dashboard() {
         const failedCount = record?.failedCount || 0;
         const totalSent = successCount + failedCount;
         const successRate = totalSent > 0 ? Math.round((successCount / totalSent) * 100) : 0;
-        
+
         // If no messages sent yet, show pending
         if (totalSent === 0) {
           return (
@@ -243,7 +236,7 @@ export default function Dashboard() {
             </div>
           );
         }
-        
+
         // Determine status based on success rate
         const getStatusConfig = () => {
           if (successRate >= 90) {
@@ -280,9 +273,9 @@ export default function Dashboard() {
             };
           }
         };
-        
+
         const config = getStatusConfig();
-        
+
         return (
           <Tag
             icon={config.icon}
@@ -304,8 +297,8 @@ export default function Dashboard() {
   return (
     <>
       <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh' }}>
-        <div style={{ 
-          maxWidth: THEME_CONSTANTS.layout.maxContentWidth, 
+        <div style={{
+          maxWidth: THEME_CONSTANTS.layout.maxContentWidth,
           margin: '0 auto',
           padding: THEME_CONSTANTS.spacing.xl
         }}>
@@ -324,7 +317,7 @@ export default function Dashboard() {
                 <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>Home</span>
               </Breadcrumb.Item>
               <Breadcrumb.Item>
-                <span style={{ 
+                <span style={{
                   color: THEME_CONSTANTS.colors.primary,
                   fontWeight: THEME_CONSTANTS.typography.h6.weight
                 }}>
@@ -444,13 +437,13 @@ export default function Dashboard() {
                       WebkitTextFillColor: 'transparent',
                     }}
                   >
-                    {formattedBalance}
+                    {formatCurrency(user?.Wallet || 0)}
                   </h2>
-                  <p 
-                    style={{ 
-                      margin: 0, 
-                      color: THEME_CONSTANTS.colors.textSecondary, 
-                      fontSize: THEME_CONSTANTS.typography.body.size 
+                  <p
+                    style={{
+                      margin: 0,
+                      color: THEME_CONSTANTS.colors.textSecondary,
+                      fontSize: THEME_CONSTANTS.typography.body.size
                     }}
                   >
                     Ready to use for your campaigns. No hidden charges.
@@ -477,7 +470,7 @@ export default function Dashboard() {
                       Add Money
                     </Button>
                   </Col>
-                  
+
                 </Row>
               </Col>
             </Row>
@@ -512,19 +505,27 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      ₹{loading.orders ? 0 : (Array.isArray(recentOrders) ? recentOrders.reduce((total, report) => total + (report.cost || 0), 0) : 0)}
+                      ₹{loading ? 0 : (() => {
+                        const totalCost = messageReports.reduce((total, report) => {
+                          console.log("report:", report);
+                          return total + (report.cost || 0);
+                        }, 0);
+                        console.log("Total cost calculated:", totalCost);
+                        console.log("Message reports:", messageReports);
+                        return totalCost;
+                      })()}
                     </span>
-                    <span 
-                      style={{ 
-                        fontSize: THEME_CONSTANTS.typography.bodySmall.size, 
-                        color: THEME_CONSTANTS.colors.textMuted 
+                    <span
+                      style={{
+                        fontSize: THEME_CONSTANTS.typography.bodySmall.size,
+                        color: THEME_CONSTANTS.colors.textMuted
                       }}
                     >
-                      of {formattedBalance}
+                      of {formatCurrency(user?.Wallet || 0)}
                     </span>
                   </div>
                   <Progress
-                    percent={balance && Array.isArray(recentOrders) && recentOrders.length > 0 ? Math.min(100, Math.round(((recentOrders.reduce((total, report) => total + (report.cost || 0), 0)) / balance) * 100)) : 0}
+                    percent={user?.Wallet && messageReports.length > 0 ? Math.min(100, Math.round(((messageReports.reduce((total, report) => total + (report.cost || 0), 0)) / user.Wallet) * 100)) : 0}
                     strokeColor={{ '0%': THEME_CONSTANTS.colors.primary, '100%': THEME_CONSTANTS.colors.primaryDark }}
                   />
                 </div>
@@ -558,14 +559,14 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency((balance || 0) - (Array.isArray(recentOrders) ? recentOrders.reduce((total, report) => total + (report.cost || 0), 0) : 0))}
+                      {formatCurrency((user?.Wallet || 0) - (loading ? 0 : messageReports.reduce((total, report) => total + (report.cost || 0), 0)))}
                     </span>
                   </div>
-                  <p 
-                    style={{ 
-                      margin: 0, 
-                      fontSize: THEME_CONSTANTS.typography.bodySmall.size, 
-                      color: THEME_CONSTANTS.colors.textMuted 
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: THEME_CONSTANTS.typography.bodySmall.size,
+                      color: THEME_CONSTANTS.colors.textMuted
                     }}
                   >
                     Available for campaigns.
@@ -616,11 +617,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? (
-                        <Spin size="small" />
-                      ) : (
-                        stats?.totalCampaigns || 0
-                      )}
+                      {loading ? '-' : stats.totalCampaigns}
                     </h3>
                   </div>
                   <div
@@ -640,18 +637,18 @@ export default function Dashboard() {
                     <MessageOutlined />
                   </div>
                 </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: THEME_CONSTANTS.spacing.xs,
-                      fontSize: THEME_CONSTANTS.typography.bodySmall.size,
-                      color: THEME_CONSTANTS.colors.success,
-                      fontWeight: THEME_CONSTANTS.typography.label.weight,
-                    }}
-                  >
-                    <ArrowUpOutlined /> {loading.stats ? '-' : ((stats?.totalCampaigns || 0) > 0 ? `${Math.min(stats.totalCampaigns, 5)} active campaigns` : 'No campaigns yet')}
-                  </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: THEME_CONSTANTS.spacing.xs,
+                    fontSize: THEME_CONSTANTS.typography.bodySmall.size,
+                    color: THEME_CONSTANTS.colors.success,
+                    fontWeight: THEME_CONSTANTS.typography.label.weight,
+                  }}
+                >
+                  <ArrowUpOutlined /> {loading ? '-' : stats.totalCampaigns > 0 ? `${Math.max(0, stats.totalCampaigns - (stats.totalCampaigns - 2))} new this month` : 'No new campaigns'}
+                </div>
               </Card>
             </Col>
 
@@ -694,11 +691,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? (
-                        <Spin size="small" />
-                      ) : (
-                        stats?.sendtoteltemplet || 0
-                      )}
+                      {loading ? '-' : stats.sendtoteltemplet}
                     </h3>
                   </div>
                   <div
@@ -718,11 +711,11 @@ export default function Dashboard() {
                     <FileTextOutlined />
                   </div>
                 </div>
-                <p 
-                  style={{ 
-                    margin: 0, 
-                    fontSize: THEME_CONSTANTS.typography.bodySmall.size, 
-                    color: THEME_CONSTANTS.colors.textMuted 
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: THEME_CONSTANTS.typography.bodySmall.size,
+                    color: THEME_CONSTANTS.colors.textMuted
                   }}
                 >
                   Ready to use.
@@ -769,12 +762,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? (
-                        <Spin size="small" />
-                      ) : (() => {
-                        const totalMessages = stats?.totalMessages || 0;
-                        return totalMessages >= 1000 ? (totalMessages / 1000).toFixed(1) + 'K' : totalMessages;
-                      })()}
+                      {loading ? '-' : (stats.totalMessages / 1000).toFixed(1)}K
                     </h3>
                   </div>
                   <div
@@ -794,11 +782,11 @@ export default function Dashboard() {
                     <SendOutlined />
                   </div>
                 </div>
-                <p 
-                  style={{ 
-                    margin: 0, 
-                    fontSize: THEME_CONSTANTS.typography.bodySmall.size, 
-                    color: THEME_CONSTANTS.colors.textMuted 
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: THEME_CONSTANTS.typography.bodySmall.size,
+                    color: THEME_CONSTANTS.colors.textMuted
                   }}
                 >
                   Sent successfully.
@@ -845,10 +833,8 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? (
-                        <Spin size="small" />
-                      ) : (() => {
-                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                      {loading ? '-' : (() => {
+                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
                         return totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
                       })()}%
                     </h3>
@@ -878,9 +864,9 @@ export default function Dashboard() {
                     fontWeight: THEME_CONSTANTS.typography.label.weight,
                   }}
                 >
-                  {loading.stats ? 'Loading...' : (() => {
-                    const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
-                    const successRate = totalSent > 0 ? (((stats?.totalSuccessCount || 0) / totalSent) * 100) : 0;
+                  {loading ? 'Loading...' : (() => {
+                    const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
+                    const successRate = totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100) : 0;
                     return successRate >= 90 ? 'Excellent performance.' : totalSent > 0 ? 'Good performance.' : 'No data yet.';
                   })()}
                 </p>
@@ -945,13 +931,13 @@ export default function Dashboard() {
                           fontSize: THEME_CONSTANTS.typography.body.size,
                         }}
                       >
-                        {loading.stats ? '-' : (stats?.totalSuccessCount || 0)}
+                        {loading ? '-' : stats.totalSuccessCount}
                       </span>
                     </div>
                     <Progress
-                      percent={loading.stats ? 0 : (() => {
-                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
-                        return totalSent > 0 ? Math.round(((stats?.totalSuccessCount || 0) / totalSent) * 100) : 0;
+                      percent={loading ? 0 : (() => {
+                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
+                        return totalSent > 0 ? Math.round((stats.totalSuccessCount / totalSent) * 100) : 0;
                       })()}
                       strokeColor={THEME_CONSTANTS.colors.success}
                     />
@@ -983,13 +969,13 @@ export default function Dashboard() {
                           fontSize: THEME_CONSTANTS.typography.body.size,
                         }}
                       >
-                        {loading.stats ? '-' : (stats?.totalFailedCount || 0)}
+                        {loading ? '-' : stats.totalFailedCount}
                       </span>
                     </div>
                     <Progress
-                      percent={loading.stats ? 0 : (() => {
-                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
-                        return totalSent > 0 ? Math.round(((stats?.totalFailedCount || 0) / totalSent) * 100) : 0;
+                      percent={loading ? 0 : (() => {
+                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
+                        return totalSent > 0 ? Math.round((stats.totalFailedCount / totalSent) * 100) : 0;
                       })()}
                       strokeColor={THEME_CONSTANTS.colors.danger}
                     />
@@ -1020,9 +1006,9 @@ export default function Dashboard() {
                           color: THEME_CONSTANTS.colors.success,
                         }}
                       >
-                        {loading.stats ? '-' : (() => {
-                          const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
-                          return totalSent > 0 ? (((stats?.totalSuccessCount || 0) / totalSent) * 100).toFixed(1) : 0;
+                        {loading ? '-' : (() => {
+                          const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
+                          return totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
                         })()}%
                       </span>
                     </p>
@@ -1087,7 +1073,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? '-' : (stats?.totalMessages || 0)}
+                      {loading ? '-' : stats.totalMessages}
                     </span>
                   </div>
 
@@ -1119,7 +1105,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {loading.stats ? '-' : (stats?.totalSuccessCount || 0)}
+                      {loading ? '-' : stats.totalSuccessCount}
                     </span>
                   </div>
 
@@ -1151,7 +1137,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.danger,
                       }}
                     >
-                      {loading.stats ? '-' : (stats?.totalFailedCount || 0)}
+                      {loading ? '-' : stats.totalFailedCount}
                     </span>
                   </div>
                 </Space>
@@ -1204,14 +1190,23 @@ export default function Dashboard() {
               </Button>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              {loading.orders ? (
+              {loading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
-                  <Spin size="large" />
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '50%',
+                      borderTop: `4px solid ${THEME_CONSTANTS.colors.primary}`,
+                      borderRight: `4px solid transparent`,
+                      animation: 'spin 1s linear infinite',
+                    }}
+                  />
                   <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
                     Loading campaign data...
                   </p>
                 </div>
-              ) : !Array.isArray(recentOrders) || recentOrders.length === 0 ? (
+              ) : messageReports.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
                   <MessageOutlined style={{ fontSize: '48px', color: `${THEME_CONSTANTS.colors.textSecondary}40`, marginBottom: '16px' }} />
                   <p style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, margin: 0 }}>
@@ -1224,9 +1219,9 @@ export default function Dashboard() {
               ) : (
                 <Table
                   columns={messageColumns}
-                  dataSource={recentOrders.slice(0, 5)}
+                  dataSource={messageReports.slice(0, 5)}
                   rowKey="_id"
-                  pagination={false}
+                  pagination={{ pageSize: 5 }}
                   style={{ borderCollapse: 'collapse' }}
                   scroll={{ x: 800 }}
                 />
