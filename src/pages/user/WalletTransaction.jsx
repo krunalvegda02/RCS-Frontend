@@ -192,76 +192,67 @@ const WalletTransaction = () => {
               </Breadcrumb.Item>
             </Breadcrumb>
 
-            <Row gutter={[16, 16]} align="middle" justify="space-between">
-              <Col xs={24} lg={18}>
-                <Row gutter={[16, 16]} align="middle">
-                  <Col xs={24} sm={6} md={4} lg={3}>
-                    <div style={{
-                      width: '64px',
-                      height: '64px',
-                      background: THEME_CONSTANTS.colors.primaryLight,
-                      borderRadius: THEME_CONSTANTS.radius.xl,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: THEME_CONSTANTS.shadow.md,
-                      margin: '0 auto'
-                    }}>
-                      <WalletOutlined style={{
-                        color: THEME_CONSTANTS.colors.primary,
-                        fontSize: '32px'
-                      }} />
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={18} md={20} lg={21}>
-                    <div style={{ textAlign: window.innerWidth <= 576 ? 'center' : 'left' }}>
-                      <h1 style={{
-                        fontSize: 'clamp(24px, 4vw, 32px)',
-                        fontWeight: THEME_CONSTANTS.typography.h1.weight,
-                        color: THEME_CONSTANTS.colors.text,
-                        marginBottom: THEME_CONSTANTS.spacing.sm,
-                        lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
-                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                        letterSpacing: '-0.02em'
-                      }}>
-                        Wallet & Transactions 💳
-                      </h1>
-                      <p style={{
-                        color: THEME_CONSTANTS.colors.textSecondary,
-                        fontSize: 'clamp(13px, 2.5vw, 14px)',
-                        fontWeight: 500,
-                        lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0,
-                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                        letterSpacing: '-0.01em'
-                      }}>
-                        Manage your wallet balance and view transaction history
-                      </p>
-                    </div>
-                  </Col>
-                </Row>
-              </Col>
-              <Col xs={24} lg={6}>
-                <div style={{ textAlign: window.innerWidth <= 992 ? 'center' : 'right', marginTop: window.innerWidth <= 992 ? '16px' : '0' }}>
-                  <Button
-                    type="primary"
-                    size="large"
-                    icon={<PlusOutlined />}
-                    onClick={() => setShowAddMoney(true)}
-                    style={{
-                      borderRadius: THEME_CONSTANTS.radius.md,
-                      fontWeight: 600,
-                      height: '44px',
-                      padding: '0 24px',
-                      fontSize: '15px'
-                    }}
-                    block={window.innerWidth <= 576}
-                  >
-                    Request Wallet Amount
-                  </Button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  background: THEME_CONSTANTS.colors.primaryLight,
+                  borderRadius: THEME_CONSTANTS.radius.xl,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: THEME_CONSTANTS.shadow.md,
+                  flexShrink: 0
+                }}>
+                  <WalletOutlined style={{
+                    color: THEME_CONSTANTS.colors.primary,
+                    fontSize: '32px'
+                  }} />
                 </div>
-              </Col>
-            </Row>
+                <div>
+                  <h1 style={{
+                    fontSize: 'clamp(24px, 4vw, 32px)',
+                    fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                    color: THEME_CONSTANTS.colors.text,
+                    marginBottom: THEME_CONSTANTS.spacing.sm,
+                    lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
+                    fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                    letterSpacing: '-0.02em'
+                  }}>
+                    Wallet & Transactions 💳
+                  </h1>
+                  <p style={{
+                    color: THEME_CONSTANTS.colors.textSecondary,
+                    fontSize: 'clamp(13px, 2.5vw, 14px)',
+                    fontWeight: 500,
+                    lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
+                    margin: 0,
+                    fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                    letterSpacing: '-0.01em'
+                  }}>
+                    Manage your wallet balance and view transaction history
+                  </p>
+                </div>
+              </div>
+              <div>
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<PlusOutlined />}
+                  onClick={() => setShowAddMoney(true)}
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    fontWeight: 600,
+                    height: '44px',
+                    padding: '0 24px',
+                    fontSize: '15px'
+                  }}
+                >
+                  Request Wallet Amount
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Wallet Balance Card */}

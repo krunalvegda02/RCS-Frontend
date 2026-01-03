@@ -23,6 +23,10 @@ import {
   FileTextOutlined,
   ReloadOutlined,
   EyeOutlined,
+  MessageOutlined,
+  FileImageOutlined,
+  AppstoreOutlined,
+  MailOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import { getMessageTypeLabel } from '../../utils/messageTypes';
@@ -37,25 +41,42 @@ export default function TemplatePage() {
   const { user, token } = useSelector(state => state.auth);
   const screens = useBreakpoint();
   const navigate = useNavigate();
-  const { templates, loading: templatesLoading, error: templatesError } = useSelector(state => state.templates);
+  const { templates, loading: templatesLoading, pagination: templatesPagination } = useSelector(state => state.templates);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const dispatch = useDispatch();
 
   useEffect(() => {
     if (user?._id) {
-      dispatch(getAllTemplates());
+      dispatch(getAllTemplates({ page: currentPage, limit: pageSize }));
     }
-  }, [user, dispatch]);
+  }, [user, dispatch, currentPage, pageSize]);
 
   const loadTemplates = async () => {
     try {
-      await dispatch(getAllTemplates()).unwrap();
+      await dispatch(getAllTemplates({ page: currentPage, limit: pageSize })).unwrap();
       toast.success('Templates refreshed successfully');
     } catch (err) {
       toast.error('Failed to refresh templates');
       console.error(err);
+    }
+  };
+
+  const getMessageTypeIcon = (type) => {
+    switch (type) {
+      case 'plainText':
+        return <MessageOutlined />;
+      case 'textWithAction':
+        return <MailOutlined />;
+      case 'richCard':
+        return <FileImageOutlined />;
+      case 'carousel':
+        return <AppstoreOutlined />;
+      default:
+        return <MessageOutlined />;
     }
   };
 
@@ -86,99 +107,220 @@ export default function TemplatePage() {
     carousel: '#13c2c2',
   };
 
+  const MESSAGE_TYPES = {
+    plainText: 'Plain Text',
+    textWithAction: 'Text with Actions',
+    richCard: 'Rich Card',
+    carousel: 'Carousel',
+  };
+
   const columns = [
     {
       title: 'Template Name',
       dataIndex: 'name',
       key: 'name',
+      width: 220,
       render: (text, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              background: '#e8f4fd',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <FileTextOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '8px',
+            background: record.templateType === 'plainText' ? '#e3f2fd' : record.templateType === 'richCard' ? '#e8f5e9' : record.templateType === 'carousel' ? '#fff3e0' : '#f3e5f5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            {React.cloneElement(getMessageTypeIcon(record.templateType), {
+              style: { fontSize: '18px', color: typeColors[record.templateType] || '#1890ff' }
+            })}
           </div>
-          <div>
-            <div style={{ fontWeight: 600, color: '#000', fontSize: '14px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', letterSpacing: '-0.01em' }}>
-              {text}
-            </div>
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
-              ID: {record._id?.slice(-8) || 'N/A'}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.text, fontSize: '14px', lineHeight: '20px' }}>{text}</div>
+            <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '2px', lineHeight: '16px' }}>
+              {MESSAGE_TYPES[record.templateType] || record.templateType}
             </div>
           </div>
         </div>
-      ),
-      width: '35%',
+      )
+    },
+    {
+      title: 'Content Preview',
+      key: 'content',
+      render: (_, record) => {
+        let preview = '';
+        let fullContent = '';
+        let cardCount = 0;
+        
+        if (record.templateType === 'plainText') {
+          preview = record.content?.body || record.content?.text || record.description || 'No content';
+          fullContent = preview;
+        } else if (record.templateType === 'richCard') {
+          const title = record.content?.title || '';
+          const desc = record.content?.description || record.content?.subtitle || '';
+          preview = title;
+          fullContent = `${title}${desc ? ' - ' + desc : ''}`;
+        } else if (record.templateType === 'carousel') {
+          const cards = record.content?.cards || [];
+          cardCount = cards.length;
+          if (cards.length > 0) {
+            const cardPreviews = cards.map((card, idx) => 
+              `Card ${idx + 1}: ${card.title || 'Untitled'}${card.description || card.subtitle ? ' - ' + (card.description || card.subtitle) : ''}` 
+            ).join(' | ');
+            preview = cards.map(c => c.title).filter(Boolean).join(', ');
+            fullContent = cardPreviews;
+          } else {
+            preview = 'No cards';
+            fullContent = preview;
+          }
+        } else if (record.templateType === 'textWithAction') {
+          preview = record.content?.body || record.content?.text || record.description || 'No content';
+          fullContent = preview;
+        }
+        
+        return (
+          <Tooltip title={<div style={{ whiteSpace: 'pre-wrap', maxWidth: '400px' }}>{fullContent}</div>}>
+            <div style={{ 
+              fontSize: '13px', 
+              color: THEME_CONSTANTS.colors.textSecondary, 
+              lineHeight: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              {record.templateType === 'carousel' && cardCount > 0 && (
+                <span style={{
+                  background: THEME_CONSTANTS.colors.primaryLight,
+                  color: THEME_CONSTANTS.colors.primary,
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  letterSpacing: '0.3px',
+                  border: `1px solid ${THEME_CONSTANTS.colors.primary}`
+                }}>
+                  {cardCount} Cards
+                </span>
+              )}
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {preview?.substring(0, 50) || 'No content'}
+                {preview?.length > 50 && '...'}
+              </span>
+            </div>
+          </Tooltip>
+        );
+      }
     },
     {
       title: 'Type',
       dataIndex: 'templateType',
       key: 'type',
-      render: (type) => (
-        <Tag
-          style={{
-            background: `${typeColors[type] || '#1890ff'}15`,
-            color: typeColors[type] || '#1890ff',
-            border: `1px solid ${typeColors[type] || '#1890ff'}`,
-            fontWeight: 600,
-            padding: '6px 12px',
-            borderRadius: '8px',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            letterSpacing: '-0.01em'
-          }}
-        >
-          {getMessageTypeLabel ? getMessageTypeLabel(type) : type}
-        </Tag>
-      ),
-      width: '20%',
+      width: 160,
+      align: 'center',
+      render: (type) => {
+        const typeConfig = {
+          plainText: { icon: <MessageOutlined />, color: '#1976d2', bg: '#e3f2fd' },
+          richCard: { icon: <FileImageOutlined />, color: '#388e3c', bg: '#e8f5e9' },
+          carousel: { icon: <AppstoreOutlined />, color: '#f57c00', bg: '#fff3e0' },
+          textWithAction: { icon: <MailOutlined />, color: '#7b1fa2', bg: '#f3e5f5' }
+        };
+        const config = typeConfig[type] || typeConfig.plainText;
+        
+        return (
+          <Tag 
+            icon={config.icon}
+            style={{ 
+              padding: '6px 16px', 
+              fontSize: '12px', 
+              fontWeight: 600, 
+              borderRadius: '8px', 
+              width: '145px',
+              textAlign: 'center', 
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              background: config.bg,
+              color: config.color,
+              border: `1px solid ${config.color}`,
+              letterSpacing: '-0.01em'
+            }}
+          >
+            {MESSAGE_TYPES[type] || type}
+          </Tag>
+        );
+      }
     },
     {
-      title: 'Status',
-      key: 'status',
-      render: (text, record) => {
-        const createdDate = new Date(record.createdAt);
+      title: 'Usage',
+      dataIndex: 'usageCount',
+      key: 'usage',
+      width: 90,
+      align: 'center',
+      render: (count) => (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '18px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>
+            {count || 0}
+          </span>
+          <span style={{ fontSize: '10px', color: THEME_CONSTANTS.colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            times
+          </span>
+        </div>
+      )
+    },
+    {
+      title: 'Created',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 110,
+      align: 'center',
+      render: (date) => {
+        const dateObj = new Date(date);
         const now = new Date();
-        const secondsDiff = (now - createdDate) / 1000;
-        return secondsDiff < 3 ? (
-          <Tag color="processing">Processing</Tag>
-        ) : (
-          <Tag color="success">Active</Tag>
+        const diffTime = Math.abs(now - dateObj);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        return (
+          <Tooltip title={dateObj.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>
+                {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+              <span style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary }}>
+                {diffDays === 0 ? 'Today' : diffDays === 1 ? 'Yesterday' : `${diffDays}d ago`}
+              </span>
+            </div>
+          </Tooltip>
         );
-      },
-      width: '15%',
+      }
     },
     {
       title: 'Actions',
       key: 'actions',
+      width: 140,
+      align: 'center',
       render: (text, record) => (
         <Space size="small">
-          <Tooltip title="View Template">
-            <Button
-              type="text"
-              size="medium"
-              icon={<EyeOutlined style={{ fontSize: 20 }} />}
-              onClick={() => handlePreview(record)}
-              style={{ color: THEME_CONSTANTS.colors.primary }}
-            />
-          </Tooltip>
-          <Tooltip title="Edit Template">
+          <Tooltip title="Preview">
             <Button
               type="text"
               size="small"
-              icon={<EditOutlined style={{ fontSize: 20 }} />}
-              onClick={() => handleEdit(record)}
-              style={{ color: '#1890ff' }}
+              icon={<EyeOutlined style={{ fontSize: '18px' }} />}
+              onClick={() => handlePreview(record)}
+              style={{ color: THEME_CONSTANTS.colors.primary, padding: '4px 8px' }}
             />
           </Tooltip>
-          <Tooltip title="Delete Template">
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined style={{ fontSize: '18px' }} />}
+              onClick={() => handleEdit(record)}
+              style={{ color: '#1890ff', padding: '4px 8px' }}
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
             <Popconfirm
               title="Delete Template"
               description="Are you sure you want to delete this template?"
@@ -190,13 +332,14 @@ export default function TemplatePage() {
               <Button
                 type="text"
                 size="small"
-                icon={<DeleteOutlined style={{ fontSize: 20 }} />}
-                danger />
+                icon={<DeleteOutlined style={{ fontSize: '18px' }} />}
+                danger
+                style={{ padding: '4px 8px' }}
+              />
             </Popconfirm>
           </Tooltip>
         </Space>
       ),
-      width: '20%',
     },
   ];
 
@@ -236,52 +379,44 @@ export default function TemplatePage() {
 
           <Row gutter={[16, 16]} align="middle" justify="space-between">
             <Col xs={24} lg={18}>
-              <Row gutter={[16, 16]} align="middle">
-                <Col xs={24} sm={4} md={3} lg={3}>
-                  <div style={{
-                    width: '64px',
-                    height: '64px',
-                    background: THEME_CONSTANTS.colors.primaryLight,
-                    borderRadius: THEME_CONSTANTS.radius.xl,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: THEME_CONSTANTS.shadow.md,
-                    margin: '0 auto'
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  background: THEME_CONSTANTS.colors.primaryLight,
+                  borderRadius: THEME_CONSTANTS.radius.xl,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: THEME_CONSTANTS.shadow.md,
+                  flexShrink: 0
+                }}>
+                  <FileTextOutlined style={{
+                    color: THEME_CONSTANTS.colors.primary,
+                    fontSize: '32px'
+                  }} />
+                </div>
+                <div>
+                  <h1 style={{
+                    fontSize: THEME_CONSTANTS.typography.h1.size,
+                    fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                    color: THEME_CONSTANTS.colors.text,
+                    marginBottom: THEME_CONSTANTS.spacing.sm,
+                    lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
                   }}>
-                    <FileTextOutlined style={{
-                      color: THEME_CONSTANTS.colors.primary,
-                      fontSize: '32px'
-                    }} />
-                  </div>
-                </Col>
-                <Col xs={24} sm={20} md={21} lg={21}>
-                  <div>
-                    <h1 style={{
-                      fontSize: '34px',
-                      fontWeight: 700,
-                      color: '#0f172a',
-                      marginBottom: '10px',
-                      lineHeight: 1.2,
-                      fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                      letterSpacing: '-0.03em'
-                    }}>
-                      Message Templates 📝
-                    </h1>
-                    <p style={{
-                      color: '#64748b',
-                      fontSize: '15px',
-                      fontWeight: 450,
-                      lineHeight: 1.6,
-                      margin: 0,
-                      fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                      letterSpacing: '-0.01em'
-                    }}>
-                      Create, manage and organize your message templates for quick campaign creation.
-                    </p>
-                  </div>
-                </Col>
-              </Row>
+                    Message Templates
+                  </h1>
+                  <p style={{
+                    color: THEME_CONSTANTS.colors.textSecondary,
+                    fontSize: THEME_CONSTANTS.typography.body.size,
+                    fontWeight: 500,
+                    lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
+                    margin: 0
+                  }}>
+                    Create, manage and organize your message templates for quick campaign creation.
+                  </p>
+                </div>
+              </div>
             </Col>
             <Col xs={24} lg={6}>
               <div style={{ textAlign: screens.lg ? 'right' : 'left' }}>
@@ -292,14 +427,8 @@ export default function TemplatePage() {
                     onClick={() => navigate('/create-template')}
                     style={{
                       background: THEME_CONSTANTS.colors.primary,
-                      border: 'none',
-                      fontWeight: 600,
-                      borderRadius: '8px',
+                      borderColor: THEME_CONSTANTS.colors.primary,
                       height: '44px',
-                      padding: '0 24px',
-                      fontSize: '15px',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                      letterSpacing: '-0.01em'
                     }}
                   >
                     Create Template
@@ -310,11 +439,6 @@ export default function TemplatePage() {
                     loading={templatesLoading}
                     style={{
                       height: '44px',
-                      padding: '0 20px',
-                      fontSize: '15px',
-                      fontWeight: 500,
-                      borderRadius: '8px',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
                     }}
                   >
                     Refresh
@@ -350,11 +474,11 @@ export default function TemplatePage() {
                 fontSize: THEME_CONSTANTS.typography.h5.size,
                 fontWeight: THEME_CONSTANTS.typography.h5.weight,
                 color: THEME_CONSTANTS.colors.text,
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                fontFamily: THEME_CONSTANTS.typography.fontFamily,
                 letterSpacing: '-0.01em'
               }}
             >
-              All Templates ({templates.length})
+              All Templates ({templatesPagination?.total || 0})
             </h3>
           </div>
           <div style={{ overflowX: 'auto' }}>
@@ -368,10 +492,10 @@ export default function TemplatePage() {
             ) : templates.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
                 <FileTextOutlined style={{ fontSize: '48px', color: `${THEME_CONSTANTS.colors.textSecondary}40`, marginBottom: '16px' }} />
-                <p style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, margin: 0, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', letterSpacing: '-0.01em' }}>
+                <p style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, margin: 0, fontFamily: THEME_CONSTANTS.typography.fontFamily, letterSpacing: '-0.01em' }}>
                   No templates found
                 </p>
-                <p style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, margin: '8px 0 0 0', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+                <p style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, margin: '8px 0 0 0', fontFamily: THEME_CONSTANTS.typography.fontFamily }}>
                   Create your first template to get started
                 </p>
                 <Button
@@ -392,11 +516,19 @@ export default function TemplatePage() {
                 columns={columns}
                 dataSource={templates}
                 rowKey="_id"
+                loading={templatesLoading}
                 pagination={{
-                  pageSize: 10,
+                  current: templatesPagination?.page || 1,
+                  pageSize: templatesPagination?.limit || 10,
+                  total: templatesPagination?.total || 0,
                   showSizeChanger: true,
                   showQuickJumper: true,
                   showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} templates`,
+                  onChange: (page, size) => {
+                    setCurrentPage(page);
+                    setPageSize(size);
+                    dispatch(getAllTemplates({ page, limit: size }));
+                  },
                 }}
                 style={{ borderCollapse: 'collapse' }}
                 scroll={{ x: 800 }}
@@ -408,7 +540,7 @@ export default function TemplatePage() {
         {/* Preview Modal */}
         <Modal
           title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 600, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', letterSpacing: '-0.01em' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 600, fontFamily: THEME_CONSTANTS.typography.fontFamily, letterSpacing: '-0.01em' }}>
               <EyeOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
               <span>Template Preview - {previewTemplate?.name}</span>
             </div>

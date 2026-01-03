@@ -285,14 +285,32 @@ function CreateCampaignSinglePage() {
           <Breadcrumb.Item>Create Campaign</Breadcrumb.Item>
         </Breadcrumb>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: THEME_CONSTANTS.spacing.xxl }}>
-          <div>
-            <h1 style={{ fontSize: THEME_CONSTANTS.typography.h1.size, fontWeight: THEME_CONSTANTS.typography.h1.weight, margin: 0, color: THEME_CONSTANTS.colors.text, fontFamily: THEME_CONSTANTS.typography.fontFamily, letterSpacing: '-0.02em' }}>
-              Create RCS Campaign
-            </h1>
-            <p style={{ color: THEME_CONSTANTS.colors.textSecondary, margin: '8px 0 0 0', fontFamily: THEME_CONSTANTS.typography.fontFamily, letterSpacing: '-0.01em' }}>
-              Select template, add contacts, and launch your campaign
-            </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: THEME_CONSTANTS.spacing.xxl, flexWrap: 'wrap', gap: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: THEME_CONSTANTS.colors.primaryLight,
+              borderRadius: THEME_CONSTANTS.radius.xl,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: THEME_CONSTANTS.shadow.md,
+              flexShrink: 0
+            }}>
+              <FormOutlined style={{
+                color: THEME_CONSTANTS.colors.primary,
+                fontSize: '32px'
+              }} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: THEME_CONSTANTS.typography.h1.size, fontWeight: THEME_CONSTANTS.typography.h1.weight, margin: 0, color: THEME_CONSTANTS.colors.text, fontFamily: THEME_CONSTANTS.typography.fontFamily, letterSpacing: '-0.02em' }}>
+                Create RCS Campaign
+              </h1>
+              <p style={{ color: THEME_CONSTANTS.colors.textSecondary, margin: '8px 0 0 0', fontFamily: THEME_CONSTANTS.typography.fontFamily, letterSpacing: '-0.01em' }}>
+                Select template, add contacts, and launch your campaign
+              </p>
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textMuted }}>Available Balance</div>

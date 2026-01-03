@@ -45,21 +45,23 @@ import {
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
+import { useWallet } from '../../hooks/useWallet';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { fetchDashboardStats, fetchRecentOrders, addWalletRequest } from '../../redux/slices/dashboardSlice';
-import { useWallet } from '../../hooks/useWallet';
 
 const { useBreakpoint } = Grid;
 
 export default function Dashboard() {
   const { user, refreshUser } = useAuth();
+  const { totalBalance, availableBalance, blockedBalance, creditsUsed, formattedTotalBalance, formattedAvailableBalance, formattedBlockedBalance, formattedCreditsUsed } = useWallet();
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const dispatch = useDispatch();
-  const { balance, availableBalance, blockedBalance, formattedBalance, formattedAvailableBalance, formattedBlockedBalance } = useWallet();
 
   const { stats, recentOrders, loading, error } = useSelector(state => state.dashboard);
+  const messageReports = recentOrders || [];
+  const safeStats = stats || { totalCampaigns: 0, sendtoteltemplet: 0, totalMessages: 0, totalSuccessCount: 0, totalFailedCount: 0, totalCost: 0 };
 
   const [refreshing, setRefreshing] = useState(false);
   const [showAddMoney, setShowAddMoney] = useState(false);
@@ -73,31 +75,12 @@ export default function Dashboard() {
     joinedDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A',
   });
 
-  const messageReports = recentOrders || [];
-  const safeStats = {
-    totalCampaigns: stats?.totalCampaigns || 0,
-    totalMessages: stats?.totalMessages || 0,
-    sentMessages: stats?.sentMessages || 0,
-    failedMessages: stats?.failedMessages || 0,
-    pendingMessages: stats?.pendingMessages || 0,
-    totalCost: stats?.totalCost || 0,
-    totalSuccessCount: stats?.totalSuccessCount || 0,
-    totalFailedCount: stats?.totalFailedCount || 0,
-    sendtoteltemplet: stats?.sendtoteltemplet || 0,
-  };
-
   useEffect(() => {
     if (user?._id) {
-      console.log('Dashboard: Fetching data for user:', user._id);
       dispatch(fetchDashboardStats(user._id));
       dispatch(fetchRecentOrders(user._id));
     }
   }, [user, dispatch]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log('Dashboard Redux State:', { stats, recentOrders, loading, error });
-  }, [stats, recentOrders, loading, error]);
 
   const handleAddMoney = async () => {
     if (addAmount && Number.parseFloat(addAmount) > 0) {
@@ -372,8 +355,6 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                         marginBottom: THEME_CONSTANTS.spacing.sm,
                         lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
-                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                        letterSpacing: '-0.02em'
                       }}>
                         Welcome back, {user?.companyname || 'User'} 👋
                       </h1>
@@ -382,9 +363,7 @@ export default function Dashboard() {
                         fontSize: THEME_CONSTANTS.typography.body.size,
                         fontWeight: 500,
                         lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0,
-                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                        letterSpacing: '-0.01em'
+                        margin: 0
                       }}>
                         Manage your campaigns, templates, and track your message delivery metrics all in one place.
                       </p>
@@ -399,13 +378,6 @@ export default function Dashboard() {
                       icon={<ReloadOutlined />}
                       onClick={handleRefresh}
                       loading={refreshing}
-                      style={{
-                        height: '44px',
-                        padding: '0 20px',
-                        fontSize: '15px',
-                        fontWeight: 500,
-                        borderRadius: '8px'
-                      }}
                     >
                       Refresh
                     </Button>
@@ -458,14 +430,14 @@ export default function Dashboard() {
                     style={{
                       margin: 0,
                       marginBottom: THEME_CONSTANTS.spacing.sm,
-                      fontSize: '40px',
+                      fontSize: '44px',
                       fontWeight: THEME_CONSTANTS.typography.h1.weight,
                       background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, #4f46e5 50%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                     }}
                   >
-                    {formattedBalance}
+                    {formattedTotalBalance}
                   </h2>
                   <p
                     style={{
@@ -503,59 +475,12 @@ export default function Dashboard() {
               </Col>
             </Row>
             <Row gutter={[24, 16]} style={{ marginTop: THEME_CONSTANTS.spacing.xl }}>
-              <Col xs={24} sm={12}>
+              <Col xs={24} sm={8}>
                 <div>
                   <p
                     style={{
                       margin: 0,
-                      marginBottom: THEME_CONSTANTS.spacing.sm,
-                      fontSize: THEME_CONSTANTS.typography.caption.size,
-                      textTransform: 'uppercase',
-                      fontWeight: THEME_CONSTANTS.typography.label.weight,
-                      color: THEME_CONSTANTS.colors.textMuted,
-                    }}
-                  >
-                    Blocked Balance
-                  </p>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      gap: THEME_CONSTANTS.spacing.sm,
-                      marginBottom: THEME_CONSTANTS.spacing.sm,
-                      flexWrap: 'wrap'
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: THEME_CONSTANTS.typography.h4.size,
-                        fontWeight: THEME_CONSTANTS.typography.h4.weight,
-                        color: THEME_CONSTANTS.colors.text,
-                      }}
-                    >
-                      ₹{safeStats.totalCost.toLocaleString()}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: THEME_CONSTANTS.typography.bodySmall.size,
-                        color: THEME_CONSTANTS.colors.textMuted
-                      }}
-                    >
-                      of {formattedBalance}
-                    </span>
-                  </div>
-                  <Progress
-                    percent={balance > 0 ? Math.min(100, Math.round((safeStats.totalCost / balance) * 100)) : 0}
-                    strokeColor={{ '0%': THEME_CONSTANTS.colors.primary, '100%': THEME_CONSTANTS.colors.primaryDark }}
-                  />
-                </div>
-              </Col>
-              <Col xs={24} sm={12}>
-                <div>
-                  <p
-                    style={{
-                      margin: 0,
-                      marginBottom: THEME_CONSTANTS.spacing.sm,
+                      marginBottom: THEME_CONSTANTS.spacing.xs,
                       fontSize: THEME_CONSTANTS.typography.caption.size,
                       textTransform: 'uppercase',
                       fontWeight: THEME_CONSTANTS.typography.label.weight,
@@ -564,33 +489,65 @@ export default function Dashboard() {
                   >
                     Available Balance
                   </p>
-                  <div
+                  <span
                     style={{
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      gap: THEME_CONSTANTS.spacing.sm,
-                      marginBottom: THEME_CONSTANTS.spacing.sm,
+                      fontSize: '22px',
+                      fontWeight: 700,
+                      color: THEME_CONSTANTS.colors.success,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: THEME_CONSTANTS.typography.h4.size,
-                        fontWeight: THEME_CONSTANTS.typography.h4.weight,
-                        color: THEME_CONSTANTS.colors.success,
-                      }}
-                    >
-                      {formattedAvailableBalance}
-                    </span>
-                  </div>
+                    {formattedAvailableBalance}
+                  </span>
+                </div>
+              </Col>
+              <Col xs={24} sm={8}>
+                <div>
                   <p
                     style={{
                       margin: 0,
-                      fontSize: THEME_CONSTANTS.typography.bodySmall.size,
-                      color: THEME_CONSTANTS.colors.textMuted
+                      marginBottom: THEME_CONSTANTS.spacing.xs,
+                      fontSize: THEME_CONSTANTS.typography.caption.size,
+                      textTransform: 'uppercase',
+                      fontWeight: THEME_CONSTANTS.typography.label.weight,
+                      color: THEME_CONSTANTS.colors.textMuted,
                     }}
                   >
-                    Available for campaigns.
+                    Blocked Balance
                   </p>
+                  <span
+                    style={{
+                      fontSize: '22px',
+                      fontWeight: 700,
+                      color: '#fa8c16',
+                    }}
+                  >
+                    {formattedBlockedBalance}
+                  </span>
+                </div>
+              </Col>
+              <Col xs={24} sm={8}>
+                <div>
+                  <p
+                    style={{
+                      margin: 0,
+                      marginBottom: THEME_CONSTANTS.spacing.xs,
+                      fontSize: THEME_CONSTANTS.typography.caption.size,
+                      textTransform: 'uppercase',
+                      fontWeight: THEME_CONSTANTS.typography.label.weight,
+                      color: THEME_CONSTANTS.colors.textMuted,
+                    }}
+                  >
+                    Credits Used
+                  </p>
+                  <span
+                    style={{
+                      fontSize: '22px',
+                      fontWeight: 700,
+                      color: THEME_CONSTANTS.colors.primary,
+                    }}
+                  >
+                    {formattedCreditsUsed}
+                  </span>
                 </div>
               </Col>
             </Row>
@@ -627,7 +584,7 @@ export default function Dashboard() {
                         marginBottom: THEME_CONSTANTS.spacing.sm,
                       }}
                     >
-                      Active Campaigns
+                      Total Campaigns
                     </p>
                     <h3
                       style={{
@@ -657,7 +614,7 @@ export default function Dashboard() {
                     <MessageOutlined />
                   </div>
                 </div>
-                <div
+                {/* <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -667,8 +624,8 @@ export default function Dashboard() {
                     fontWeight: THEME_CONSTANTS.typography.label.weight,
                   }}
                 >
-                  <ArrowUpOutlined /> {loading.stats ? '-' : safeStats.totalCampaigns > 0 ? `${Math.max(0, safeStats.totalCampaigns - (safeStats.totalCampaigns - 2))} new this month` : 'No new campaigns'}
-                </div>
+                  <ArrowUpOutlined /> {loading ? '-' : stats.totalCampaigns > 0 ? `${Math.max(0, stats.totalCampaigns - (stats.totalCampaigns - 2))} new this month` : 'No new campaigns'}
+                </div> */}
               </Card>
             </Col>
 
@@ -701,7 +658,7 @@ export default function Dashboard() {
                         marginBottom: THEME_CONSTANTS.spacing.sm,
                       }}
                     >
-                      Active Templates
+                      Total Templates
                     </p>
                     <h3
                       style={{
@@ -782,7 +739,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading.stats ? '-' : (safeStats.totalMessages / 1000).toFixed(1)}K
+                      {loading.stats ? '-' : safeStats.totalMessages >= 1000 ? (safeStats.totalMessages / 1000).toFixed(1) + 'K' : safeStats.totalMessages}
                     </h3>
                   </div>
                   <div
@@ -1313,7 +1270,7 @@ export default function Dashboard() {
                       ACCOUNT STATUS
                     </p>
                     <Tag color="green" style={{ fontWeight: 600 }}>
-                      Active
+                      Total
                     </Tag>
                   </div>
                 </Space>

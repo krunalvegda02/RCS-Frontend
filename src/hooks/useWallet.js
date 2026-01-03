@@ -6,9 +6,10 @@ export const useWallet = () => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   
-  const walletBalance = user?.wallet?.balance || 0;
+  const totalBalance = user?.wallet?.balance || 0;
   const blockedBalance = user?.wallet?.blockedBalance || 0;
-  const availableBalance = walletBalance - blockedBalance;
+  const availableBalance = totalBalance - blockedBalance;
+  const creditsUsed = user?.stats?.totalSpent || 0;
   const currency = user?.wallet?.currency || 'INR';
   
   const updateBalance = (newBalance) => {
@@ -40,25 +41,31 @@ export const useWallet = () => {
   const showBalanceInfo = () => {
     if (blockedBalance > 0) {
       message.info(
-        `Total: ₹${walletBalance.toLocaleString()} | Blocked: ₹${blockedBalance.toLocaleString()} | Available: ₹${availableBalance.toLocaleString()}`,
+        `Total: ₹${totalBalance.toLocaleString()} | Blocked: ₹${blockedBalance.toLocaleString()} | Available: ₹${availableBalance.toLocaleString()} | Used: ₹${creditsUsed.toLocaleString()}`,
         5
       );
     } else {
-      message.info(`Wallet Balance: ₹${walletBalance.toLocaleString()}`);
+      message.info(`Total: ₹${totalBalance.toLocaleString()} | Available: ₹${availableBalance.toLocaleString()} | Used: ₹${creditsUsed.toLocaleString()}`);
     }
   };
   
   return {
-    balance: walletBalance,
+    balance: totalBalance,
+    totalBalance,
     blockedBalance,
     availableBalance,
+    creditsUsed,
+    remainingBalance: availableBalance,
     currency,
     updateBalance,
     checkBalance,
     showBalanceInfo,
-    formattedBalance: `₹${walletBalance.toLocaleString()}`,
+    formattedBalance: `₹${totalBalance.toLocaleString()}`,
+    formattedTotalBalance: `₹${totalBalance.toLocaleString()}`,
     formattedAvailableBalance: `₹${availableBalance.toLocaleString()}`,
+    formattedRemainingBalance: `₹${availableBalance.toLocaleString()}`,
     formattedBlockedBalance: `₹${blockedBalance.toLocaleString()}`,
+    formattedCreditsUsed: `₹${creditsUsed.toLocaleString()}`,
     hasBlockedBalance: blockedBalance > 0,
   };
 };

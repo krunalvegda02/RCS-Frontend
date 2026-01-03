@@ -54,7 +54,7 @@ import {
 } from '../../redux/slices/ordersSlice';
 import * as XLSX from 'xlsx';
 import dayjs from 'dayjs';
-import { io } from 'socket.io-client';
+
 
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
@@ -81,7 +81,7 @@ export default function Orders() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [modalCurrentPage, setModalCurrentPage] = useState(1);
-  const [socket, setSocket] = useState(null);
+
 
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -90,6 +90,9 @@ export default function Orders() {
   const [dateRange, setDateRange] = useState([null, null]);
   const [sortOrder, setSortOrder] = useState('newest');
 
+  const [modalSearchText, setModalSearchText] = useState('');
+  const [modalStatusFilter, setModalStatusFilter] = useState('all');
+
   // Fetch orders on component mount and page change
   useEffect(() => {
     if (user?._id) {
@@ -97,110 +100,7 @@ export default function Orders() {
     }
   }, [dispatch, user?._id, currentPage]);
 
-  // Auto-request stats when orders change
-  useEffect(() => {
-    if (Array.isArray(orders) && orders.length > 0 && socket?.connected) {
-      orders.forEach(order => {
-        if (order._id) {
-          socket.emit('request_stats', order._id);
-        }
-      });
-    }
-  }, [orders, socket?.connected]);
 
-  // Socket.IO setup for real-time updates
-  useEffect(() => {
-    if (!token || !user?._id) return;
-
-    try {
-      const socketUrl = 'http://localhost:3000';
-      
-      const newSocket = io(socketUrl, {
-        auth: { token },
-        timeout: 10000,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        transports: ['websocket', 'polling']
-      });
-
-      newSocket.on('connect', () => {
-        console.log('✅ Connected to real-time updates');
-        dispatch(setSocketConnected(true));
-        // Request initial stats for all campaigns
-        if (orders?.length > 0) {
-          orders.forEach(order => {
-            newSocket.emit('request_stats', order._id);
-          });
-        }
-      });
-
-      newSocket.on('connect_error', (error) => {
-        console.warn('❌ Socket connection failed:', error.message);
-        dispatch(setSocketConnected(false));
-      });
-
-      newSocket.on('disconnect', (reason) => {
-        console.log('🔌 Socket disconnected:', reason);
-        dispatch(setSocketConnected(false));
-      });
-
-      // Real-time stats updates
-      newSocket.on('stats_update', (data) => {
-        dispatch(updateRealTimeStats({
-          campaignId: data.campaignId,
-          stats: data.stats
-        }));
-      });
-
-      // Campaign updates
-      newSocket.on('campaign_update', (data) => {
-        dispatch(updateRealTimeStats({
-          campaignId: data.campaignId,
-          stats: data
-        }));
-      });
-
-      // Message status updates
-      newSocket.on('message_status_update', (data) => {
-        // Add to live events
-        dispatch(addLiveEvent({
-          id: Date.now() + Math.random(),
-          campaignId: data.campaignId,
-          messageId: data.messageId,
-          phoneNumber: data.phoneNumber,
-          status: data.status,
-          timestamp: data.timestamp,
-          eventType: data.eventType
-        }));
-      });
-
-      // User interactions
-      newSocket.on('user_interaction', (data) => {
-        dispatch(addLiveEvent({
-          id: Date.now() + Math.random(),
-          campaignId: data.campaignId,
-          messageId: data.messageId,
-          phoneNumber: data.phoneNumber,
-          status: 'interaction',
-          interactionType: data.interactionType,
-          text: data.text,
-          timestamp: data.timestamp
-        }));
-      });
-
-      setSocket(newSocket);
-
-      return () => {
-        console.log('🔌 Disconnecting socket');
-        dispatch(setSocketConnected(false));
-        newSocket.disconnect();
-      };
-    } catch (error) {
-      console.warn('Failed to initialize socket connection:', error);
-      dispatch(setSocketConnected(false));
-    }
-  }, [token, user?._id, dispatch]);
 
   const fetchAllCampaignStats = async () => {
     for (const order of orders) {
@@ -322,24 +222,122 @@ export default function Orders() {
   const viewOrderDetails = (order) => {
     dispatch(setSelectedOrder(order));
     setModalCurrentPage(1);
+    setModalSearchText('');
+    setModalStatusFilter('all');
     setShowModal(true);
-    // Fetch messages for the campaign
     if (order._id) {
-      dispatch(fetchCampaignMessages({ campaignId: order._id, page: 1, limit: 20 }));
-      // Join campaign room for real-time updates
-      if (socket) {
-        socket.emit('join_campaign', order._id);
-      }
+      dispatch(fetchCampaignMessages({ 
+        campaignId: order._id, 
+        page: 1, 
+        limit: 20
+      }));
+    }
+  };
+
+  const handleModalSearch = (searchValue) => {
+    setModalSearchText(searchValue);
+    setModalCurrentPage(1);
+    if (selectedOrder?._id) {
+      dispatch(fetchCampaignMessages({ 
+        campaignId: selectedOrder._id, 
+        page: 1, 
+        limit: 20,
+        search: searchValue,
+        status: modalStatusFilter !== 'all' ? modalStatusFilter : undefined
+      }));
+    }
+  };
+
+  const handleModalStatusFilter = (status) => {
+    setModalStatusFilter(status);
+    setModalCurrentPage(1);
+    if (selectedOrder?._id) {
+      dispatch(fetchCampaignMessages({ 
+        campaignId: selectedOrder._id, 
+        page: 1, 
+        limit: 20,
+        search: modalSearchText,
+        status: status !== 'all' ? status : undefined
+      }));
+    }
+  };
+
+  const handleModalPageChange = (page) => {
+    setModalCurrentPage(page);
+    if (selectedOrder?._id) {
+      dispatch(fetchCampaignMessages({ 
+        campaignId: selectedOrder._id, 
+        page, 
+        limit: 20,
+        search: modalSearchText,
+        status: modalStatusFilter !== 'all' ? modalStatusFilter : undefined
+      }));
     }
   };
 
   const closeModal = () => {
     setShowModal(false);
-    // Leave campaign room
-    if (socket && selectedOrder?._id) {
-      socket.emit('leave_campaign', selectedOrder._id);
-    }
+    setModalSearchText('');
+    setModalStatusFilter('all');
     dispatch(clearSelectedOrder());
+  };
+
+  const exportCampaignDetails = async () => {
+    try {
+      if (!selectedOrder?._id) {
+        toast.error('No campaign selected');
+        return;
+      }
+
+      const loadingToast = toast.loading('Fetching all messages for export...');
+
+      const response = await fetch(`http://localhost:3000/api/campaigns/${selectedOrder._id}/messages?limit=100000`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch messages');
+
+      const data = await response.json();
+      const allMessages = data.data?.messages || [];
+
+      if (allMessages.length === 0) {
+        toast.dismiss(loadingToast);
+        toast.error('No messages to export');
+        return;
+      }
+
+      const exportData = allMessages.map((msg, idx) => ({
+        'S.No': idx + 1,
+        'Phone Number': msg.phoneNumber || 'N/A',
+        'Status': msg.status?.toUpperCase() || 'N/A',
+        'Template Type': msg.templateType || 'N/A',
+        'Sent At': msg.sentAt ? new Date(msg.sentAt).toLocaleString() : 'N/A',
+        'Delivered At': msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString() : 'N/A',
+        'Read At': msg.readAt ? new Date(msg.readAt).toLocaleString() : 'N/A',
+        'Interactions': msg.interactions || 0,
+        'Replies': msg.replies || 0,
+        'User Response': msg.userText || msg.clickedAction || msg.suggestionResponse?.plainText || 'N/A',
+        'Error': msg.status === 'failed' ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A',
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      worksheet['!cols'] = [
+        { wch: 8 }, { wch: 15 }, { wch: 12 }, { wch: 15 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 12 },
+        { wch: 10 }, { wch: 30 }, { wch: 30 }
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Messages');
+
+      XLSX.writeFile(workbook, `campaign-${selectedOrder?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.dismiss(loadingToast);
+      toast.success(`Exported ${exportData.length} messages successfully`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.dismiss();
+      toast.error('Failed to export campaign details');
+    }
   };
 
   // Filter and sort orders based on current filters
@@ -412,6 +410,12 @@ export default function Orders() {
 
   const filteredOrders = getFilteredOrders();
 
+  const getFilteredMessages = () => {
+    return campaignMessages || [];
+  };
+
+  const filteredMessages = getFilteredMessages();
+
   const deleteOrderHandler = async (orderId) => {
     Modal.confirm({
       title: 'Delete Campaign Report',
@@ -431,90 +435,98 @@ export default function Orders() {
     });
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     try {
       if (!orders || orders?.length === 0) {
         toast.error('No data to export');
         return;
       }
 
+      toast.loading('Preparing export...');
+
       const exportData = orders?.map((order, idx) => {
         const successCount = order?.successCount || 0;
         const failedCount = order?.failedCount || 0;
         const totalRecipients = order?.cost || 0;
+        const successRate = totalRecipients > 0 ? ((successCount / totalRecipients) * 100).toFixed(2) : 0;
 
         return {
-          'ID': `#${(currentPage - 1) * 10 + idx + 1}`,
+          'Campaign ID': order?._id || 'N/A',
           'Campaign Name': order?.CampaignName || 'N/A',
           'Message Type': order?.type || 'N/A',
+          'Status': order?.status || 'N/A',
           'Total Recipients': totalRecipients,
-          'Successful': successCount,
+          'Successfully Delivered': successCount,
           'Failed': failedCount,
-          'Date': new Date(order.createdAt).toLocaleDateString(),
-          'Time': new Date(order.createdAt).toLocaleTimeString(),
+          'Success Rate (%)': successRate,
+          'Created Date': new Date(order.createdAt).toLocaleDateString(),
+          'Created Time': new Date(order.createdAt).toLocaleTimeString(),
         };
       });
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      worksheet['!cols'] = [
+        { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 12 },
+        { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 15 },
+        { wch: 15 }, { wch: 15 }
+      ];
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Reports');
 
       XLSX.writeFile(workbook, `campaign-reports-${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Report exported successfully');
+      toast.dismiss();
+      toast.success(`Exported ${exportData.length} campaigns successfully`);
     } catch (error) {
       console.error('Export error:', error);
+      toast.dismiss();
       toast.error('Failed to export report');
     }
   };
 
   const columns = [
     {
-      title: 'ID',
-      dataIndex: '_id',
-      key: 'id',
-      render: (text, record, index) => (
-        <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.primary, fontSize: '13px' }}>
-          #{(currentPage - 1) * 10 + index + 1}
-        </span>
-      ),
-      width: '10%',
-    },
-    {
       title: 'Campaign Name',
       dataIndex: 'CampaignName',
       key: 'name',
       render: (text, record) => (
         <div>
-          <div style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, fontSize: '14px' }}>
+          <div style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, fontSize: '13px', marginBottom: '3px' }}>
             {text || 'N/A'}
           </div>
-          <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>
-            {record._id}
+          <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary }}>
+            ID: {record._id.slice(-8)}
           </div>
         </div>
       ),
-      width: '25%',
     },
     {
-      title: 'Message Type',
+      title: 'Type',
       dataIndex: 'type',
       key: 'type',
       render: (type) => (
-        <Tag
-          style={{
-            background: type === 'SMS' ? '#e6f7ff' : '#f6f8fb',
-            color: type === 'SMS' ? THEME_CONSTANTS.colors.primary : '#667085',
-            border: 'none',
-            fontWeight: 600,
-            padding: '4px 12px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '12px',
-          }}
-        >
-          {type}
-        </Tag>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <Tag
+            style={{
+              background: type === 'SMS' ? '#e6f7ff' : '#f6f8fb',
+              color: type === 'SMS' ? THEME_CONSTANTS.colors.primary : '#667085',
+              border: 'none',
+              fontWeight: 600,
+              padding: '4px 0',
+              borderRadius: THEME_CONSTANTS.radius.sm,
+              fontSize: '12px',
+              width: '70px',
+              textAlign: 'center',
+              display: 'inline-block'
+            }}
+          >
+            {type}
+          </Tag>
+        </div>
       ),
-      width: '12%',
+      width: 110,
+      align: 'center',
     },
     {
       title: 'Recipients',
@@ -525,95 +537,124 @@ export default function Orders() {
           {cost || 0}
         </span>
       ),
-      width: '12%',
+      width: 100,
+      align: 'center',
     },
-    {title: 'Success / Failed',
-      key: 'results',
+    {
+      title: 'Delivered',
+      key: 'success',
+      render: (text, record) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+          <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '14px' }} />
+          <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '13px' }}>
+            {record?.successCount || 0}
+          </span>
+        </div>
+      ),
+      width: 110,
+      align: 'center',
+    },
+    {
+      title: 'Failed',
+      key: 'failed',
+      render: (text, record) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+          <CloseCircleOutlined style={{ color: THEME_CONSTANTS.colors.danger, fontSize: '14px' }} />
+          <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.danger, fontSize: '13px' }}>
+            {record?.failedCount || 0}
+          </span>
+        </div>
+      ),
+      width: 100,
+      align: 'center',
+    },
+    {
+      title: 'Success Rate',
+      key: 'rate',
       render: (text, record) => {
-        const campaignId = record._id;
-        const liveStats = realTimeStats[campaignId];
-        const successCount = liveStats?.delivered || record?.successCount || 0;
-        const failedCount = liveStats?.failed || record?.failedCount || 0;
-        const totalMessages = liveStats?.total || record?.cost || 0;
-        
-        // Calculate delivery rate
-        const deliveryRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
+        const successCount = record?.successCount || 0;
+        const totalMessages = record?.cost || 0;
+        const rate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
+        const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Progress
-              type="circle"
-              size={24}
-              percent={Math.round(deliveryRate) || 0}
-              strokeColor={deliveryRate >= 80 ? THEME_CONSTANTS.colors.success : deliveryRate >= 50 ? '#fa8c16' : '#ff4d4f'}
-              trailColor="#f0f0f0"
-              strokeWidth={8}
-              format={(percent) => (
-                <span style={{ 
-                  fontSize: '8px', 
-                  fontWeight: 700, 
-                  color: deliveryRate >= 80 ? THEME_CONSTANTS.colors.success : deliveryRate >= 50 ? '#fa8c16' : '#ff4d4f'
-                }}>
-                  {percent || 0}%
-                </span>
-              )}
-            />
-            <div>
-              <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '13px' }}>
-                {successCount}
-              </span>
-              <span style={{ color: THEME_CONSTANTS.colors.textSecondary, margin: '0 4px' }}>|</span>
-              <span style={{ fontWeight: 600, color: '#ff4d4f', fontSize: '13px' }}>
-                {failedCount}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: rate >= 80 ? '#f6ffed' : rate >= 50 ? '#fff7e6' : '#fff1f0',
+              border: `3px solid ${color}`,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <span style={{ 
+                fontSize: '13px', 
+                fontWeight: 700, 
+                color
+              }}>
+                {Math.round(rate)}%
               </span>
             </div>
           </div>
         );
       },
-      width: '15%',
+      width: 120,
+      align: 'center',
     },
     {
       title: 'Status',
       key: 'status',
       render: (text, record) => getStatusBadge(record),
-      width: '12%',
+      width: 130,
+      align: 'center',
     },
     {
-      title: 'Date Created',
+      title: 'Created',
       dataIndex: 'createdAt',
       key: 'date',
       render: (date) => (
         <Tooltip title={new Date(date).toLocaleString()}>
-          <span style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>
-            {new Date(date).toLocaleDateString()}
-          </span>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textPrimary, fontWeight: 600 }}>
+              {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+            </div>
+            <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '2px' }}>
+              {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
         </Tooltip>
       ),
-      width: '14%',
-      responsive: ['md'],
+      width: 110,
+      align: 'center',
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (text, record) => (
         <Space size="small">
-          <Button
-            type="text"
-            icon={<EyeOutlined />}
-            onClick={() => viewOrderDetails(record)}
-            style={{ color: THEME_CONSTANTS.colors.primary }}
-            title="View Details"
-          />
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => deleteOrderHandler(record._id)}
-            style={{ color: '#ff4d4f' }}
-            title="Delete Campaign"
-          />
+          <Tooltip title="View Details">
+            <Button
+              type="primary"
+              icon={<EyeOutlined />}
+              onClick={() => viewOrderDetails(record)}
+              size="small"
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => deleteOrderHandler(record._id)}
+              size="small"
+            />
+          </Tooltip>
         </Space>
       ),
-      width: '10%',
+      width: 110,
+      align: 'center',
+      fixed: 'right',
     },
   ];
 
@@ -651,58 +692,47 @@ export default function Orders() {
 
             <Row gutter={[16, 16]} align="middle" justify="space-between">
               <Col xs={24} lg={18}>
-                <Row gutter={[16, 16]} align="middle">
-                  <Col xs={24} sm={4} md={3} lg={3}>
-                    <div style={{
-                      width: '64px',
-                      height: '64px',
-                      background: THEME_CONSTANTS.colors.primaryLight,
-                      borderRadius: THEME_CONSTANTS.radius.xl,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: THEME_CONSTANTS.shadow.md,
-                      margin: '0 auto'
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    background: THEME_CONSTANTS.colors.primaryLight,
+                    borderRadius: THEME_CONSTANTS.radius.xl,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: THEME_CONSTANTS.shadow.md,
+                    flexShrink: 0
+                  }}>
+                    <BarChartOutlined style={{
+                      color: THEME_CONSTANTS.colors.primary,
+                      fontSize: '32px'
+                    }} />
+                  </div>
+                  <div>
+                    <h1 style={{
+                      fontSize: THEME_CONSTANTS.typography.h1.size,
+                      fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                      color: THEME_CONSTANTS.colors.text,
+                      marginBottom: THEME_CONSTANTS.spacing.sm,
+                      lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
                     }}>
-                      <BarChartOutlined style={{
-                        color: THEME_CONSTANTS.colors.primary,
-                        fontSize: '32px'
-                      }} />
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={20} md={21} lg={21}>
-                    <div style={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                      <h1 style={{
-                        fontSize: THEME_CONSTANTS.typography.h1.size,
-                        fontWeight: THEME_CONSTANTS.typography.h1.weight,
-                        color: THEME_CONSTANTS.colors.text,
-                        marginBottom: THEME_CONSTANTS.spacing.sm,
-                        lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
-                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                        letterSpacing: '-0.02em',
-                        '@media (max-width: 768px)': {
-                          fontSize: THEME_CONSTANTS.typography.h2.size,
-                        }
-                      }}>
-                        Campaign Reports 📊
-                      </h1>
-                      <p style={{
-                        color: THEME_CONSTANTS.colors.textSecondary,
-                        fontSize: THEME_CONSTANTS.typography.body.size,
-                        fontWeight: 500,
-                        lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0,
-                        fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                        letterSpacing: '-0.01em'
-                      }}>
-                        Manage and track all your message campaigns with detailed insights and performance metrics.
-                      </p>
-                    </div>
-                  </Col>
-                </Row>
+                      Campaign Reports
+                    </h1>
+                    <p style={{
+                      color: THEME_CONSTANTS.colors.textSecondary,
+                      fontSize: THEME_CONSTANTS.typography.body.size,
+                      fontWeight: 500,
+                      lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
+                      margin: 0
+                    }}>
+                      Manage and track all your message campaigns with detailed insights and performance metrics.
+                    </p>
+                  </div>
+                </div>
               </Col>
               <Col xs={24} lg={6}>
-                <div style={{ textAlign: { xs: 'center', lg: 'right' } }}>
+                <div style={{ textAlign: screens.lg ? 'right' : 'left' }}>
                   <Space>
                     <Button
                       type="primary"
@@ -712,10 +742,6 @@ export default function Orders() {
                         background: THEME_CONSTANTS.colors.primary,
                         borderColor: THEME_CONSTANTS.colors.primary,
                         height: '44px',
-                        padding: '0 24px',
-                        fontSize: '15px',
-                        fontWeight: 600,
-                        borderRadius: '8px'
                       }}
                     >
                       Export Report
@@ -726,10 +752,6 @@ export default function Orders() {
                       loading={loading.orders}
                       style={{
                         height: '44px',
-                        padding: '0 20px',
-                        fontSize: '15px',
-                        fontWeight: 500,
-                        borderRadius: '8px'
                       }}
                     >
                       Refresh
@@ -740,57 +762,7 @@ export default function Orders() {
             </Row>
           </div>
 
-        {/* Live Events Feed */}
-        {liveEvents.length > 0 && (
-          <Card
-            style={{
-              borderRadius: THEME_CONSTANTS.radius.lg,
-              border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-              boxShadow: THEME_CONSTANTS.shadow.sm,
-              marginBottom: '24px',
-            }}
-            bodyStyle={{ padding: '24px' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>🔴 Live Activity Feed</h3>
-              <Badge 
-                status={socketConnected ? "processing" : "error"} 
-                text={socketConnected ? "Real-time" : "Disconnected"} 
-              />
-            </div>
-            <Timeline mode="left">
-              {liveEvents.slice(0, 5).map((event) => (
-                <Timeline.Item
-                  key={event.id}
-                  color={event.status === 'delivered' ? 'green' : event.status === 'failed' ? 'red' : 'blue'}
-                  dot={event.status === 'delivered' ? <CheckCircleOutlined /> : 
-                       event.status === 'failed' ? <CloseCircleOutlined /> : 
-                       event.status === 'interaction' ? <MessageOutlined /> : <SendOutlined />}
-                >
-                  <div>
-                    <strong>{event.phoneNumber}</strong>
-                    <Tag 
-                      color={event.status === 'delivered' ? 'green' : 
-                             event.status === 'failed' ? 'red' : 
-                             event.status === 'interaction' ? 'purple' : 'blue'} 
-                      style={{ marginLeft: '8px' }}
-                    >
-                      {event.status === 'interaction' ? event.interactionType : event.status}
-                    </Tag>
-                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                      {new Date(event.timestamp).toLocaleTimeString()}
-                      {event.text && (
-                        <div style={{ marginTop: '4px', fontStyle: 'italic' }}>
-                          "{event.text}"
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Timeline.Item>
-              ))}
-            </Timeline>
-          </Card>
-        )}
+
         {/* Summary Stats with Real-time Data */}
         {Array.isArray(orders) && orders.length > 0 && (
           <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
@@ -882,158 +854,266 @@ export default function Orders() {
           </Row>
         )}
 
-        {/* Enhanced Filters */}
+        {/* Professional Filter Section */}
         <Card
           style={{
-            borderRadius: '16px',
-            border: 'none',
+            borderRadius: THEME_CONSTANTS.radius.xl,
+            border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
             background: 'white',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-            marginBottom: '32px',
-          }}
-          bodyStyle={{ padding: '32px' }}
-        >
-          <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1a202c', margin: 0, marginBottom: '8px' }}>
-              🔍 Filter & Search
-            </h3>
-            <p style={{ fontSize: '14px', color: '#718096', margin: 0 }}>
-              Use filters to find specific campaigns and analyze performance
-            </p>
-          </div>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={6}>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Search Campaigns</label>
-              </div>
-              <Input
-                placeholder="Search by name or ID..."
-                prefix={<SearchOutlined style={{ color: '#a0aec0' }} />}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                style={{
-                  borderRadius: '8px',
-                  border: '2px solid #e2e8f0',
-                  padding: '8px 12px',
-                  fontSize: '14px'
-                }}
-              />
-            </Col>
-
-            <Col xs={24} sm={12} md={6}>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Status Filter</label>
-              </div>
-              <Select
-                value={statusFilter}
-                onChange={setStatusFilter}
-                style={{ width: '100%' }}
-                size="large"
-                options={[
-                  { label: 'All Status', value: 'all' },
-                  { label: 'Completed', value: 'completed' },
-                  { label: 'Processing', value: 'processing' },
-                  { label: 'Failed', value: 'failed' },
-                  { label: 'Pending', value: 'pending' },
-                ]}
-              />
-            </Col>
-
-            <Col xs={24} sm={12} md={6}>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Message Type</label>
-              </div>
-              <Select
-                value={typeFilter}
-                onChange={setTypeFilter}
-                style={{ width: '100%' }}
-                size="large"
-                options={[
-                  { label: 'All Types', value: 'all' },
-                  ...getUniqueTypes().map((type) => ({ label: type, value: type })),
-                ]}
-              />
-            </Col>
-
-            <Col xs={24} sm={12} md={6}>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Campaign Name</label>
-              </div>
-              <Select
-                value={campaignFilter}
-                onChange={setCampaignFilter}
-                style={{ width: '100%' }}
-                size="large"
-                options={[
-                  { label: 'All Campaigns', value: 'all' },
-                  ...getUniqueCampaigns().map((campaign) => ({
-                    label: campaign,
-                    value: campaign,
-                  })),
-                ]}
-              />
-            </Col>
-
-            <Col xs={24} md={12}>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Date Range</label>
-              </div>
-              <RangePicker
-                value={dateRange}
-                onChange={setDateRange}
-                style={{ width: '100%', height: '40px', borderRadius: '8px' }}
-                format="DD/MM/YYYY"
-              />
-            </Col>
-
-            <Col xs={24} md={12}>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#4a5568' }}>Sort Order</label>
-              </div>
-              <Button
-                icon={<FilterOutlined />}
-                onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
-                style={{ 
-                  width: '100%', 
-                  height: '40px',
-                  borderRadius: '8px',
-                  border: '2px solid #e2e8f0',
-                  background: sortOrder === 'newest' ? '#667eea' : 'white',
-                  color: sortOrder === 'newest' ? 'white' : '#4a5568'
-                }}
-              >
-                {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
-              </Button>
-            </Col>
-          </Row>
-        </Card>
-
-        {/* Enhanced Campaign Table */}
-        <Card
-          style={{
-            borderRadius: '16px',
-            border: 'none',
-            background: 'white',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+            boxShadow: THEME_CONSTANTS.shadow.md,
+            marginBottom: THEME_CONSTANTS.spacing.xxxl,
           }}
           bodyStyle={{ padding: 0 }}
         >
-          <div style={{ padding: '32px 32px 24px 32px', borderBottom: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ 
+            padding: '24px 32px',
+            borderBottom: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <FilterOutlined style={{ fontSize: '20px', color: THEME_CONSTANTS.colors.primary }} />
               <div>
-                <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1a202c', margin: 0, marginBottom: '4px' }}>
-                  📈 Campaign Overview
+                <h3 style={{ 
+                  fontSize: '18px', 
+                  fontWeight: 700, 
+                  color: THEME_CONSTANTS.colors.text, 
+                  margin: 0,
+                  lineHeight: 1.2
+                }}>
+                  Filter & Search
                 </h3>
-                <p style={{ fontSize: '14px', color: '#718096', margin: 0 }}>
-                  {filteredOrders.length} of {orders?.length || 0} campaigns shown
+                <p style={{ 
+                  fontSize: '13px', 
+                  color: THEME_CONSTANTS.colors.textSecondary, 
+                  margin: 0,
+                  marginTop: '4px'
+                }}>
+                  Refine your campaign results with advanced filters
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <Badge 
-                  status={socketConnected ? "processing" : "error"} 
-                  text={socketConnected ? "Live Data" : "Offline"}
-                  style={{ fontSize: '12px' }}
+            </div>
+          </div>
+
+          <div style={{ padding: '32px' }}>
+            <Row gutter={[20, 20]}>
+              <Col xs={24} lg={12}>
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ 
+                    fontSize: '13px', 
+                    fontWeight: 600, 
+                    color: THEME_CONSTANTS.colors.text,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <SearchOutlined style={{ fontSize: '12px' }} />
+                    Search Campaigns
+                  </label>
+                </div>
+                <Input
+                  placeholder="Search by campaign name or ID..."
+                  prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textMuted }} />}
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  allowClear
+                  suffix={
+                    searchText && (
+                      <Button
+                        type="text"
+                        size="small"
+                        onClick={() => setSearchText('')}
+                        style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.primary }}
+                      >
+                        Clear
+                      </Button>
+                    )
+                  }
+                  style={{
+                    height: '44px',
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    border: `2px solid ${THEME_CONSTANTS.colors.borderLight}`,
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease'
+                  }}
                 />
+              </Col>
+
+              <Col xs={24} sm={12} lg={6}>
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Status</label>
+                </div>
+                <Select
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  style={{ width: '100%' }}
+                  size="large"
+                  options={[
+                    { label: '📊 All Status', value: 'all' },
+                    { label: '✅ Completed', value: 'completed' },
+                    { label: '⚡ Processing', value: 'processing' },
+                    { label: '⏳ Pending', value: 'pending' },
+                  ]}
+                />
+              </Col>
+
+              <Col xs={24} sm={12} lg={6}>
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Message Type</label>
+                </div>
+                <Select
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  style={{ width: '100%' }}
+                  size="large"
+                  options={[
+                    { label: '📱 All Types', value: 'all' },
+                    ...getUniqueTypes().map((type) => ({ label: type, value: type })),
+                  ]}
+                />
+              </Col>
+
+              <Col xs={24} lg={12}>
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Campaign Name</label>
+                </div>
+                <Select
+                  value={campaignFilter}
+                  onChange={setCampaignFilter}
+                  style={{ width: '100%' }}
+                  size="large"
+                  showSearch
+                  placeholder="Select a campaign"
+                  optionFilterProp="label"
+                  options={[
+                    { label: '🎯 All Campaigns', value: 'all' },
+                    ...getUniqueCampaigns().map((campaign) => ({
+                      label: campaign,
+                      value: campaign,
+                    })),
+                  ]}
+                />
+              </Col>
+
+              <Col xs={24} sm={12} lg={8}>
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Date Range</label>
+                </div>
+                <RangePicker
+                  value={dateRange}
+                  onChange={setDateRange}
+                  style={{ 
+                    width: '100%', 
+                    height: '44px', 
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    border: `2px solid ${THEME_CONSTANTS.colors.borderLight}`
+                  }}
+                  format="DD/MM/YYYY"
+                  placeholder={['Start Date', 'End Date']}
+                />
+              </Col>
+
+              <Col xs={24} sm={12} lg={4}>
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Sort By</label>
+                </div>
+                <Button
+                  icon={<FilterOutlined />}
+                  onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
+                  style={{ 
+                    width: '100%', 
+                    height: '44px',
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    border: `2px solid ${sortOrder === 'newest' ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.borderLight}`,
+                    background: sortOrder === 'newest' ? THEME_CONSTANTS.colors.primary : 'white',
+                    color: sortOrder === 'newest' ? 'white' : THEME_CONSTANTS.colors.text,
+                    fontWeight: 600,
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {sortOrder === 'newest' ? '↓ Newest' : '↑ Oldest'}
+                </Button>
+              </Col>
+            </Row>
+
+            {/* Active Filters Summary */}
+            {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || campaignFilter !== 'all' || (dateRange && dateRange[0])) && (
+              <div style={{ 
+                marginTop: '24px', 
+                padding: '16px 20px',
+                background: THEME_CONSTANTS.colors.primaryLight,
+                borderRadius: THEME_CONSTANTS.radius.md,
+                border: `1px solid ${THEME_CONSTANTS.colors.primary}20`
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.primary }}>
+                      Active Filters:
+                    </span>
+                    {searchText && (
+                      <Tag closable onClose={() => setSearchText('')} color={THEME_CONSTANTS.colors.primary}>
+                        Search: {searchText}
+                      </Tag>
+                    )}
+                    {statusFilter !== 'all' && (
+                      <Tag closable onClose={() => setStatusFilter('all')} color="green">
+                        Status: {statusFilter}
+                      </Tag>
+                    )}
+                    {typeFilter !== 'all' && (
+                      <Tag closable onClose={() => setTypeFilter('all')} color="blue">
+                        Type: {typeFilter}
+                      </Tag>
+                    )}
+                    {campaignFilter !== 'all' && (
+                      <Tag closable onClose={() => setCampaignFilter('all')} color="purple">
+                        Campaign: {campaignFilter}
+                      </Tag>
+                    )}
+                    {dateRange && dateRange[0] && (
+                      <Tag closable onClose={() => setDateRange([null, null])} color="orange">
+                        Date: {dateRange[0].format('DD/MM/YY')} - {dateRange[1].format('DD/MM/YY')}
+                      </Tag>
+                    )}
+                  </div>
+                  <Button 
+                    type="link" 
+                    size="small"
+                    onClick={() => {
+                      setSearchText('');
+                      setStatusFilter('all');
+                      setTypeFilter('all');
+                      setCampaignFilter('all');
+                      setDateRange([null, null]);
+                    }}
+                    style={{ color: THEME_CONSTANTS.colors.primary, fontWeight: 600 }}
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Campaign Table */}
+        <Card
+          style={{
+            borderRadius: THEME_CONSTANTS.radius.lg,
+            border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+            background: 'white',
+            boxShadow: THEME_CONSTANTS.shadow.sm,
+          }}
+          bodyStyle={{ padding: 0 }}
+        >
+          <div style={{ padding: '20px 24px 16px 24px', borderBottom: `1px solid ${THEME_CONSTANTS.colors.borderLight}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, margin: 0, marginBottom: '2px' }}>
+                  Campaign Overview
+                </h3>
+                <p style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, margin: 0 }}>
+                  {filteredOrders.length} of {orders?.length || 0} campaigns
+                </p>
               </div>
             </div>
           </div>
@@ -1084,54 +1164,20 @@ export default function Orders() {
               <Table
                 columns={columns}
                 dataSource={filteredOrders}
-                rowKey={(record) => `campaign-${record._id}-${record.createdAt}`}
+                rowKey={(record) => record._id}
                 pagination={{
                   current: currentPage,
                   pageSize: 10,
-                  total: filteredOrders.length,
+                  total: pagination?.total || filteredOrders.length,
                   onChange: (page) => {
                     setCurrentPage(page);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   },
                   showSizeChanger: false,
-                  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} campaigns`,
-                  style: { padding: '16px 32px' }
-                }}
-                scroll={{ 
-                  x: 1200, 
-                  y: 600 
-                }}
-                sticky={{
-                  offsetHeader: 0,
-                  offsetScroll: 0,
-                  getContainer: () => window,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+                  style: { padding: '16px 24px' },
                 }}
                 size="middle"
-                bordered={false}
-                style={{ 
-                  '.ant-table-thead > tr > th': {
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 1,
-                    background: '#fafafa',
-                    borderBottom: '2px solid #f0f0f0',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    color: '#4a5568',
-                    padding: '16px 12px'
-                  },
-                  '.ant-table-tbody > tr': {
-                    transition: 'all 0.2s ease'
-                  },
-                  '.ant-table-tbody > tr:hover': {
-                    background: '#f8fafc',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                  },
-                  '.ant-table-tbody > tr > td': {
-                    padding: '16px 12px',
-                    borderBottom: '1px solid #f1f5f9'
-                  }
-                }}
               />
             </>
           )}
@@ -1139,394 +1185,459 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Professional Modal for Campaign Details */}
+      {/* Professional Campaign Details Modal */}
       <Modal
         title={null}
         open={showModal}
         onCancel={closeModal}
-        width={1200}
+        width={1400}
         footer={null}
         bodyStyle={{ padding: 0 }}
         style={{ top: 20 }}
-        className="campaign-details-modal"
       >
-        {modalOrder && (
-          <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', minHeight: '100%' }}>
-            {/* Enhanced Header */}
+        {selectedOrder && (
+          <div style={{ background: THEME_CONSTANTS.colors.background }}>
+            {/* Professional Horizontal Header */}
             <div style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              padding: '32px',
-              borderRadius: '12px 12px 0 0',
-              position: 'relative',
-              overflow: 'hidden'
+              background: THEME_CONSTANTS.colors.surface,
+              padding: THEME_CONSTANTS.spacing.xxl,
+              borderBottom: `2px solid ${THEME_CONSTANTS.colors.border}`,
+              borderRadius: `${THEME_CONSTANTS.radius.lg} ${THEME_CONSTANTS.radius.lg} 0 0`
             }}>
-              <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '150px', height: '150px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
-              <div style={{ position: 'absolute', bottom: '-30px', left: '-30px', width: '100px', height: '100px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
-              <Row align="middle" justify="space-between" style={{ position: 'relative', zIndex: 1 }}>
-                <Col>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <Row align="middle" justify="space-between" gutter={[24, 16]}>
+                <Col flex="auto">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.lg }}>
                     <div style={{
-                      width: '64px',
-                      height: '64px',
-                      background: 'rgba(255,255,255,0.2)',
-                      borderRadius: '16px',
+                      width: '56px',
+                      height: '56px',
+                      background: THEME_CONSTANTS.colors.primaryLight,
+                      borderRadius: THEME_CONSTANTS.radius.lg,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backdropFilter: 'blur(10px)'
+                      border: `2px solid ${THEME_CONSTANTS.colors.border}`,
+                      flexShrink: 0
                     }}>
-                      <BarChartOutlined style={{ fontSize: '32px', color: 'white' }} />
+                      <BarChartOutlined style={{ fontSize: '28px', color: THEME_CONSTANTS.colors.primary }} />
                     </div>
                     <div>
-                      <h2 style={{ color: 'white', margin: 0, fontSize: '28px', fontWeight: 700, marginBottom: '8px' }}>
-                        Campaign Analytics
-                      </h2>
-                      <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', marginBottom: '4px' }}>
+                      <h2 style={{
+                        color: THEME_CONSTANTS.colors.text,
+                        margin: 0,
+                        fontSize: THEME_CONSTANTS.typography.h3.size,
+                        fontWeight: THEME_CONSTANTS.typography.h3.weight,
+                        marginBottom: THEME_CONSTANTS.spacing.xs,
+                        lineHeight: 1.2
+                      }}>
                         {selectedOrder?.CampaignName}
-                      </div>
-                      <Tag style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', fontWeight: 600 }}>
-                        {selectedOrder?.type}
-                      </Tag>
+                      </h2>
+                      <p style={{
+                        color: THEME_CONSTANTS.colors.textSecondary,
+                        fontSize: THEME_CONSTANTS.typography.bodySmall.size,
+                        margin: 0
+                      }}>
+                        Campaign Analytics Dashboard
+                      </p>
                     </div>
                   </div>
                 </Col>
                 <Col>
-                  <div style={{ textAlign: 'right', color: 'white' }}>
-                    <div style={{ fontSize: '14px', opacity: 0.8, marginBottom: '4px' }}>Created</div>
-                    <div style={{ fontSize: '18px', fontWeight: 600 }}>
-                      {new Date(selectedOrder?.createdAt).toLocaleDateString()}
-                    </div>
-                    <div style={{ fontSize: '14px', opacity: 0.8 }}>
-                      {new Date(selectedOrder?.createdAt).toLocaleTimeString()}
-                    </div>
-                  </div>
+                  <Space size="middle">
+                    <Tag style={{
+                      background: THEME_CONSTANTS.colors.primaryLight,
+                      color: THEME_CONSTANTS.colors.primary,
+                      border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                      fontWeight: 600,
+                      padding: '8px 16px',
+                      fontSize: THEME_CONSTANTS.typography.body.size,
+                      borderRadius: THEME_CONSTANTS.radius.md
+                    }}>
+                      {selectedOrder?.type}
+                    </Tag>
+                    <Button
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      onClick={exportCampaignDetails}
+                      style={{
+                        background: THEME_CONSTANTS.colors.primary,
+                        borderColor: THEME_CONSTANTS.colors.primary,
+                        fontWeight: 600,
+                        height: '44px',
+                        padding: '0 24px',
+                        borderRadius: THEME_CONSTANTS.radius.md
+                      }}
+                    >
+                      Export All
+                    </Button>
+                  </Space>
                 </Col>
               </Row>
             </div>
 
-            {/* Professional Stats Grid */}
-            <div style={{ padding: '32px', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }}>
-              {(() => {
-                const campaignId = selectedOrder?._id;
-                const liveStats = realTimeStats[campaignId] || {};
-                
-                return (
-                  <Row gutter={[24, 24]} style={{ marginBottom: '40px' }}>
-                    <Col xs={12} sm={8} md={4}>
-                      <Card style={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        border: 'none',
-                        borderRadius: '16px',
-                        textAlign: 'center',
-                        boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
-                        height: '120px',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        transition: 'all 0.3s ease'
-                      }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
-                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: 'white' }}>
-                          {liveStats.total || modalOrder?.cost || 0}
+            {/* Professional Horizontal Stats Cards */}
+            <div style={{ padding: '28px 32px', background: THEME_CONSTANTS.colors.surface, borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                  <Card style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                    background: THEME_CONSTANTS.colors.surface
+                  }} bodyStyle={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        background: THEME_CONSTANTS.colors.primaryLight, 
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <span style={{ fontSize: '20px' }}>📊</span>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                          {selectedOrder?.cost || 0}
                         </div>
-                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>Total Recipients</div>
-                      </Card>
-                    </Col>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Total Recipients</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                  <Card style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                    background: THEME_CONSTANTS.colors.surface
+                  }} bodyStyle={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        background: THEME_CONSTANTS.colors.successLight, 
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <SendOutlined style={{ fontSize: '20px', color: THEME_CONSTANTS.colors.success }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                          {selectedOrder?.successCount || 0}
+                        </div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Sent</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                  <Card style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                    background: THEME_CONSTANTS.colors.surface
+                  }} bodyStyle={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        background: THEME_CONSTANTS.colors.successLight, 
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <CheckCircleOutlined style={{ fontSize: '20px', color: THEME_CONSTANTS.colors.success }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                          {selectedOrder?.totalDelivered || 0}
+                        </div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Delivered</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                  <Card style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                    background: THEME_CONSTANTS.colors.surface
+                  }} bodyStyle={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        background: '#ede9fe', 
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <EyeOutlined style={{ fontSize: '20px', color: '#8b5cf6' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                          {selectedOrder?.totalRead || 0}
+                        </div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Read</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                  <Card style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                    background: THEME_CONSTANTS.colors.surface
+                  }} bodyStyle={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        background: THEME_CONSTANTS.colors.dangerLight, 
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <CloseCircleOutlined style={{ fontSize: '20px', color: THEME_CONSTANTS.colors.danger }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                          {selectedOrder?.failedCount || 0}
+                        </div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Failed</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                  <Card style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                    background: THEME_CONSTANTS.colors.surface
+                  }} bodyStyle={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        background: THEME_CONSTANTS.colors.warningLight, 
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <MessageOutlined style={{ fontSize: '20px', color: THEME_CONSTANTS.colors.warning }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                          {selectedOrder?.userClickCount || 0}
+                        </div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Interactions</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+              </Row>
+            </div>
 
-                    <Col xs={12} sm={8} md={4}>
-                      <Card style={{
-                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                        border: 'none',
-                        borderRadius: '16px',
-                        textAlign: 'center',
-                        boxShadow: '0 8px 32px rgba(79, 172, 254, 0.3)',
-                        height: '120px',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        transition: 'all 0.3s ease'
-                      }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
-                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: 'white' }}>
-                          {liveStats.sent || modalOrder?.successCount || 0}
-                        </div>
-                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>Successfully Sent</div>
-                      </Card>
+            {/* Messages Table with Filters Inside */}
+            <div style={{ padding: '24px 32px', background: THEME_CONSTANTS.colors.background }}>
+              <Card
+                style={{
+                  borderRadius: THEME_CONSTANTS.radius.lg,
+                  border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                  boxShadow: THEME_CONSTANTS.shadow.md
+                }}
+                bodyStyle={{ padding: 0 }}
+              >
+                {/* Table Header with Filters */}
+                <div style={{ padding: '20px 24px', borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`, background: 'white' }}>
+                  <Row gutter={[16, 16]} align="middle" justify="space-between">
+                    <Col xs={24} md={10}>
+                      <Input
+                        placeholder="Search by phone number..."
+                        prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textMuted }} />}
+                        value={modalSearchText}
+                        onChange={(e) => handleModalSearch(e.target.value)}
+                        allowClear
+                        style={{ height: '40px', fontSize: '14px' }}
+                      />
                     </Col>
-
-                    <Col xs={12} sm={8} md={4}>
-                      <Card style={{
-                        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
-                        border: 'none',
-                        borderRadius: '16px',
-                        textAlign: 'center',
-                        boxShadow: '0 8px 32px rgba(17, 153, 142, 0.3)',
-                        height: '120px',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        transition: 'all 0.3s ease'
-                      }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
-                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: 'white' }}>
-                          {liveStats.delivered || modalOrder?.totalDelivered || 0}
-                        </div>
-                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>Delivered</div>
-                      </Card>
+                    <Col xs={24} md={6}>
+                      <Select
+                        value={modalStatusFilter}
+                        onChange={handleModalStatusFilter}
+                        style={{ width: '100%' }}
+                        size="large"
+                        options={[
+                          { label: 'All Status', value: 'all' },
+                          { label: 'Sent', value: 'sent' },
+                          { label: 'Delivered', value: 'delivered' },
+                          { label: 'Read', value: 'read' },
+                          { label: 'Failed', value: 'failed' },
+                        ]}
+                      />
                     </Col>
-
-                    <Col xs={12} sm={8} md={4}>
-                      <Card style={{
-                        background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-                        border: 'none',
-                        borderRadius: '16px',
-                        textAlign: 'center',
-                        boxShadow: '0 8px 32px rgba(168, 237, 234, 0.2)',
-                        height: '120px',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        transition: 'all 0.3s ease'
-                      }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }} />
-                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#2d3748' }}>
-                          {liveStats.read || modalOrder?.totalRead || 0}
+                    <Col xs={24} md={8}>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
+                            {messagesPagination?.total || 0} total messages
+                          </span>
                         </div>
-                        <div style={{ fontSize: '13px', color: '#4a5568', fontWeight: 500 }}>Read</div>
-                      </Card>
-                    </Col>
-
-                    <Col xs={12} sm={8} md={4}>
-                      <Card style={{
-                        background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
-                        border: 'none',
-                        borderRadius: '16px',
-                        textAlign: 'center',
-                        boxShadow: '0 8px 32px rgba(255, 107, 107, 0.3)',
-                        height: '120px',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        transition: 'all 0.3s ease'
-                      }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
-                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: 'white' }}>
-                          {liveStats.failed || modalOrder?.failedCount || 0}
-                        </div>
-                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>Failed</div>
-                      </Card>
-                    </Col>
-
-                    <Col xs={12} sm={8} md={4}>
-                      <Card style={{
-                        background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-                        border: 'none',
-                        borderRadius: '16px',
-                        textAlign: 'center',
-                        boxShadow: '0 8px 32px rgba(255, 236, 210, 0.2)',
-                        height: '120px',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        transition: 'all 0.3s ease'
-                      }} bodyStyle={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '70px', height: '70px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }} />
-                        <div style={{ position: 'absolute', bottom: '-10px', left: '-10px', width: '40px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
-                        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#2d3748' }}>
-                          {liveStats.interactions || modalOrder?.userClickCount || 0}
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#4a5568', fontWeight: 500 }}>Interactions</div>
-                      </Card>
+                        <Button
+                          onClick={() => {
+                            setModalSearchText('');
+                            setModalStatusFilter('all');
+                            setModalCurrentPage(1);
+                            dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page: 1, limit: 20 }));
+                          }}
+                          style={{ height: '40px' }}
+                          disabled={!modalSearchText && modalStatusFilter === 'all'}
+                        >
+                          Clear Filters
+                        </Button>
+                        <Button
+                          icon={<ReloadOutlined />}
+                          onClick={() => {
+                            setModalSearchText('');
+                            setModalStatusFilter('all');
+                            dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page: 1, limit: 20 }));
+                          }}
+                          loading={loading.messages}
+                          style={{ height: '40px' }}
+                        >
+                          Refresh
+                        </Button>
+                      </div>
                     </Col>
                   </Row>
-                );
-              })()}
-
-              {/* Enhanced Message Details Table */}
-              <Card style={{
-                background: 'white',
-                border: 'none',
-                borderRadius: '16px',
-                marginBottom: '24px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
-              }} bodyStyle={{ padding: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                  <div>
-                    <h3 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: '#1a202c', marginBottom: '4px' }}>
-                      📋 Message Details
-                    </h3>
-                    <p style={{ fontSize: '14px', color: '#718096', margin: 0 }}>
-                      {messagesPagination?.total || 0} total messages • Real-time tracking
-                    </p>
-                  </div>
-                  <Button
-                    type="primary"
-                    icon={<ReloadOutlined />}
-                    onClick={() => dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page: modalCurrentPage, limit: 20 }))}
-                    loading={loading.messages}
-                    style={{
-                      borderRadius: '8px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      border: 'none',
-                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-                    }}
-                  >
-                    Refresh Data
-                  </Button>
                 </div>
-                
-                {/* Debug Info */}
-                {process.env.NODE_ENV === 'development' && (
-                  <div style={{ marginBottom: '16px', padding: '8px', background: '#f0f0f0', borderRadius: '4px', fontSize: '12px' }}>
-                    Debug: Messages Array Length: {campaignMessages?.length || 0} | 
-                    Loading: {loading.messages ? 'Yes' : 'No'} | 
-                    Error: {error?.messages || 'None'}
-                  </div>
-                )}
-                
+
+                {/* Table */}
                 <Table
-                  dataSource={Array.isArray(campaignMessages) ? campaignMessages : []}
-                  rowKey={(record) => `msg-${record._id}-${record.phoneNumber}-${record.createdAt}`}
+                  dataSource={filteredMessages}
+                  rowKey={(record) => `msg-${record._id}-${record.phoneNumber}`}
                   loading={loading.messages}
                   pagination={{
                     current: modalCurrentPage,
                     pageSize: 20,
                     total: messagesPagination?.total || 0,
-                    onChange: (page) => {
-                      setModalCurrentPage(page);
-                      dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page, limit: 20 }));
-                    },
-                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} messages`,
-                    size: 'small'
+                    onChange: handleModalPageChange,
+                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+                    size: 'default',
+                    showSizeChanger: false,
+                    style: { padding: '16px 24px' }
                   }}
-                  scroll={{ 
-                    x: 1400, 
-                    y: 400 
-                  }}
-                  sticky={{
-                    offsetHeader: 0,
-                    offsetScroll: 0,
-                  }}
-                  size="small"
+                  scroll={{ x: 1200, y: 450 }}
+                  size="middle"
                   bordered
-                  locale={{
-                    emptyText: campaignMessages === null ? 'Loading messages...' : 'No messages found'
-                  }}
-                  style={{
-                    '.ant-table-thead > tr > th': {
-                      position: 'sticky',
-                      top: 0,
-                      zIndex: 2,
-                      background: '#fafafa',
-                      fontWeight: 600
-                    },
-                    '.ant-table-tbody > tr:hover': {
-                      background: '#f5f5f5'
-                    }
-                  }}
                   columns={[
                     {
                       title: 'Phone Number',
                       dataIndex: 'phoneNumber',
-                      key: 'phoneNumber',
+                      key: 'phone',
                       width: 140,
+                      fixed: 'left',
                       render: (phone) => (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <PhoneOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '12px' }} />
-                          <span style={{ fontWeight: 600, fontSize: '13px' }}>{phone}</span>
-                        </div>
+                        <span style={{ fontWeight: 600, fontSize: '14px', color: THEME_CONSTANTS.colors.text }}>{phone}</span>
                       )
                     },
                     {
                       title: 'Status',
                       dataIndex: 'status',
                       key: 'status',
-                      width: 100,
+                      width: 110,
                       render: (status) => {
-                        const statusConfig = {
-                          sent: { color: '#1890ff', icon: <SendOutlined /> },
-                          delivered: { color: '#52c41a', icon: <CheckCircleOutlined /> },
-                          read: { color: '#722ed1', icon: <EyeOutlined /> },
-                          replied: { color: '#13c2c2', icon: <MessageOutlined /> },
-                          failed: { color: '#ff4d4f', icon: <CloseCircleOutlined /> },
-                          queued: { color: '#faad14', icon: <ClockCircleOutlined /> }
+                        const colors = {
+                          sent: THEME_CONSTANTS.colors.primary,
+                          delivered: THEME_CONSTANTS.colors.success,
+                          read: '#8b5cf6',
+                          failed: THEME_CONSTANTS.colors.danger,
+                          queued: THEME_CONSTANTS.colors.warning
                         };
-                        const config = statusConfig[status] || { color: '#8c8c8c', icon: null };
                         return (
-                          <Tag color={config.color} icon={config.icon} style={{ fontSize: '11px', fontWeight: 600 }}>
+                          <Tag color={colors[status] || '#8c8c8c'} style={{ fontSize: '12px', fontWeight: 600, padding: '4px 10px' }}>
                             {status?.toUpperCase()}
                           </Tag>
                         );
                       }
                     },
                     {
-                      title: 'Template',
+                      title: 'Type',
                       dataIndex: 'templateType',
-                      key: 'templateType',
-                      width: 110,
+                      key: 'type',
+                      width: 100,
                       render: (type) => (
-                        <Tag style={{ fontSize: '11px', background: '#f0f5ff', color: '#1890ff', border: 'none' }}>
+                        <Tag style={{ fontSize: '12px', background: THEME_CONSTANTS.colors.primaryLight, color: THEME_CONSTANTS.colors.primary, border: 'none', fontWeight: 600 }}>
                           {type}
                         </Tag>
                       )
                     },
                     {
-                      title: 'Sent',
+                      title: 'Sent At',
                       dataIndex: 'sentAt',
-                      key: 'sentAt',
-                      width: 90,
+                      key: 'sent',
+                      width: 100,
                       render: (date) => date ? (
-                        <Tooltip title={new Date(date).toLocaleString()}>
-                          <span style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary }}>
-                            {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </Tooltip>
-                      ) : <span style={{ color: '#d9d9d9' }}>-</span>
+                        <span style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text }}>
+                          {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      ) : <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>
                     },
                     {
-                      title: 'Delivered',
+                      title: 'Delivered At',
                       dataIndex: 'deliveredAt',
-                      key: 'deliveredAt',
-                      width: 90,
-                      render: (date) => date ? (
-                        <Tooltip title={new Date(date).toLocaleString()}>
-                          <span style={{ fontSize: '12px', color: '#52c41a', fontWeight: 600 }}>
-                            {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </Tooltip>
-                      ) : <span style={{ color: '#d9d9d9' }}>-</span>
-                    },
-                    {
-                      title: 'Read',
-                      dataIndex: 'readAt',
-                      key: 'readAt',
-                      width: 90,
-                      render: (date) => date ? (
-                        <Tooltip title={new Date(date).toLocaleString()}>
-                          <span style={{ fontSize: '12px', color: '#722ed1', fontWeight: 600 }}>
-                            {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </Tooltip>
-                      ) : <span style={{ color: '#d9d9d9' }}>-</span>
-                    },
-                    {
-                      title: 'Interactions',
-                      key: 'engagement',
+                      key: 'delivered',
                       width: 110,
+                      render: (date) => date ? (
+                        <span style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.success, fontWeight: 600 }}>
+                          {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      ) : <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>
+                    },
+                    {
+                      title: 'Read At',
+                      dataIndex: 'readAt',
+                      key: 'read',
+                      width: 100,
+                      render: (date) => date ? (
+                        <span style={{ fontSize: '13px', color: '#8b5cf6', fontWeight: 600 }}>
+                          {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      ) : <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>
+                    },
+                    {
+                      title: 'Engagement',
+                      key: 'engagement',
+                      width: 120,
                       render: (_, record) => (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           {record.interactions > 0 && (
-                            <Tag color="cyan" style={{ fontSize: '11px', margin: 0 }}>
+                            <Tag color="cyan" style={{ fontSize: '11px', margin: 0, fontWeight: 600 }}>
                               🖱️ {record.interactions}
                             </Tag>
                           )}
                           {record.replies > 0 && (
-                            <Tag color="purple" style={{ fontSize: '11px', margin: 0 }}>
+                            <Tag color="purple" style={{ fontSize: '11px', margin: 0, fontWeight: 600 }}>
                               💬 {record.replies}
                             </Tag>
                           )}
-                          {record.interactions === 0 && record.replies === 0 && (
-                            <span style={{ color: '#d9d9d9', fontSize: '12px' }}>-</span>
-                          )}
+                          {!record.interactions && !record.replies && <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>}
                         </div>
                       )
                     },
@@ -1535,71 +1646,39 @@ export default function Orders() {
                       key: 'response',
                       width: 200,
                       render: (_, record) => {
-                        if (record.userText) {
-                          return (
-                            <Tooltip title={record.userText}>
-                              <div style={{ 
-                                fontSize: '12px', 
-                                color: THEME_CONSTANTS.colors.text,
-                                maxWidth: '180px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                💬 "{record.userText}"
-                              </div>
-                            </Tooltip>
-                          );
-                        }
-                        if (record.clickedAction) {
-                          return (
-                            <div style={{ fontSize: '12px', color: '#1890ff' }}>
-                              🖱️ Clicked: {record.clickedAction}
+                        const response = record.userText || record.clickedAction || record.suggestionResponse?.plainText;
+                        return response ? (
+                          <Tooltip title={response}>
+                            <div style={{ 
+                              fontSize: '13px',
+                              color: THEME_CONSTANTS.colors.text,
+                              maxWidth: '180px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {response}
                             </div>
-                          );
-                        }
-                        if (record.suggestionResponse?.plainText) {
-                          return (
-                            <Tooltip title={record.suggestionResponse.plainText}>
-                              <div style={{ 
-                                fontSize: '12px', 
-                                color: '#722ed1',
-                                maxWidth: '180px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                ✅ {record.suggestionResponse.plainText}
-                              </div>
-                            </Tooltip>
-                          );
-                        }
-                        return <span style={{ color: '#d9d9d9', fontSize: '12px' }}>-</span>;
+                          </Tooltip>
+                        ) : <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>;
                       }
                     },
                     {
                       title: 'Error Details',
-                      key: 'errorDetails',
-                      width: 200,
+                      key: 'error',
+                      width: 180,
                       render: (_, record) => {
                         if (record.status === 'failed') {
-                          const errorMsg = record.errorMessage || record.errorCode || 'Unknown error';
-                          const failedAt = record.failedAt ? new Date(record.failedAt).toLocaleString() : 'Unknown time';
-                          
+                          const error = record.errorMessage || record.errorCode || 'Unknown error';
                           return (
-                            <div>
-                              <Tooltip title={`Error: ${errorMsg} | Failed at: ${failedAt}`}>
-                                <Tag color="red" style={{ fontSize: '11px', marginBottom: '4px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  ⚠️ {errorMsg}
-                                </Tag>
-                              </Tooltip>
-                              <div style={{ fontSize: '10px', color: '#999' }}>
-                                {new Date(record.failedAt || record.createdAt).toLocaleTimeString()}
-                              </div>
-                            </div>
+                            <Tooltip title={error}>
+                              <Tag color="red" style={{ fontSize: '11px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600 }}>
+                                ⚠️ {error}
+                              </Tag>
+                            </Tooltip>
                           );
                         }
-                        return <span style={{ color: '#d9d9d9', fontSize: '12px' }}>-</span>;
+                        return <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>;
                       }
                     }
                   ]}

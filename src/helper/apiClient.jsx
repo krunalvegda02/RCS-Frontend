@@ -99,7 +99,9 @@ const addTokenToConfig = (config, token) => {
 // eslint-disable-next-line no-unused-vars
 const _get = (url, data = {}, config = {}, token = null) => {
     const fullUrl = url.startsWith('realtime/') ? url : url.startsWith('v1/') || url.startsWith('wallet/') ? url : `v1/${url}`;
-    return apiClient.get(fullUrl, addTokenToConfig(config, token));
+    const { userId, ...queryParams } = data;
+    const configWithParams = { ...config, params: queryParams };
+    return apiClient.get(fullUrl, addTokenToConfig(configWithParams, token));
 };
 
 // eslint-disable-next-line no-unused-vars

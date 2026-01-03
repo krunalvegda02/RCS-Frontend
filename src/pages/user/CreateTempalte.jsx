@@ -934,54 +934,50 @@ export default function CreateTemplatePage() {
 
           <Row gutter={[16, 16]} align="middle" justify="space-between">
             <Col xs={24} lg={18}>
-              <Row gutter={[16, 16]} align="middle">
-                <Col xs={24} sm={4} md={3} lg={3}>
-                  <div style={{
-                    width: '64px',
-                    height: '64px',
-                    background: THEME_CONSTANTS.colors.primaryLight,
-                    borderRadius: THEME_CONSTANTS.radius.xl,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: THEME_CONSTANTS.shadow.md,
-                    margin: '0 auto'
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  background: THEME_CONSTANTS.colors.primaryLight,
+                  borderRadius: THEME_CONSTANTS.radius.xl,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: THEME_CONSTANTS.shadow.md,
+                  flexShrink: 0
+                }}>
+                  <FormOutlined style={{
+                    color: THEME_CONSTANTS.colors.primary,
+                    fontSize: '32px'
+                  }} />
+                </div>
+                <div>
+                  <h1 style={{
+                    fontSize: THEME_CONSTANTS.typography.h1.size,
+                    fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                    color: THEME_CONSTANTS.colors.text,
+                    marginBottom: THEME_CONSTANTS.spacing.sm,
+                    lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
+                    fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                    letterSpacing: '-0.02em'
                   }}>
-                    <FormOutlined style={{
-                      color: THEME_CONSTANTS.colors.primary,
-                      fontSize: '32px'
-                    }} />
-                  </div>
-                </Col>
-                <Col xs={24} sm={20} md={21} lg={21}>
-                  <div>
-                    <h1 style={{
-                      fontSize: THEME_CONSTANTS.typography.h1.size,
-                      fontWeight: THEME_CONSTANTS.typography.h1.weight,
-                      color: THEME_CONSTANTS.colors.text,
-                      marginBottom: THEME_CONSTANTS.spacing.sm,
-                      lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
-                      fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                      letterSpacing: '-0.02em'
-                    }}>
-                      {editingTemplate ? 'Template Update' : 'Create New Template'}
-                    </h1>
-                    <p style={{
-                      color: THEME_CONSTANTS.colors.textSecondary,
-                      fontSize: THEME_CONSTANTS.typography.body.size,
-                      fontWeight: 500,
-                      lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                      margin: 0,
-                      fontFamily: THEME_CONSTANTS.typography.fontFamily,
-                      letterSpacing: '-0.01em'
-                    }}>
-                      {editingTemplate
-                        ? 'Modify your message template as needed for your campaigns'
-                        : 'Create a new message template for your campaigns'}
-                    </p>
-                  </div>
-                </Col>
-              </Row>
+                    {editingTemplate ? 'Edit Template' : 'Create  Template'}
+                  </h1>
+                  <p style={{
+                    color: THEME_CONSTANTS.colors.textSecondary,
+                    fontSize: THEME_CONSTANTS.typography.body.size,
+                    fontWeight: 500,
+                    lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
+                    margin: 0,
+                    fontFamily: THEME_CONSTANTS.typography.fontFamily,
+                    letterSpacing: '-0.01em'
+                  }}>
+                    {editingTemplate
+                      ? 'Modify your message template settings'
+                      : 'Create a new message template for your campaigns'}
+                  </p>
+                </div>
+              </div>
             </Col>
             <Col xs={24} lg={6}>
               <div style={{ textAlign: screens.lg ? 'right' : 'left' }}>
