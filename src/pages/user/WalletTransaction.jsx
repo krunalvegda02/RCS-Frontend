@@ -220,7 +220,7 @@ const WalletTransaction = () => {
                     fontFamily: THEME_CONSTANTS.typography.fontFamily,
                     letterSpacing: '-0.02em'
                   }}>
-                    Wallet & Transactions 💳
+                    Wallet & Transactions
                   </h1>
                   <p style={{
                     color: THEME_CONSTANTS.colors.textSecondary,
@@ -235,7 +235,7 @@ const WalletTransaction = () => {
                   </p>
                 </div>
               </div>
-              <div>
+              {/* <div>
                 <Button
                   type="primary"
                   size="large"
@@ -251,45 +251,94 @@ const WalletTransaction = () => {
                 >
                   Request Wallet Amount
                 </Button>
-              </div>
+              </div> */}
             </div>
           </div>
 
           {/* Wallet Balance Card */}
           <Card
             style={{
+              marginBottom: THEME_CONSTANTS.spacing.xxxl,
               borderRadius: THEME_CONSTANTS.radius.lg,
-              boxShadow: THEME_CONSTANTS.shadow.sm,
-              marginBottom: THEME_CONSTANTS.spacing.xxl,
-              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryLight} 100%)`,
               border: 'none',
+              boxShadow: THEME_CONSTANTS.shadow.base,
+              position: 'relative',
+              overflow: 'hidden',
+              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, #f5f3ff 50%, #eef2ff 100%)`,
             }}
-            bodyStyle={{ padding: '32px' }}
           >
-            <Row align="middle" justify="space-between">
-              <Col>
-                <div style={{ color: 'white' }}>
-                  <p style={{ 
-                    fontSize: '14px', 
-                    fontWeight: 500, 
-                    margin: 0, 
-                    marginBottom: '8px',
-                    opacity: 0.9 
-                  }}>
-                    Current Wallet Balance
+            <div
+              style={{
+                position: 'absolute',
+                top: -120,
+                right: -80,
+                width: 280,
+                height: 280,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, #bfdbfe 0%, transparent 70%)',
+                opacity: 0.6,
+              }}
+            />
+            <Row gutter={[32, 24]} align="middle">
+              <Col xs={24} sm={24} md={12}>
+                <div>
+                  <p
+                    style={{
+                      margin: 0,
+                      marginBottom: THEME_CONSTANTS.spacing.sm,
+                      color: THEME_CONSTANTS.colors.textMuted,
+                      fontSize: THEME_CONSTANTS.typography.caption.size,
+                      fontWeight: THEME_CONSTANTS.typography.label.weight,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Wallet Balance
                   </p>
-                  <h2 style={{ 
-                    fontSize: '36px', 
-                    fontWeight: 700, 
-                    margin: 0,
-                    color: 'white'
-                  }}>
+                  <h2
+                    style={{
+                      margin: 0,
+                      marginBottom: THEME_CONSTANTS.spacing.sm,
+                      fontSize: '44px',
+                      fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                      background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, #4f46e5 50%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                    }}
+                  >
                     {formatCurrency(userProfile?.wallet?.balance || 0)}
                   </h2>
+                  <p
+                    style={{
+                      margin: 0,
+                      color: THEME_CONSTANTS.colors.textSecondary,
+                      fontSize: THEME_CONSTANTS.typography.body.size
+                    }}
+                  >
+                    Ready to use for your campaigns. No hidden charges.
+                  </p>
                 </div>
               </Col>
-              <Col>
-                <WalletOutlined style={{ fontSize: '48px', color: 'white', opacity: 0.7 }} />
+              <Col xs={24} sm={24} md={12}>
+                <Row gutter={[16, 16]} justify={{ xs: 'center', md: 'end' }}>
+                  <Col xs={24} sm={12} md={24} lg={12}>
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<PlusOutlined />}
+                      onClick={() => setShowAddMoney(true)}
+                      block
+                      style={{
+                        height: '48px',
+                        fontWeight: THEME_CONSTANTS.typography.label.weight,
+                        background: THEME_CONSTANTS.colors.primary,
+                        border: 'none',
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                      }}
+                    >
+                      Add Money
+                    </Button>
+                  </Col>
+                </Row>
               </Col>
             </Row>
           </Card>

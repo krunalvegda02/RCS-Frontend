@@ -50,8 +50,12 @@ apiClient.interceptors.response.use(
                 currentPath.includes(path)
             );
             
-            // Don't redirect if already on auth page or already handling auth
-            if (!isAuthPage && !isHandlingAuth) {
+            // Don't redirect if it's a password update error (wrong current password)
+            const isPasswordUpdateError = originalRequest.url?.includes('update-password') || 
+                                         originalRequest.url?.includes('change-password');
+            
+            // Don't redirect if already on auth page or already handling auth or password update error
+            if (!isAuthPage && !isHandlingAuth && !isPasswordUpdateError) {
                 isHandlingAuth = true;
                 
                 // Determine redirect reason

@@ -34,6 +34,12 @@ export const updateProfile = createAsyncThunkHandler(
   'auth/profile'
 );
 
+export const updatePassword = createAsyncThunkHandler(
+  'auth/updatePassword',
+  _put,
+  'auth/update-password'
+);
+
 export const updateJioConfig = createAsyncThunkHandler(
   'auth/updateJioConfig',
   _put,
@@ -273,6 +279,22 @@ const authSlice = createSlice({
             console.error('Error saving user:', error);
           }
         }
+      })
+
+    // Update Password
+    builder
+      .addCase(updatePassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updatePassword.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(updatePassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        // Don't clear auth state on password update failure
       })
 
     // Jio Config

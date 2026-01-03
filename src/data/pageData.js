@@ -3,7 +3,7 @@ import { lazy } from 'react'
 // Lazy loaded components
 const Dashboard = lazy(() => import('../pages/user/Dashboard.jsx'))
 const AllCampaigns = lazy(() => import('../pages/admin/AllCampaigns.jsx'))
-const CreateCampaign = lazy(() => import('../pages/user/CreateCampaign.jsx'))
+const CreateCampaign = lazy(() => import('../pages/user/CreateCampaignNew.jsx'))
 const TemplatePage = lazy(() => import('../pages/user/TemplatePage.jsx'))
 const CreateTemplatePage = lazy(() => import('../pages/user/CreateTempalte.jsx'))
 const Orders = lazy(() => import('../pages/user/Orders.jsx'))

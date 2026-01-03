@@ -126,14 +126,14 @@ export default function TemplatePage() {
             width: '40px',
             height: '40px',
             borderRadius: '8px',
-            background: record.templateType === 'plainText' ? '#e3f2fd' : record.templateType === 'richCard' ? '#e8f5e9' : record.templateType === 'carousel' ? '#fff3e0' : '#f3e5f5',
+            background: THEME_CONSTANTS.colors.primaryLight,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0
           }}>
             {React.cloneElement(getMessageTypeIcon(record.templateType), {
-              style: { fontSize: '18px', color: typeColors[record.templateType] || '#1890ff' }
+              style: { fontSize: '18px', color: THEME_CONSTANTS.colors.primary }
             })}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -218,39 +218,29 @@ export default function TemplatePage() {
       key: 'type',
       width: 160,
       align: 'center',
-      render: (type) => {
-        const typeConfig = {
-          plainText: { icon: <MessageOutlined />, color: '#1976d2', bg: '#e3f2fd' },
-          richCard: { icon: <FileImageOutlined />, color: '#388e3c', bg: '#e8f5e9' },
-          carousel: { icon: <AppstoreOutlined />, color: '#f57c00', bg: '#fff3e0' },
-          textWithAction: { icon: <MailOutlined />, color: '#7b1fa2', bg: '#f3e5f5' }
-        };
-        const config = typeConfig[type] || typeConfig.plainText;
-        
-        return (
-          <Tag 
-            icon={config.icon}
-            style={{ 
-              padding: '6px 16px', 
-              fontSize: '12px', 
-              fontWeight: 600, 
-              borderRadius: '8px', 
-              width: '145px',
-              textAlign: 'center', 
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: config.bg,
-              color: config.color,
-              border: `1px solid ${config.color}`,
-              letterSpacing: '-0.01em'
-            }}
-          >
-            {MESSAGE_TYPES[type] || type}
-          </Tag>
-        );
-      }
+      render: (type) => (
+        <Tag 
+          icon={getMessageTypeIcon(type)}
+          style={{ 
+            padding: '6px 16px', 
+            fontSize: '12px', 
+            fontWeight: 600, 
+            borderRadius: '8px', 
+            width: '145px',
+            textAlign: 'center', 
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            background: THEME_CONSTANTS.colors.primaryLight,
+            color: THEME_CONSTANTS.colors.primary,
+            border: `1px solid ${THEME_CONSTANTS.colors.primary}`,
+            letterSpacing: '-0.01em'
+          }}
+        >
+          {MESSAGE_TYPES[type] || type}
+        </Tag>
+      )
     },
     {
       title: 'Usage',

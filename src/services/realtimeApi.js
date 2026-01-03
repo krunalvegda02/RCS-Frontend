@@ -39,3 +39,17 @@ export const getCampaignMessages = createAsyncThunkHandler(
     _get,
     ({ campaignId, page = 1, limit = 20 }) => `v1/campaign-reports/campaign/${campaignId}/messages?page=${page}&limit=${limit}`
 );
+
+// Export all campaign messages (for Excel export)
+export const getAllCampaignMessages = createAsyncThunkHandler(
+    'campaigns/getAllMessages',
+    _get,
+    (campaignId) => `v1/campaign-reports/campaign/${campaignId}/messages?page=1&limit=100000`
+);
+
+// Export all campaigns (for Excel export)
+export const getAllCampaigns = createAsyncThunkHandler(
+    'campaigns/getAllCampaigns',
+    _get,
+    (userId) => `v1/campaign-reports/user/${userId}?page=1&limit=100000`
+);

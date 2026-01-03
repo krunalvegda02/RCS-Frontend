@@ -50,7 +50,9 @@ import {
   setSocketConnected,
   updateCampaignFromSocket,
   fetchCampaignMessages,
-  deleteOrder
+  deleteOrder,
+  fetchAllCampaignMessages,
+  fetchAllCampaigns
 } from '../../redux/slices/ordersSlice';
 import * as XLSX from 'xlsx';
 import dayjs from 'dayjs';
@@ -92,6 +94,8 @@ export default function Orders() {
 
   const [modalSearchText, setModalSearchText] = useState('');
   const [modalStatusFilter, setModalStatusFilter] = useState('all');
+  const [isExporting, setIsExporting] = useState(false);
+  const [allCampaignMessages, setAllCampaignMessages] = useState([]);
 
   // Fetch orders on component mount and page change
   useEffect(() => {
@@ -219,89 +223,69 @@ export default function Orders() {
 
   const modalOrder = selectedOrder;
 
-  const viewOrderDetails = (order) => {
+  const viewOrderDetails = async (order) => {
     dispatch(setSelectedOrder(order));
     setModalCurrentPage(1);
     setModalSearchText('');
     setModalStatusFilter('all');
     setShowModal(true);
+    
+    // Fetch all messages for this campaign
     if (order._id) {
-      dispatch(fetchCampaignMessages({ 
-        campaignId: order._id, 
-        page: 1, 
-        limit: 20
-      }));
+      try {
+        const result = await dispatch(fetchAllCampaignMessages(order._id)).unwrap();
+        setAllCampaignMessages(result.data || []);
+      } catch (error) {
+        console.error('Error fetching campaign messages:', error);
+        setAllCampaignMessages([]);
+      }
     }
   };
 
   const handleModalSearch = (searchValue) => {
     setModalSearchText(searchValue);
     setModalCurrentPage(1);
-    if (selectedOrder?._id) {
-      dispatch(fetchCampaignMessages({ 
-        campaignId: selectedOrder._id, 
-        page: 1, 
-        limit: 20,
-        search: searchValue,
-        status: modalStatusFilter !== 'all' ? modalStatusFilter : undefined
-      }));
-    }
   };
 
   const handleModalStatusFilter = (status) => {
     setModalStatusFilter(status);
     setModalCurrentPage(1);
-    if (selectedOrder?._id) {
-      dispatch(fetchCampaignMessages({ 
-        campaignId: selectedOrder._id, 
-        page: 1, 
-        limit: 20,
-        search: modalSearchText,
-        status: status !== 'all' ? status : undefined
-      }));
-    }
   };
 
   const handleModalPageChange = (page) => {
     setModalCurrentPage(page);
-    if (selectedOrder?._id) {
-      dispatch(fetchCampaignMessages({ 
-        campaignId: selectedOrder._id, 
-        page, 
-        limit: 20,
-        search: modalSearchText,
-        status: modalStatusFilter !== 'all' ? modalStatusFilter : undefined
-      }));
-    }
   };
 
   const closeModal = () => {
     setShowModal(false);
     setModalSearchText('');
     setModalStatusFilter('all');
+    setAllCampaignMessages([]);
     dispatch(clearSelectedOrder());
   };
 
   const exportCampaignDetails = async () => {
+    let toastInterval;
     try {
       if (!selectedOrder?._id) {
         toast.error('No campaign selected');
         return;
       }
 
-      const loadingToast = toast.loading('Fetching all messages for export...');
+      // Start dismissing toasts immediately
+      toastInterval = setInterval(() => {
+        toast.dismiss();
+      }, 10);
 
-      const response = await fetch(`http://localhost:3000/api/campaigns/${selectedOrder._id}/messages?limit=100000`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      if (!response.ok) throw new Error('Failed to fetch messages');
-
-      const data = await response.json();
-      const allMessages = data.data?.messages || [];
+      const result = await dispatch(fetchAllCampaignMessages(selectedOrder._id)).unwrap();
+      const allMessages = result.data || [];
 
       if (allMessages.length === 0) {
-        toast.dismiss(loadingToast);
+        if (toastInterval) clearInterval(toastInterval);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        toast.dismiss();
         toast.error('No messages to export');
         return;
       }
@@ -330,13 +314,24 @@ export default function Orders() {
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Messages');
 
+      // Stop dismissing toasts before file write
+      if (toastInterval) clearInterval(toastInterval);
+      await new Promise(resolve => setTimeout(resolve, 150));
+      toast.dismiss();
+
       XLSX.writeFile(workbook, `campaign-${selectedOrder?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.dismiss(loadingToast);
+      
+      // Show success toast after file download
+      await new Promise(resolve => setTimeout(resolve, 200));
       toast.success(`Exported ${exportData.length} messages successfully`);
     } catch (error) {
       console.error('Export error:', error);
+      if (toastInterval) clearInterval(toastInterval);
+      await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
-      toast.error('Failed to export campaign details');
+      toast.error(error.message || 'Failed to export campaign details');
+    } finally {
+      if (toastInterval) clearInterval(toastInterval);
     }
   };
 
@@ -411,10 +406,30 @@ export default function Orders() {
   const filteredOrders = getFilteredOrders();
 
   const getFilteredMessages = () => {
-    return campaignMessages || [];
+    let filtered = [...allCampaignMessages];
+    
+    // Apply search filter
+    if (modalSearchText) {
+      filtered = filtered.filter(msg => 
+        msg.phoneNumber?.toLowerCase().includes(modalSearchText.toLowerCase())
+      );
+    }
+    
+    // Apply status filter
+    if (modalStatusFilter !== 'all') {
+      filtered = filtered.filter(msg => msg.status === modalStatusFilter);
+    }
+    
+    return filtered;
   };
 
   const filteredMessages = getFilteredMessages();
+  
+  // Paginate filtered messages
+  const paginatedMessages = filteredMessages.slice(
+    (modalCurrentPage - 1) * 20,
+    modalCurrentPage * 20
+  );
 
   const deleteOrderHandler = async (orderId) => {
     Modal.confirm({
@@ -436,21 +451,52 @@ export default function Orders() {
   };
 
   const exportToExcel = async () => {
+    if (isExporting) return;
+    
+    let toastInterval;
     try {
-      if (!orders || orders?.length === 0) {
-        toast.error('No data to export');
+      setIsExporting(true);
+      
+      // Start dismissing toasts immediately before any API calls
+      toastInterval = setInterval(() => {
+        toast.dismiss();
+      }, 10);
+
+      // Small delay to ensure interval starts
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Fetch all campaigns
+      const campaignsResult = await dispatch(fetchAllCampaigns(user._id)).unwrap();
+      const allCampaigns = campaignsResult.data || [];
+
+      if (allCampaigns.length === 0) {
+        clearInterval(toastInterval);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        toast.dismiss();
+        toast.error('No campaigns to export');
+        setIsExporting(false);
         return;
       }
 
-      toast.loading('Preparing export...');
+      // Fetch messages for all campaigns silently
+      const messagesResults = await Promise.all(
+        allCampaigns.map(campaign => 
+          dispatch(fetchAllCampaignMessages(campaign._id))
+            .unwrap()
+            .then(result => result)
+            .catch(() => ({ data: [] }))
+        )
+      );
 
-      const exportData = orders?.map((order, idx) => {
+      // Create campaigns overview sheet
+      const campaignsData = allCampaigns.map((order, idx) => {
         const successCount = order?.successCount || 0;
         const failedCount = order?.failedCount || 0;
         const totalRecipients = order?.cost || 0;
         const successRate = totalRecipients > 0 ? ((successCount / totalRecipients) * 100).toFixed(2) : 0;
 
         return {
+          'S.No': idx + 1,
           'Campaign ID': order?._id || 'N/A',
           'Campaign Name': order?.CampaignName || 'N/A',
           'Message Type': order?.type || 'N/A',
@@ -464,24 +510,72 @@ export default function Orders() {
         };
       });
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      
-      worksheet['!cols'] = [
-        { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 12 },
+      // Create all messages sheet
+      const allMessagesData = [];
+      allCampaigns.forEach((campaign, campaignIdx) => {
+        const messages = messagesResults[campaignIdx]?.data || [];
+        messages.forEach((msg) => {
+          allMessagesData.push({
+            'S.No': allMessagesData.length + 1,
+            'Campaign Name': campaign.CampaignName,
+            'Campaign ID': campaign._id,
+            'Phone Number': msg.phoneNumber || 'N/A',
+            'Status': msg.status?.toUpperCase() || 'N/A',
+            'Template Type': msg.templateType || 'N/A',
+            'Sent At': msg.sentAt ? new Date(msg.sentAt).toLocaleString() : 'N/A',
+            'Delivered At': msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString() : 'N/A',
+            'Read At': msg.readAt ? new Date(msg.readAt).toLocaleString() : 'N/A',
+            'Interactions': msg.interactions || 0,
+            'Replies': msg.replies || 0,
+            'User Response': msg.userText || msg.clickedAction || msg.suggestionResponse?.plainText || 'N/A',
+            'Error': msg.status === 'failed' ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A',
+          });
+        });
+      });
+
+      // Create workbook with multiple sheets
+      const workbook = XLSX.utils.book_new();
+
+      // Add campaigns overview sheet
+      const campaignsSheet = XLSX.utils.json_to_sheet(campaignsData);
+      campaignsSheet['!cols'] = [
+        { wch: 8 }, { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 12 },
         { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 15 },
         { wch: 15 }, { wch: 15 }
       ];
+      XLSX.utils.book_append_sheet(workbook, campaignsSheet, 'Campaigns Overview');
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Reports');
+      // Add all messages sheet
+      if (allMessagesData.length > 0) {
+        const messagesSheet = XLSX.utils.json_to_sheet(allMessagesData);
+        messagesSheet['!cols'] = [
+          { wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 12 },
+          { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+          { wch: 12 }, { wch: 10 }, { wch: 30 }, { wch: 30 }
+        ];
+        XLSX.utils.book_append_sheet(workbook, messagesSheet, 'All Messages');
+      }
 
-      XLSX.writeFile(workbook, `campaign-reports-${new Date().toISOString().split('T')[0]}.xlsx`);
+      // Stop dismissing toasts before file write
+      if (toastInterval) clearInterval(toastInterval);
+      await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
-      toast.success(`Exported ${exportData.length} campaigns successfully`);
+      
+      // Write file after clearing toasts
+      XLSX.writeFile(workbook, `complete-campaign-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      // Show success toast after file download
+      await new Promise(resolve => setTimeout(resolve, 200));
+      toast.success(`Exported ${allCampaigns.length} campaigns with ${allMessagesData.length} messages`);
     } catch (error) {
       console.error('Export error:', error);
+      if (toastInterval) clearInterval(toastInterval);
+      await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
       toast.error('Failed to export report');
+    } finally {
+      if (toastInterval) clearInterval(toastInterval);
+      setIsExporting(false);
     }
   };
 
@@ -513,10 +607,10 @@ export default function Orders() {
               color: type === 'SMS' ? THEME_CONSTANTS.colors.primary : '#667085',
               border: 'none',
               fontWeight: 600,
-              padding: '4px 0',
+              padding: '6px 0',
               borderRadius: THEME_CONSTANTS.radius.sm,
-              fontSize: '12px',
-              width: '70px',
+              fontSize: '13px',
+              width: '90px',
               textAlign: 'center',
               display: 'inline-block'
             }}
@@ -525,7 +619,7 @@ export default function Orders() {
           </Tag>
         </div>
       ),
-      width: 110,
+      width: 120,
       align: 'center',
     },
     {
@@ -544,28 +638,28 @@ export default function Orders() {
       title: 'Delivered',
       key: 'success',
       render: (text, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-          <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '14px' }} />
-          <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '13px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+          <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
+          <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '15px' }}>
             {record?.successCount || 0}
           </span>
         </div>
       ),
-      width: 110,
+      width: 130,
       align: 'center',
     },
     {
       title: 'Failed',
       key: 'failed',
       render: (text, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-          <CloseCircleOutlined style={{ color: THEME_CONSTANTS.colors.danger, fontSize: '14px' }} />
-          <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.danger, fontSize: '13px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+          <CloseCircleOutlined style={{ color: THEME_CONSTANTS.colors.danger, fontSize: '16px' }} />
+          <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.danger, fontSize: '15px' }}>
             {record?.failedCount || 0}
           </span>
         </div>
       ),
-      width: 100,
+      width: 120,
       align: 'center',
     },
     {
@@ -617,16 +711,16 @@ export default function Orders() {
       render: (date) => (
         <Tooltip title={new Date(date).toLocaleString()}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textPrimary, fontWeight: 600 }}>
+            <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textPrimary, fontWeight: 600 }}>
               {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
             </div>
-            <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '2px' }}>
+            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '3px' }}>
               {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
         </Tooltip>
       ),
-      width: 110,
+      width: 130,
       align: 'center',
     },
     {
@@ -639,20 +733,22 @@ export default function Orders() {
               type="primary"
               icon={<EyeOutlined />}
               onClick={() => viewOrderDetails(record)}
-              size="small"
+              size="middle"
+              style={{ padding: '4px 15px' }}
             />
           </Tooltip>
-          <Tooltip title="Delete">
+          {/* <Tooltip title="Delete">
             <Button
               danger
               icon={<DeleteOutlined />}
               onClick={() => deleteOrderHandler(record._id)}
-              size="small"
+              size="middle"
+              style={{ padding: '4px 15px' }}
             />
-          </Tooltip>
+          </Tooltip> */}
         </Space>
       ),
-      width: 110,
+      width: 140,
       align: 'center',
       fixed: 'right',
     },
@@ -733,30 +829,20 @@ export default function Orders() {
               </Col>
               <Col xs={24} lg={6}>
                 <div style={{ textAlign: screens.lg ? 'right' : 'left' }}>
-                  <Space>
-                    <Button
-                      type="primary"
-                      icon={<DownloadOutlined />}
-                      onClick={exportToExcel}
-                      style={{
-                        background: THEME_CONSTANTS.colors.primary,
-                        borderColor: THEME_CONSTANTS.colors.primary,
-                        height: '44px',
-                      }}
-                    >
-                      Export Report
-                    </Button>
-                    <Button
-                      icon={<ReloadOutlined />}
-                      onClick={() => dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }))}
-                      loading={loading.orders}
-                      style={{
-                        height: '44px',
-                      }}
-                    >
-                      Refresh
-                    </Button>
-                  </Space>
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={exportToExcel}
+                    loading={isExporting}
+                    disabled={isExporting}
+                    style={{
+                      background: THEME_CONSTANTS.colors.primary,
+                      borderColor: THEME_CONSTANTS.colors.primary,
+                      height: '44px',
+                    }}
+                  >
+                    {isExporting ? 'Exporting...' : 'Export All'}
+                  </Button>
                 </div>
               </Col>
             </Row>
@@ -866,15 +952,31 @@ export default function Orders() {
           bodyStyle={{ padding: 0 }}
         >
           <div style={{ 
-            padding: '24px 32px',
+            padding: '20px 28px',
             borderBottom: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)'
+            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <FilterOutlined style={{ fontSize: '20px', color: THEME_CONSTANTS.colors.primary }} />
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: THEME_CONSTANTS.radius.lg,
+                background: THEME_CONSTANTS.colors.primaryLight,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: `2px solid ${THEME_CONSTANTS.colors.primary}30`
+              }}>
+                <FilterOutlined style={{ fontSize: '18px', color: THEME_CONSTANTS.colors.primary }} />
+              </div>
               <div>
                 <h3 style={{ 
-                  fontSize: '18px', 
+                  fontSize: '17px', 
                   fontWeight: 700, 
                   color: THEME_CONSTANTS.colors.text, 
                   margin: 0,
@@ -883,64 +985,90 @@ export default function Orders() {
                   Filter & Search
                 </h3>
                 <p style={{ 
-                  fontSize: '13px', 
+                  fontSize: '12px', 
                   color: THEME_CONSTANTS.colors.textSecondary, 
                   margin: 0,
-                  marginTop: '4px'
+                  marginTop: '2px'
                 }}>
-                  Refine your campaign results with advanced filters
+                  Refine your campaign results
                 </p>
               </div>
             </div>
+            
+            {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || campaignFilter !== 'all' || (dateRange && dateRange[0])) && (
+              <Button
+                danger
+                type="primary"
+                icon={<DeleteOutlined />}
+                onClick={() => {
+                  setSearchText('');
+                  setStatusFilter('all');
+                  setTypeFilter('all');
+                  setCampaignFilter('all');
+                  setDateRange([null, null]);
+                  toast.success('All filters cleared');
+                }}
+                style={{
+                  height: '40px',
+                  borderRadius: THEME_CONSTANTS.radius.md,
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  boxShadow: '0 2px 8px rgba(255, 77, 79, 0.2)'
+                }}
+              >
+                Clear All Filters
+              </Button>
+            )}
           </div>
 
-          <div style={{ padding: '32px' }}>
-            <Row gutter={[20, 20]}>
-              <Col xs={24} lg={12}>
+          <div style={{ padding: '28px' }}>
+            <Row gutter={[16, 20]}>
+              {/* Search Input */}
+              <Col xs={24} md={12} lg={8}>
                 <div style={{ marginBottom: '8px' }}>
                   <label style={{ 
-                    fontSize: '13px', 
+                    fontSize: '12px', 
                     fontWeight: 600, 
                     color: THEME_CONSTANTS.colors.text,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
                   }}>
-                    <SearchOutlined style={{ fontSize: '12px' }} />
-                    Search Campaigns
+                    <SearchOutlined style={{ fontSize: '11px' }} />
+                    Search
                   </label>
                 </div>
                 <Input
-                  placeholder="Search by campaign name or ID..."
-                  prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textMuted }} />}
+                  placeholder="Campaign name or ID..."
+                  prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: '14px' }} />}
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                   allowClear
-                  suffix={
-                    searchText && (
-                      <Button
-                        type="text"
-                        size="small"
-                        onClick={() => setSearchText('')}
-                        style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.primary }}
-                      >
-                        Clear
-                      </Button>
-                    )
-                  }
                   style={{
-                    height: '44px',
+                    height: '42px',
                     borderRadius: THEME_CONSTANTS.radius.md,
-                    border: `2px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                    fontSize: '14px',
-                    transition: 'all 0.3s ease'
+                    border: `1.5px solid ${searchText ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.borderLight}`,
+                    fontSize: '13px',
+                    transition: 'all 0.3s ease',
+                    boxShadow: searchText ? `0 0 0 3px ${THEME_CONSTANTS.colors.primary}15` : 'none'
                   }}
                 />
               </Col>
 
-              <Col xs={24} sm={12} lg={6}>
+              {/* Status Filter */}
+              <Col xs={24} sm={12} md={6} lg={4}>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Status</label>
+                  <label style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 600, 
+                    color: THEME_CONSTANTS.colors.text,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Status
+                  </label>
                 </div>
                 <Select
                   value={statusFilter}
@@ -948,7 +1076,7 @@ export default function Orders() {
                   style={{ width: '100%' }}
                   size="large"
                   options={[
-                    { label: '📊 All Status', value: 'all' },
+                    { label: '📊 All', value: 'all' },
                     { label: '✅ Completed', value: 'completed' },
                     { label: '⚡ Processing', value: 'processing' },
                     { label: '⏳ Pending', value: 'pending' },
@@ -956,9 +1084,18 @@ export default function Orders() {
                 />
               </Col>
 
-              <Col xs={24} sm={12} lg={6}>
+              {/* Type Filter */}
+              <Col xs={24} sm={12} md={6} lg={4}>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Message Type</label>
+                  <label style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 600, 
+                    color: THEME_CONSTANTS.colors.text,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Type
+                  </label>
                 </div>
                 <Select
                   value={typeFilter}
@@ -966,15 +1103,24 @@ export default function Orders() {
                   style={{ width: '100%' }}
                   size="large"
                   options={[
-                    { label: '📱 All Types', value: 'all' },
+                    { label: '📱 All', value: 'all' },
                     ...getUniqueTypes().map((type) => ({ label: type, value: type })),
                   ]}
                 />
               </Col>
 
-              <Col xs={24} lg={12}>
+              {/* Campaign Filter */}
+              <Col xs={24} md={12} lg={8}>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Campaign Name</label>
+                  <label style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 600, 
+                    color: THEME_CONSTANTS.colors.text,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Campaign
+                  </label>
                 </div>
                 <Select
                   value={campaignFilter}
@@ -982,7 +1128,7 @@ export default function Orders() {
                   style={{ width: '100%' }}
                   size="large"
                   showSearch
-                  placeholder="Select a campaign"
+                  placeholder="Select campaign"
                   optionFilterProp="label"
                   options={[
                     { label: '🎯 All Campaigns', value: 'all' },
@@ -994,104 +1140,140 @@ export default function Orders() {
                 />
               </Col>
 
-              <Col xs={24} sm={12} lg={8}>
+              {/* Date Range */}
+              <Col xs={24} sm={12} md={8} lg={6}>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Date Range</label>
+                  <label style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 600, 
+                    color: THEME_CONSTANTS.colors.text,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Date Range
+                  </label>
                 </div>
                 <RangePicker
                   value={dateRange}
                   onChange={setDateRange}
                   style={{ 
                     width: '100%', 
-                    height: '44px', 
+                    height: '42px', 
                     borderRadius: THEME_CONSTANTS.radius.md,
-                    border: `2px solid ${THEME_CONSTANTS.colors.borderLight}`
+                    border: `1.5px solid ${(dateRange && dateRange[0]) ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.borderLight}`,
+                    boxShadow: (dateRange && dateRange[0]) ? `0 0 0 3px ${THEME_CONSTANTS.colors.primary}15` : 'none'
                   }}
                   format="DD/MM/YYYY"
-                  placeholder={['Start Date', 'End Date']}
+                  placeholder={['Start', 'End']}
                 />
               </Col>
 
-              <Col xs={24} sm={12} lg={4}>
+              {/* Sort Button */}
+              <Col xs={24} sm={12} md={4} lg={4}>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Sort By</label>
+                  <label style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 600, 
+                    color: THEME_CONSTANTS.colors.text,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Sort
+                  </label>
                 </div>
                 <Button
-                  icon={<FilterOutlined />}
+                  icon={sortOrder === 'newest' ? <span style={{ fontSize: '14px' }}>↓</span> : <span style={{ fontSize: '14px' }}>↑</span>}
                   onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
                   style={{ 
                     width: '100%', 
-                    height: '44px',
+                    height: '42px',
                     borderRadius: THEME_CONSTANTS.radius.md,
-                    border: `2px solid ${sortOrder === 'newest' ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.borderLight}`,
+                    border: `1.5px solid ${THEME_CONSTANTS.colors.primary}`,
                     background: sortOrder === 'newest' ? THEME_CONSTANTS.colors.primary : 'white',
-                    color: sortOrder === 'newest' ? 'white' : THEME_CONSTANTS.colors.text,
+                    color: sortOrder === 'newest' ? 'white' : THEME_CONSTANTS.colors.primary,
                     fontWeight: 600,
-                    transition: 'all 0.3s ease'
+                    fontSize: '13px',
+                    transition: 'all 0.3s ease',
+                    boxShadow: sortOrder === 'newest' ? `0 2px 8px ${THEME_CONSTANTS.colors.primary}30` : 'none'
                   }}
                 >
-                  {sortOrder === 'newest' ? '↓ Newest' : '↑ Oldest'}
+                  {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
                 </Button>
               </Col>
             </Row>
 
             {/* Active Filters Summary */}
-            {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || campaignFilter !== 'all' || (dateRange && dateRange[0])) && (
+            {/* {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || campaignFilter !== 'all' || (dateRange && dateRange[0])) && (
               <div style={{ 
                 marginTop: '24px', 
-                padding: '16px 20px',
-                background: THEME_CONSTANTS.colors.primaryLight,
-                borderRadius: THEME_CONSTANTS.radius.md,
-                border: `1px solid ${THEME_CONSTANTS.colors.primary}20`
+                padding: '14px 18px',
+                background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, #ffffff 100%)`,
+                borderRadius: THEME_CONSTANTS.radius.lg,
+                border: `1.5px solid ${THEME_CONSTANTS.colors.primary}30`
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.primary }}>
-                      Active Filters:
-                    </span>
-                    {searchText && (
-                      <Tag closable onClose={() => setSearchText('')} color={THEME_CONSTANTS.colors.primary}>
-                        Search: {searchText}
-                      </Tag>
-                    )}
-                    {statusFilter !== 'all' && (
-                      <Tag closable onClose={() => setStatusFilter('all')} color="green">
-                        Status: {statusFilter}
-                      </Tag>
-                    )}
-                    {typeFilter !== 'all' && (
-                      <Tag closable onClose={() => setTypeFilter('all')} color="blue">
-                        Type: {typeFilter}
-                      </Tag>
-                    )}
-                    {campaignFilter !== 'all' && (
-                      <Tag closable onClose={() => setCampaignFilter('all')} color="purple">
-                        Campaign: {campaignFilter}
-                      </Tag>
-                    )}
-                    {dateRange && dateRange[0] && (
-                      <Tag closable onClose={() => setDateRange([null, null])} color="orange">
-                        Date: {dateRange[0].format('DD/MM/YY')} - {dateRange[1].format('DD/MM/YY')}
-                      </Tag>
-                    )}
-                  </div>
-                  <Button 
-                    type="link" 
-                    size="small"
-                    onClick={() => {
-                      setSearchText('');
-                      setStatusFilter('all');
-                      setTypeFilter('all');
-                      setCampaignFilter('all');
-                      setDateRange([null, null]);
-                    }}
-                    style={{ color: THEME_CONSTANTS.colors.primary, fontWeight: 600 }}
-                  >
-                    Clear All
-                  </Button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 700, 
+                    color: THEME_CONSTANTS.colors.primary,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Active:
+                  </span>
+                  {searchText && (
+                    <Tag 
+                      closable 
+                      onClose={() => setSearchText('')} 
+                      color={THEME_CONSTANTS.colors.primary}
+                      style={{ fontWeight: 600, fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      🔍 {searchText}
+                    </Tag>
+                  )}
+                  {statusFilter !== 'all' && (
+                    <Tag 
+                      closable 
+                      onClose={() => setStatusFilter('all')} 
+                      color="green"
+                      style={{ fontWeight: 600, fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      Status: {statusFilter}
+                    </Tag>
+                  )}
+                  {typeFilter !== 'all' && (
+                    <Tag 
+                      closable 
+                      onClose={() => setTypeFilter('all')} 
+                      color="blue"
+                      style={{ fontWeight: 600, fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      Type: {typeFilter}
+                    </Tag>
+                  )}
+                  {campaignFilter !== 'all' && (
+                    <Tag 
+                      closable 
+                      onClose={() => setCampaignFilter('all')} 
+                      color="purple"
+                      style={{ fontWeight: 600, fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      {campaignFilter}
+                    </Tag>
+                  )}
+                  {dateRange && dateRange[0] && (
+                    <Tag 
+                      closable 
+                      onClose={() => setDateRange([null, null])} 
+                      color="orange"
+                      style={{ fontWeight: 600, fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      📅 {dateRange[0].format('DD/MM/YY')} - {dateRange[1].format('DD/MM/YY')}
+                    </Tag>
+                  )}
                 </div>
               </div>
-            )}
+            )} */}
           </div>
         </Card>
 
@@ -1115,6 +1297,16 @@ export default function Orders() {
                   {filteredOrders.length} of {orders?.length || 0} campaigns
                 </p>
               </div>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }))}
+                loading={loading.orders}
+                style={{
+                  height: '40px',
+                }}
+              >
+                Refresh
+              </Button>
             </div>
           </div>
           {loading.orders ? (
@@ -1267,7 +1459,7 @@ export default function Orders() {
                         borderRadius: THEME_CONSTANTS.radius.md
                       }}
                     >
-                      Export All
+                      Export Messages
                     </Button>
                   </Space>
                 </Col>
@@ -1496,7 +1688,7 @@ export default function Orders() {
                       <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
                         <div style={{ flex: 1 }}>
                           <span style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                            {messagesPagination?.total || 0} total messages
+                            {filteredMessages.length} total messages
                           </span>
                         </div>
                         <Button
@@ -1530,13 +1722,13 @@ export default function Orders() {
 
                 {/* Table */}
                 <Table
-                  dataSource={filteredMessages}
+                  dataSource={paginatedMessages}
                   rowKey={(record) => `msg-${record._id}-${record.phoneNumber}`}
                   loading={loading.messages}
                   pagination={{
                     current: modalCurrentPage,
                     pageSize: 20,
-                    total: messagesPagination?.total || 0,
+                    total: filteredMessages.length,
                     onChange: handleModalPageChange,
                     showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
                     size: 'default',

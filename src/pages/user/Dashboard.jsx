@@ -77,10 +77,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user?._id) {
+      refreshUser(); // Refresh user data including wallet on mount
       dispatch(fetchDashboardStats(user._id));
       dispatch(fetchRecentOrders(user._id));
     }
-  }, [user, dispatch]);
+  }, [user?._id, dispatch]);
 
   const handleAddMoney = async () => {
     if (addAmount && Number.parseFloat(addAmount) > 0) {

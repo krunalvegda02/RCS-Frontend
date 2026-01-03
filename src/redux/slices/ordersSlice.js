@@ -6,7 +6,9 @@ import {
   getLiveMessageFeed, 
   getMessageStatusBreakdown, 
   getUserInteractionSummary,
-  getCampaignMessages
+  getCampaignMessages,
+  getAllCampaignMessages,
+  getAllCampaigns
 } from '../../services/realtimeApi';
 
 // Async thunks for orders using helper functions
@@ -28,6 +30,8 @@ export const fetchLiveMessageFeed = getLiveMessageFeed;
 export const fetchMessageBreakdown = getMessageStatusBreakdown;
 export const fetchUserInteractions = getUserInteractionSummary;
 export const fetchCampaignMessages = getCampaignMessages;
+export const fetchAllCampaignMessages = getAllCampaignMessages;
+export const fetchAllCampaigns = getAllCampaigns;
 
 const initialState = {
   orders: [],
