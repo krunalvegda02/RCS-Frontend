@@ -236,67 +236,101 @@ function CreateUser() {
   };
 
   return (
-    <>
-      <Spin spinning={loading.createUser}>
-        <Row gutter={[24, 24]} justify="center" style={{ marginTop: 24 }}>
-          <Col xs={24} sm={22} md={20} lg={16} xl={14}>
-            {/* CARD HEADER */}
-            <Card
-              style={{
-                borderRadius: THEME_CONSTANTS.radius.lg,
-                boxShadow: THEME_CONSTANTS.shadow.md,
-                marginBottom: 24,
-                borderTop: `4px solid ${THEME_CONSTANTS.colors.primary}`,
-              }}
+    <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', padding: screens.xs ? THEME_CONSTANTS.spacing.lg : THEME_CONSTANTS.spacing.xxl }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        {/* Header Section - Left Aligned */}
+        <div style={{
+          marginBottom: THEME_CONSTANTS.spacing.xxxl,
+          paddingBottom: THEME_CONSTANTS.spacing.xxl,
+          borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.lg }}>
+            <div style={{
+              width: screens.xs ? '56px' : '72px',
+              height: screens.xs ? '56px' : '72px',
+              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+              borderRadius: THEME_CONSTANTS.radius.xl,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.primary}40`,
+              flexShrink: 0
+            }}>
+              <UserOutlined style={{ color: '#fff', fontSize: screens.xs ? '28px' : '36px' }} />
+            </div>
+            <div>
+              <h1 style={{
+                fontSize: screens.xs ? THEME_CONSTANTS.typography.h2.size : THEME_CONSTANTS.typography.h1.size,
+                fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                color: THEME_CONSTANTS.colors.text,
+                marginBottom: THEME_CONSTANTS.spacing.xs,
+                lineHeight: 1.2,
+                letterSpacing: '-0.02em'
+              }}>
+                Create New User
+              </h1>
+              <p style={{
+                color: THEME_CONSTANTS.colors.textSecondary,
+                fontSize: THEME_CONSTANTS.typography.body.size,
+                lineHeight: 1.5,
+                margin: 0
+              }}>
+                Add a new user to the platform with complete information and credentials.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <Spin spinning={loading.createUser}>
+          {/* Main Form Card */}
+          <Card
+            style={{
+              borderRadius: THEME_CONSTANTS.radius.lg,
+              border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+              boxShadow: THEME_CONSTANTS.shadow.base,
+              marginBottom: THEME_CONSTANTS.spacing.xxl,
+              background: THEME_CONSTANTS.colors.surface
+            }}
+            bodyStyle={{ padding: screens.xs ? THEME_CONSTANTS.spacing.lg : THEME_CONSTANTS.spacing.xxl }}
+          >
+
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              autoComplete="off"
             >
-              {/* TITLE SECTION */}
-              <div style={{ marginBottom: 24 }}>
-                <h1
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 700,
-                    color: THEME_CONSTANTS.colors.primary,
-                    margin: '0 0 8px 0',
-                  }}
-                >
-                  Create New User
-                </h1>
-                <p
-                  style={{
-                    fontSize: 14,
-                    color: '#666',
-                    margin: 0,
-                  }}
-                >
-                  Add a new user to the platform with complete information
-                </p>
-              </div>
-
-              <Divider style={{ margin: '24px 0' }} />
-
-              {/* FORM */}
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleSubmit}
-                autoComplete="off"
-              >
-                {/* SECTION 1: BASIC INFORMATION */}
-                <div style={{ marginBottom: 32 }}>
-                  <h3
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 600,
-                      color: THEME_CONSTANTS.colors.text,
-                      marginBottom: 16,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <UserOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />
+              {/* SECTION 1: BASIC INFORMATION */}
+              <div style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: THEME_CONSTANTS.spacing.sm,
+                  marginBottom: THEME_CONSTANTS.spacing.lg,
+                  paddingBottom: THEME_CONSTANTS.spacing.md,
+                  borderBottom: `2px solid ${THEME_CONSTANTS.colors.primaryLight}`
+                }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    background: THEME_CONSTANTS.colors.primaryLight,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: THEME_CONSTANTS.colors.primary
+                  }}>
+                    <UserOutlined style={{ fontSize: '16px' }} />
+                  </div>
+                  <h3 style={{
+                    fontSize: THEME_CONSTANTS.typography.h4.size,
+                    fontWeight: THEME_CONSTANTS.typography.h4.weight,
+                    color: THEME_CONSTANTS.colors.text,
+                    margin: 0
+                  }}>
                     Basic Information
                   </h3>
+                </div>
 
                   <Row gutter={[16, 16]}>
                     {/* NAME */}
@@ -417,22 +451,37 @@ function CreateUser() {
                   </Row>
                 </div>
 
-                {/* SECTION 2: SECURITY */}
-                <div style={{ marginBottom: 32 }}>
-                  <h3
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 600,
-                      color: THEME_CONSTANTS.colors.text,
-                      marginBottom: 16,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <LockOutlined style={{ color: THEME_CONSTANTS.colors.warning }} />
+              {/* SECTION 2: SECURITY */}
+              <div style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: THEME_CONSTANTS.spacing.sm,
+                  marginBottom: THEME_CONSTANTS.spacing.lg,
+                  paddingBottom: THEME_CONSTANTS.spacing.md,
+                  borderBottom: `2px solid ${THEME_CONSTANTS.colors.warningLight}`
+                }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    background: THEME_CONSTANTS.colors.warningLight,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: THEME_CONSTANTS.colors.warning
+                  }}>
+                    <LockOutlined style={{ fontSize: '16px' }} />
+                  </div>
+                  <h3 style={{
+                    fontSize: THEME_CONSTANTS.typography.h4.size,
+                    fontWeight: THEME_CONSTANTS.typography.h4.weight,
+                    color: THEME_CONSTANTS.colors.text,
+                    margin: 0
+                  }}>
                     Security & Access
                   </h3>
+                </div>
 
                   <Row gutter={[16, 16]}>
                     {/* PASSWORD */}
@@ -514,42 +563,47 @@ function CreateUser() {
                   </Row>
                 </div>
 
-                {/* SECTION 3: JIO RCS INTEGRATION */}
-                <div style={{ marginBottom: 32 }}>
-                  <div
-                    style={{
-                      backgroundColor: `${THEME_CONSTANTS.colors.primary}10`,
-                      border: `1px solid ${THEME_CONSTANTS.colors.primary}30`,
-                      borderRadius: THEME_CONSTANTS.radius.md,
-                      padding: 16,
-                      marginBottom: 16,
-                    }}
-                  >
-                    <h3
-                      style={{
-                        fontSize: 16,
-                        fontWeight: 600,
-                        color: THEME_CONSTANTS.colors.primary,
-                        marginBottom: 8,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        margin: 0,
-                      }}
-                    >
-                      <KeyOutlined />
+              {/* SECTION 3: JIO RCS INTEGRATION */}
+              <div style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: THEME_CONSTANTS.spacing.sm,
+                  marginBottom: THEME_CONSTANTS.spacing.lg,
+                  paddingBottom: THEME_CONSTANTS.spacing.md,
+                  borderBottom: `2px solid ${THEME_CONSTANTS.colors.primaryLight}`
+                }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    background: THEME_CONSTANTS.colors.primaryLight,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: THEME_CONSTANTS.colors.primary
+                  }}>
+                    <KeyOutlined style={{ fontSize: '16px' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      fontSize: THEME_CONSTANTS.typography.h4.size,
+                      fontWeight: THEME_CONSTANTS.typography.h4.weight,
+                      color: THEME_CONSTANTS.colors.text,
+                      margin: 0,
+                      marginBottom: THEME_CONSTANTS.spacing.xs
+                    }}>
                       Jio RCS Configuration
                     </h3>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        color: '#666',
-                        margin: '8px 0 0 0',
-                      }}
-                    >
+                    <p style={{
+                      fontSize: THEME_CONSTANTS.typography.caption.size,
+                      color: THEME_CONSTANTS.colors.textSecondary,
+                      margin: 0
+                    }}>
                       Optional: Add Jio RCS API credentials for messaging capabilities
                     </p>
                   </div>
+                </div>
 
                   <Row gutter={[16, 16]}>
                     {/* JIO CLIENT ID */}
@@ -601,22 +655,37 @@ function CreateUser() {
                   </Row>
                 </div>
 
-                {/* SECTION 4: INITIAL WALLET BALANCE (OPTIONAL) */}
-                <div style={{ marginBottom: 32 }}>
-                  <h3
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 600,
-                      color: THEME_CONSTANTS.colors.text,
-                      marginBottom: 16,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ color: THEME_CONSTANTS.colors.success }}>💰</span>
+              {/* SECTION 4: INITIAL WALLET BALANCE */}
+              <div style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: THEME_CONSTANTS.spacing.sm,
+                  marginBottom: THEME_CONSTANTS.spacing.lg,
+                  paddingBottom: THEME_CONSTANTS.spacing.md,
+                  borderBottom: `2px solid ${THEME_CONSTANTS.colors.successLight}`
+                }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    background: THEME_CONSTANTS.colors.successLight,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px'
+                  }}>
+                    💰
+                  </div>
+                  <h3 style={{
+                    fontSize: THEME_CONSTANTS.typography.h4.size,
+                    fontWeight: THEME_CONSTANTS.typography.h4.weight,
+                    color: THEME_CONSTANTS.colors.text,
+                    margin: 0
+                  }}>
                     Initial Wallet Setup
                   </h3>
+                </div>
 
                   <Row gutter={[16, 16]}>
                     <Col xs={24}>
@@ -646,87 +715,101 @@ function CreateUser() {
                   </Row>
                 </div>
 
-                {/* ACTIONS */}
-                <Divider style={{ margin: '24px 0' }} />
+              {/* ACTIONS */}
+              <div style={{
+                marginTop: THEME_CONSTANTS.spacing.xxxl,
+                paddingTop: THEME_CONSTANTS.spacing.xxl,
+                borderTop: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                display: 'flex',
+                gap: THEME_CONSTANTS.spacing.md,
+                justifyContent: 'flex-end',
+                flexWrap: 'wrap'
+              }}>
+                <Button
+                  size="large"
+                  icon={<ReloadOutlined />}
+                  onClick={() => form.resetFields()}
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    height: '44px',
+                    padding: '0 24px',
+                    fontWeight: 500
+                  }}
+                >
+                  Clear Form
+                </Button>
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<SaveOutlined />}
+                  htmlType="submit"
+                  loading={loading.createUser}
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    height: '44px',
+                    padding: '0 32px',
+                    fontWeight: 600,
+                    boxShadow: `0 4px 12px ${THEME_CONSTANTS.colors.primary}30`
+                  }}
+                >
+                  Create User
+                </Button>
+              </div>
+            </Form>
+          </Card>
 
-                <Row gutter={[12, 12]} justify="flex-end">
-                  <Col>
-                    <Button
-                      size="large"
-                      icon={<ReloadOutlined />}
-                      onClick={() => form.resetFields()}
-                      style={{
-                        borderRadius: THEME_CONSTANTS.radius.base,
-                      }}
-                    >
-                      Clear Form
-                    </Button>
-                  </Col>
-                  <Col>
-                    <Button
-                      type="primary"
-                      size="large"
-                      icon={<SaveOutlined />}
-                      htmlType="submit"
-                      loading={loading.createUser}
-                      style={{
-                        borderRadius: THEME_CONSTANTS.radius.base,
-                        fontWeight: 600,
-                      }}
-                    >
-                      Create User
-                    </Button>
-                  </Col>
-                </Row>
-              </Form>
-            </Card>
-
-            {/* HELPFUL INFO CARD */}
-            <Card
-              style={{
-                borderRadius: THEME_CONSTANTS.radius.lg,
-                boxShadow: THEME_CONSTANTS.shadow.sm,
-                backgroundColor: `${THEME_CONSTANTS.colors.success}05`,
-                border: `1px solid ${THEME_CONSTANTS.colors.success}20`,
-              }}
-            >
-              <h4
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: THEME_CONSTANTS.colors.success,
-                  marginBottom: 12,
-                  margin: 0,
-                }}
-              >
-                ℹ️ Tips for User Creation
-              </h4>
-              <ul
-                style={{
-                  fontSize: 13,
-                  color: '#666',
-                  margin: '12px 0 0 0',
-                  paddingLeft: 20,
-                }}
-              >
-                <li style={{ marginBottom: 8 }}>
-                  Use a strong password with at least 6 characters
-                </li>
-                <li style={{ marginBottom: 8 }}>
-                  Jio credentials are optional but required for RCS messaging
-                </li>
-                <li style={{ marginBottom: 8 }}>
-                  Users start with the initial wallet balance you set here
-                </li>
-                <li>
-                  Admin users have full access to platform management features
-                </li>
-              </ul>
-            </Card>
-          </Col>
-        </Row>
-      </Spin>
-    </>
+          {/* HELPFUL INFO CARD */}
+          <Card
+            style={{
+              borderRadius: THEME_CONSTANTS.radius.lg,
+              border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+              boxShadow: THEME_CONSTANTS.shadow.sm,
+              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, ${THEME_CONSTANTS.colors.surface} 100%)`
+            }}
+            bodyStyle={{ padding: THEME_CONSTANTS.spacing.xl }}
+          >
+            <div style={{ display: 'flex', gap: THEME_CONSTANTS.spacing.md }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: THEME_CONSTANTS.radius.md,
+                background: THEME_CONSTANTS.colors.primary,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                flexShrink: 0
+              }}>
+                💡
+              </div>
+              <div>
+                <h4 style={{
+                  fontSize: THEME_CONSTANTS.typography.h5.size,
+                  fontWeight: THEME_CONSTANTS.typography.h5.weight,
+                  color: THEME_CONSTANTS.colors.text,
+                  marginBottom: THEME_CONSTANTS.spacing.md,
+                  margin: 0
+                }}>
+                  Tips for User Creation
+                </h4>
+                <ul style={{
+                  fontSize: THEME_CONSTANTS.typography.body.size,
+                  color: THEME_CONSTANTS.colors.textSecondary,
+                  margin: `${THEME_CONSTANTS.spacing.md} 0 0 0`,
+                  paddingLeft: THEME_CONSTANTS.spacing.lg,
+                  lineHeight: 1.8
+                }}>
+                  <li>Use a strong password with at least 6 characters</li>
+                  <li>Jio credentials are optional but required for RCS messaging</li>
+                  <li>Users start with the initial wallet balance you set here</li>
+                  <li>Admin users have full access to platform management features</li>
+                </ul>
+              </div>
+            </div>
+          </Card>
+        </Spin>
+      </div>
+    </div>
   );
 }
 

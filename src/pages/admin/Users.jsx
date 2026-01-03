@@ -209,38 +209,62 @@ function UserManagement() {
     <Card
       style={{
         borderRadius: THEME_CONSTANTS.radius.lg,
-        boxShadow: THEME_CONSTANTS.shadow.sm,
-        border: `1px solid ${bgColor}`,
+        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+        boxShadow: THEME_CONSTANTS.shadow.base,
+        height: '100%',
+        transition: THEME_CONSTANTS.transition.normal,
+        background: THEME_CONSTANTS.colors.surface,
+        overflow: 'hidden'
       }}
+      bodyStyle={{ padding: '24px' }}
       hoverable
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.lg;
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.borderColor = color;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.base;
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = THEME_CONSTANTS.colors.border;
+      }}
     >
-      <Row gutter={16} align="middle">
-        <Col>
-          <div
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: THEME_CONSTANTS.radius.md,
-              backgroundColor: bgColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <IconComponent style={{ fontSize: 24, color }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.md }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ 
+            fontSize: THEME_CONSTANTS.typography.label.size, 
+            color: THEME_CONSTANTS.colors.textSecondary, 
+            marginBottom: THEME_CONSTANTS.spacing.sm,
+            fontWeight: 500,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            {title}
           </div>
-        </Col>
-        <Col flex="auto">
-          <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 13, color: '#666', fontWeight: 500 }}>
-              {title}
-            </span>
-          </div>
-          <span style={{ fontSize: 24, fontWeight: 600, color }}>
+          <div style={{ 
+            fontSize: '32px', 
+            fontWeight: 700, 
+            color: THEME_CONSTANTS.colors.text, 
+            lineHeight: 1.2
+          }}>
             {typeof value === 'number' ? value.toLocaleString('en-IN') : value}
-          </span>
-        </Col>
-      </Row>
+          </div>
+        </div>
+        <div style={{ 
+          width: 64, 
+          height: 64, 
+          borderRadius: THEME_CONSTANTS.radius.xl, 
+          background: `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          color: color, 
+          fontSize: 28,
+          flexShrink: 0
+        }}>
+          <IconComponent />
+        </div>
+      </div>
     </Card>
   );
 
@@ -398,103 +422,79 @@ function UserManagement() {
 
   return (
     <>
-      <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh' }}>
-        <div style={{ 
-          maxWidth: THEME_CONSTANTS.layout.maxContentWidth, 
-          margin: '0 auto',
-          padding: THEME_CONSTANTS.spacing.xl
-        }}>
-          <Spin spinning={loading.users}>
-            {/* Enhanced Header Section */}
-            <div style={{
-              marginBottom: THEME_CONSTANTS.spacing.xxxl,
-              paddingBottom: THEME_CONSTANTS.spacing.xl,
-              borderBottom: `2px solid ${THEME_CONSTANTS.colors.primaryLight}`
-            }}>
-              <Breadcrumb style={{
-                marginBottom: THEME_CONSTANTS.spacing.md,
-                fontSize: THEME_CONSTANTS.typography.caption.size
-              }}>
-                <Breadcrumb.Item>
-                  <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>Admin</span>
-                </Breadcrumb.Item>
-                <Breadcrumb.Item>
-                  <span style={{ 
-                    color: THEME_CONSTANTS.colors.primary,
-                    fontWeight: THEME_CONSTANTS.typography.h6.weight
+    <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', padding: THEME_CONSTANTS.spacing.xxl }}>
+      <div style={{ maxWidth: THEME_CONSTANTS.layout.maxContentWidth, margin: '0 auto' }}>
+        <Spin spinning={loading.users}>
+          {/* Header Section - Left Aligned */}
+          <div style={{
+            marginBottom: THEME_CONSTANTS.spacing.xxxl,
+            paddingBottom: THEME_CONSTANTS.spacing.xxl,
+            borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`
+          }}>
+            <Breadcrumb style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
+              <Breadcrumb.Item>
+                <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Admin</span>
+              </Breadcrumb.Item>
+              <Breadcrumb.Item>
+                <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>User Management</span>
+              </Breadcrumb.Item>
+            </Breadcrumb>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.lg, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.lg }}>
+                <div style={{
+                  width: '72px',
+                  height: '72px',
+                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+                  borderRadius: THEME_CONSTANTS.radius.xl,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.primary}40`,
+                  flexShrink: 0
+                }}>
+                  <UserOutlined style={{ color: '#fff', fontSize: '36px' }} />
+                </div>
+                <div>
+                  <h1 style={{
+                    fontSize: THEME_CONSTANTS.typography.h1.size,
+                    fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                    color: THEME_CONSTANTS.colors.text,
+                    marginBottom: THEME_CONSTANTS.spacing.xs,
+                    lineHeight: 1.2,
+                    letterSpacing: '-0.02em'
                   }}>
                     User Management
-                  </span>
-                </Breadcrumb.Item>
-              </Breadcrumb>
-
-            <Row gutter={[16, 16]} align="middle" justify="space-between">
-              <Col xs={24} lg={18}>
-                <Row gutter={[16, 16]} align="middle">
-                  <Col xs={24} sm={6} md={4} lg={3}>
-                    <div style={{
-                      width: '64px',
-                      height: '64px',
-                      background: THEME_CONSTANTS.colors.primaryLight,
-                      borderRadius: THEME_CONSTANTS.radius.xl,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: THEME_CONSTANTS.shadow.md,
-                      margin: '0 auto'
-                    }}>
-                      <UserOutlined style={{
-                        color: THEME_CONSTANTS.colors.primary,
-                        fontSize: '32px'
-                      }} />
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={18} md={20} lg={21}>
-                    <div style={{ textAlign: window.innerWidth <= 576 ? 'center' : 'left' }}>
-                      <h1 style={{
-                        fontSize: 'clamp(24px, 4vw, 32px)',
-                        fontWeight: THEME_CONSTANTS.typography.h1.weight,
-                        color: THEME_CONSTANTS.colors.text,
-                        marginBottom: THEME_CONSTANTS.spacing.sm,
-                        lineHeight: THEME_CONSTANTS.typography.h1.lineHeight
-                      }}>
-                        User Management
-                      </h1>
-                      <p style={{
-                        color: THEME_CONSTANTS.colors.textSecondary,
-                        fontSize: 'clamp(13px, 2.5vw, 14px)',
-                        fontWeight: 500,
-                        lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0
-                      }}>
-                        Manage and monitor all platform users, their accounts, and wallet balances.
-                      </p>
-                    </div>
-                  </Col>
-                </Row>
-              </Col>
-              <Col xs={24} lg={6}>
-                <div style={{ textAlign: window.innerWidth <= 992 ? 'center' : 'right', marginTop: window.innerWidth <= 992 ? '16px' : '0' }}>
-                  <Button
-                    type="primary"
-                    size="large"
-                    icon={<PlusOutlined />}
-                    onClick={() => setIsCreateUserModalVisible(true)}
-                    style={{
-                      borderRadius: THEME_CONSTANTS.radius.md,
-                      fontWeight: 600,
-                      height: 44,
-                    }}
-                    block={window.innerWidth <= 576}
-                  >
-                    Create User
-                  </Button>
+                  </h1>
+                  <p style={{
+                    color: THEME_CONSTANTS.colors.textSecondary,
+                    fontSize: THEME_CONSTANTS.typography.body.size,
+                    lineHeight: 1.5,
+                    margin: 0
+                  }}>
+                    Manage and monitor all platform users, accounts, and wallet balances.
+                  </p>
                 </div>
-              </Col>
-            </Row>
+              </div>
+              <Button
+                type="primary"
+                size="large"
+                icon={<PlusOutlined />}
+                onClick={() => setIsCreateUserModalVisible(true)}
+                style={{
+                  borderRadius: THEME_CONSTANTS.radius.md,
+                  fontWeight: 600,
+                  height: '44px',
+                  padding: '0 24px',
+                  boxShadow: `0 4px 12px ${THEME_CONSTANTS.colors.primary}30`
+                }}
+              >
+                Create User
+              </Button>
             </div>
+          </div>
 
-        <Row gutter={[16, 16]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxl }}>
+        <Row gutter={[20, 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
           <Col xs={24} sm={12} lg={8}>
             <StatCard
               icon={UserOutlined}
@@ -526,19 +526,16 @@ function UserManagement() {
 
         <Card
           title={
-            <div style={{ fontSize: 'clamp(14px, 2.5vw, 16px)', fontWeight: 600 }}>
-              <UserOutlined
-                style={{
-                  marginRight: 8,
-                  color: THEME_CONSTANTS.colors.primary,
-                }}
-              />
-              All Users
-            </div>
+            <Space size={8}>
+              <UserOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
+              <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>All Users</span>
+            </Space>
           }
           style={{
             borderRadius: THEME_CONSTANTS.radius.lg,
-            boxShadow: THEME_CONSTANTS.shadow.sm,
+            border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+            boxShadow: THEME_CONSTANTS.shadow.base,
+            background: THEME_CONSTANTS.colors.surface
           }}
           extra={
             <Button
@@ -546,31 +543,25 @@ function UserManagement() {
               icon={<ReloadOutlined />}
               onClick={fetchUsers}
               loading={loading.users}
-              size={window.innerWidth <= 768 ? 'small' : 'default'}
+              style={{ borderRadius: THEME_CONSTANTS.radius.md, fontWeight: 500 }}
             >
-              {window.innerWidth <= 576 ? '' : 'Refresh'}
+              Refresh
             </Button>
           }
+          bodyStyle={{ padding: 0 }}
         >
           <Table
             dataSource={users}
             columns={userColumns}
             rowKey="_id"
-            pagination={{ 
-              pageSize: 10,
-              showSizeChanger: window.innerWidth > 768,
-              showQuickJumper: window.innerWidth > 768,
-              size: window.innerWidth <= 768 ? 'small' : 'default'
-            }}
-            locale={{ emptyText: <Empty /> }}
-            style={{ fontSize: 14 }}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            locale={{ emptyText: <Empty description="No users found" /> }}
             scroll={{ x: 800 }}
-            size={window.innerWidth <= 768 ? 'small' : 'default'}
           />
         </Card>
-          </Spin>
-        </div>
+        </Spin>
       </div>
+    </div>
 
       {/* Edit User Modal */}
       <Modal

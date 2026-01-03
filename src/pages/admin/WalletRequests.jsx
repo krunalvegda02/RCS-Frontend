@@ -166,48 +166,64 @@ function WalletRequests() {
   const StatCard = ({ icon: Icon, title, value, unit, color, bgColor }) => (
     <Card
       style={{
-        background: bgColor,
-        border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-        borderRadius: THEME_CONSTANTS.radius.md,
+        borderRadius: THEME_CONSTANTS.radius.lg,
+        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+        boxShadow: THEME_CONSTANTS.shadow.base,
+        height: '100%',
+        transition: THEME_CONSTANTS.transition.normal,
+        background: THEME_CONSTANTS.colors.surface,
+        overflow: 'hidden'
       }}
-      bodyStyle={{ padding: '20px' }}
+      bodyStyle={{ padding: '24px' }}
+      hoverable
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.lg;
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.borderColor = color;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.base;
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = THEME_CONSTANTS.colors.border;
+      }}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size={8}>
-        <Space>
-          <Icon style={{ fontSize: '20px', color: color }} />
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 500,
-              color: THEME_CONSTANTS.colors.textSecondary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-            }}
-          >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.md }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ 
+            fontSize: THEME_CONSTANTS.typography.label.size, 
+            color: THEME_CONSTANTS.colors.textSecondary, 
+            marginBottom: THEME_CONSTANTS.spacing.sm,
+            fontWeight: 500,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
             {title}
-          </span>
-        </Space>
-        <div
-          style={{
-            fontSize: '28px',
-            fontWeight: 700,
-            color: THEME_CONSTANTS.colors.textPrimary,
-            lineHeight: 1,
-          }}
-        >
-          {value}
-          <span
-            style={{
-              fontSize: '14px',
-              fontWeight: 500,
-              color: THEME_CONSTANTS.colors.textSecondary,
-              marginLeft: '4px',
-            }}
-          >
-            {unit}
-          </span>
+          </div>
+          <div style={{ 
+            fontSize: '32px', 
+            fontWeight: 700, 
+            color: THEME_CONSTANTS.colors.text, 
+            lineHeight: 1.2
+          }}>
+            {value}
+            {unit && <span style={{ fontSize: '16px', marginLeft: '4px', color: THEME_CONSTANTS.colors.textSecondary }}>{unit}</span>}
+          </div>
         </div>
-      </Space>
+        <div style={{ 
+          width: 64, 
+          height: 64, 
+          borderRadius: THEME_CONSTANTS.radius.xl, 
+          background: `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          color: color, 
+          fontSize: 28,
+          flexShrink: 0
+        }}>
+          <Icon />
+        </div>
+      </div>
     </Card>
   );
 
@@ -497,177 +513,139 @@ function WalletRequests() {
 
   return (
     <>
-      <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh' }}>
-        <div style={{ 
-          maxWidth: THEME_CONSTANTS.layout.maxContentWidth, 
-          margin: '0 auto',
-          padding: THEME_CONSTANTS.spacing.xl
-        }}>
-          {/* Enhanced Header Section */}
-          <div style={{
-            marginBottom: THEME_CONSTANTS.spacing.xxxl,
-            paddingBottom: THEME_CONSTANTS.spacing.xl,
-            borderBottom: `2px solid ${THEME_CONSTANTS.colors.primaryLight}`
-          }}>
-            <Breadcrumb style={{
-              marginBottom: THEME_CONSTANTS.spacing.md,
-              fontSize: THEME_CONSTANTS.typography.caption.size
+      <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', padding: THEME_CONSTANTS.spacing.xxl }}>
+        <div style={{ maxWidth: THEME_CONSTANTS.layout.maxContentWidth, margin: '0 auto' }}>
+          <Spin spinning={loading.walletRequests}>
+            {/* Header Section - Left Aligned */}
+            <div style={{
+              marginBottom: THEME_CONSTANTS.spacing.xxxl,
+              paddingBottom: THEME_CONSTANTS.spacing.xxl,
+              borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`
             }}>
-              <Breadcrumb.Item>
-                <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>Admin</span>
-              </Breadcrumb.Item>
-              <Breadcrumb.Item>
-                <span style={{ 
-                  color: THEME_CONSTANTS.colors.primary,
-                  fontWeight: THEME_CONSTANTS.typography.h6.weight
+              <Breadcrumb style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
+                <Breadcrumb.Item>
+                  <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Admin</span>
+                </Breadcrumb.Item>
+                <Breadcrumb.Item>
+                  <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>Wallet Requests</span>
+                </Breadcrumb.Item>
+              </Breadcrumb>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.lg }}>
+                <div style={{
+                  width: '72px',
+                  height: '72px',
+                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.warning} 0%, #f59e0b 100%)`,
+                  borderRadius: THEME_CONSTANTS.radius.xl,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.warning}40`,
+                  flexShrink: 0
                 }}>
-                  Wallet Requests
-                </span>
-              </Breadcrumb.Item>
-            </Breadcrumb>
-
-            <Row gutter={[16, 16]} align="middle" justify="space-between">
-              <Col xs={24} lg={18}>
-                <Row gutter={[16, 16]} align="middle">
-                  <Col xs={24} sm={6} md={4} lg={3}>
-                    <div style={{
-                      width: '64px',
-                      height: '64px',
-                      background: THEME_CONSTANTS.colors.primaryLight,
-                      borderRadius: THEME_CONSTANTS.radius.xl,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: THEME_CONSTANTS.shadow.md,
-                      margin: '0 auto'
-                    }}>
-                      <WalletOutlined style={{
-                        color: THEME_CONSTANTS.colors.primary,
-                        fontSize: '32px'
-                      }} />
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={18} md={20} lg={21}>
-                    <div style={{ textAlign: window.innerWidth <= 576 ? 'center' : 'left' }}>
-                      <h1 style={{
-                        fontSize: 'clamp(24px, 4vw, 32px)',
-                        fontWeight: THEME_CONSTANTS.typography.h1.weight,
-                        color: THEME_CONSTANTS.colors.text,
-                        marginBottom: THEME_CONSTANTS.spacing.sm,
-                        lineHeight: THEME_CONSTANTS.typography.h1.lineHeight
-                      }}>
-                        Wallet Requests 💳
-                      </h1>
-                      <p style={{
-                        color: THEME_CONSTANTS.colors.textSecondary,
-                        fontSize: 'clamp(13px, 2.5vw, 14px)',
-                        fontWeight: 500,
-                        lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0
-                      }}>
-                        Manage and process wallet recharge requests from users
-                      </p>
-                    </div>
-                  </Col>
-                </Row>
-              </Col>
-              <Col xs={24} lg={6}>
-                <div style={{ textAlign: window.innerWidth <= 992 ? 'center' : 'right', marginTop: window.innerWidth <= 992 ? '16px' : '0' }}>
-                  {/* Wallet actions can go here if needed */}
+                  <WalletOutlined style={{ color: '#fff', fontSize: '36px' }} />
                 </div>
-              </Col>
-            </Row>
-          </div>
+                <div>
+                  <h1 style={{
+                    fontSize: THEME_CONSTANTS.typography.h1.size,
+                    fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                    color: THEME_CONSTANTS.colors.text,
+                    marginBottom: THEME_CONSTANTS.spacing.xs,
+                    lineHeight: 1.2,
+                    letterSpacing: '-0.02em'
+                  }}>
+                    Wallet Requests
+                  </h1>
+                  <p style={{
+                    color: THEME_CONSTANTS.colors.textSecondary,
+                    fontSize: THEME_CONSTANTS.typography.body.size,
+                    lineHeight: 1.5,
+                    margin: 0
+                  }}>
+                    Manage and process wallet recharge requests from users.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        {/* Stats Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxl }}>
+            {/* Stats Cards */}
+            <Row gutter={[20, 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
           <Col xs={24} sm={12} lg={5}>
-            <StatCard
-              icon={WalletOutlined}
-              title="Total Requests"
-              value={stats.totalRequests}
-              color={THEME_CONSTANTS.colors.primary}
-              bgColor={THEME_CONSTANTS.colors.bgLight}
-            />
+              <StatCard
+                icon={WalletOutlined}
+                title="Total Requests"
+                value={stats.totalRequests}
+                color={THEME_CONSTANTS.colors.primary}
+              />
           </Col>
           <Col xs={24} sm={12} lg={5}>
-            <StatCard
-              icon={ClockCircleOutlined}
-              title="Pending"
-              value={stats.pendingRequests}
-              color="#FAAD14"
-              bgColor="#FFFBE6"
-            />
+              <StatCard
+                icon={ClockCircleOutlined}
+                title="Pending"
+                value={stats.pendingRequests}
+                color="#FAAD14"
+              />
           </Col>
           <Col xs={24} sm={12} lg={5}>
-            <StatCard
-              icon={CheckCircleOutlined}
-              title="Approved"
-              value={stats.approvedRequests}
-              color={THEME_CONSTANTS.colors.success}
-              bgColor="#F6FFED"
-            />
+              <StatCard
+                icon={CheckCircleOutlined}
+                title="Approved"
+                value={stats.approvedRequests}
+                color={THEME_CONSTANTS.colors.success}
+              />
           </Col>
           <Col xs={24} sm={12} lg={5}>
-            <StatCard
-              icon={CloseOutlined}
-              title="Total Rejectd"
-              value={stats.totalReject}
-              color={THEME_CONSTANTS.colors.danger}
-              bgColor="#FFF0F6"
-            />
+              <StatCard
+                icon={CloseOutlined}
+                title="Rejected"
+                value={stats.totalReject}
+                color={THEME_CONSTANTS.colors.danger}
+              />
           </Col>
           <Col xs={24} sm={24} lg={4}>
-            <StatCard
-              icon={DollarOutlined}
-              title="Total Amount"
-              value={stats.totalAmount > 999999 ? (stats.totalAmount / 100000).toFixed(1) : stats.totalAmount}
-              unit={stats.totalAmount > 999999 ? 'L' : ''}
-              color="#EB2F96"
-              bgColor="#FFF0F6"
-            />
+              <StatCard
+                icon={DollarOutlined}
+                title="Total Amount"
+                value={stats.totalAmount > 999999 ? (stats.totalAmount / 100000).toFixed(1) : stats.totalAmount}
+                unit={stats.totalAmount > 999999 ? 'L' : ''}
+                color="#EB2F96"
+              />
           </Col>
         </Row>
 
-        {/* Table Card */}
-        <Card
-          style={{
-            borderRadius: THEME_CONSTANTS.radius.md,
-            border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-            boxShadow: THEME_CONSTANTS.shadow.sm,
-          }}
-          bodyStyle={{ padding: 0 }}
-        >
-          <Spin spinning={loading.walletRequests}>
-            {walletRequests.length === 0 ? (
-              <Empty
-                description="No wallet requests"
-                style={{ padding: '40px 0' }}
-              />
-            ) : (
-              <Table
-                columns={columns}
-                dataSource={walletRequests}
-                rowKey="_id"
-                loading={loading.walletRequests}
-                pagination={{
-                  pageSize: 10,
-                  total: walletRequests.length,
-                  showSizeChanger: window.innerWidth > 768,
-                  showQuickJumper: window.innerWidth > 768,
-                  pageSizeOptions: ['5', '10', '20', '50'],
-                  style: { padding: '16px' },
-                  size: window.innerWidth <= 768 ? 'small' : 'default'
-                }}
-                scroll={{ x: 800 }}
-                size={window.innerWidth <= 768 ? 'small' : 'default'}
-                style={{
-                  borderCollapse: 'collapse',
-                }}
-              />
-            )}
+            {/* Table Card */}
+            <Card
+              title={
+                <Space size={8}>
+                  <WalletOutlined style={{ color: THEME_CONSTANTS.colors.warning, fontSize: '18px' }} />
+                  <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>All Wallet Requests</span>
+                </Space>
+              }
+              style={{
+                borderRadius: THEME_CONSTANTS.radius.lg,
+                border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                boxShadow: THEME_CONSTANTS.shadow.base,
+                background: THEME_CONSTANTS.colors.surface
+              }}
+              bodyStyle={{ padding: 0 }}
+            >
+              {walletRequests.length === 0 ? (
+                <Empty
+                  description="No wallet requests found"
+                  style={{ padding: '40px 0' }}
+                />
+              ) : (
+                <Table
+                  columns={columns}
+                  dataSource={walletRequests}
+                  rowKey="_id"
+                  pagination={{ pageSize: 10, showSizeChanger: false }}
+                  locale={{ emptyText: <Empty description="No requests found" /> }}
+                  scroll={{ x: 800 }}
+                />
+              )}
+            </Card>
           </Spin>
-        </Card>
         </div>
       </div>
 

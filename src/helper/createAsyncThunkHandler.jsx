@@ -1,4 +1,5 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { buildUrlWithParams } from './helperFunction';
 
 // Create async thunk handler without importing apiClient to avoid circular dependency
 export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMultipart = false) =>
@@ -6,10 +7,8 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
     try {
       console.log(`🔹 [AsyncThunk] ${typePrefix} - Starting...`);
       const token = getState().auth.token;
-      // console.log(`🔑 [AsyncThunk] ${typePrefix} - Token:`, token ? 'Present' : 'Missing');
 
       const url = typeof urlResolver === "function" ? urlResolver(payload) : urlResolver;
-      // console.log(`🎯 [AsyncThunk] ${typePrefix} - URL:`, url);
       
       // Determine request body based on payload structure
       let requestBody = {};
@@ -36,16 +35,11 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
       }
       console.log(`📎 [AsyncThunk] ${typePrefix} - isMultipart:`, shouldUseMultipart);
       
-      // For FormData/multipart: Don't set Content-Type manually - let axios set it with boundary
-      // For regular requests: Set Authorization header
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
         }
       };
-      
-      // Don't set Content-Type for multipart - axios will set it automatically with boundary
-      // The apiClient will handle removing any Content-Type header if FormData is detected
       
       const response = await apiMethod(url, requestBody, config);
       

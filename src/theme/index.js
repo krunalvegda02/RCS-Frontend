@@ -55,9 +55,9 @@ export const THEME_CONSTANTS = {
   // ============================================================================
   colors: {
     // Primary Colors
-    primary: '#2563eb',           // Main blue
+    primary: '#60a5fa',           // Light blue
     primaryLight: '#dbeafe',      // Light blue for backgrounds
-    primaryDark: '#1e40af',       // Dark blue for hover states
+    primaryDark: '#3b82f6',       // Medium blue for hover states
     
     // Status Colors
     success: '#10b981',           // Green for success

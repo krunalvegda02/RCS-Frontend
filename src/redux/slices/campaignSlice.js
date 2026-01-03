@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { createAsyncThunkHandler } from '../../helper/createAsyncThunkHandler.jsx';
 import { _get, _post, _put, _delete } from '../../helper/apiClient.jsx';
+import { buildUrlWithParams } from '../../helper/helperFunction.js';
 
 // Campaign thunks
 export const getAllCampaigns = createAsyncThunkHandler(
@@ -61,13 +62,22 @@ export const deleteCampaign = createAsyncThunkHandler(
 export const getAllCampaignsForAdmin = createAsyncThunkHandler(
   'campaigns/getAllForAdmin',
   _get,
-  'admin/campaigns'
+  (payload) => buildUrlWithParams('admin/campaigns', payload || {})
 );
 
 export const getCampaignMessages = createAsyncThunkHandler(
   'campaigns/getMessages',
   _get,
-  (payload) => `admin/campaigns/${payload.campaignId}/messages?page=${payload.page || 1}&limit=${payload.limit || 20}`
+  (payload) => {
+    const { campaignId, ...params } = payload;
+    return buildUrlWithParams(`admin/campaigns/${campaignId}/messages`, params);
+  }
+);
+
+export const getAllCampaignMessagesForExport = createAsyncThunkHandler(
+  'campaigns/getAllMessagesForExport',
+  _get,
+  (payload) => `admin/campaigns/${payload.campaignId}/messages/all`
 );
 
 const initialState = {

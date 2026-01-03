@@ -100,38 +100,72 @@ function AdminDashboard() {
       style={{
         borderRadius: THEME_CONSTANTS.radius.lg,
         border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-        boxShadow: THEME_CONSTANTS.shadow.sm,
+        boxShadow: THEME_CONSTANTS.shadow.base,
         height: '100%',
-        transition: `all ${THEME_CONSTANTS.transition.normal}`,
+        transition: THEME_CONSTANTS.transition.normal,
         background: THEME_CONSTANTS.colors.surface,
+        overflow: 'hidden'
       }}
-      bodyStyle={{ padding: screens.xs ? '16px' : '24px' }}
+      bodyStyle={{ padding: screens.xs ? '20px' : '24px' }}
       hoverable
       onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.md;
-        e.currentTarget.style.transform = 'translateY(-4px)';
+        e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.lg;
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.borderColor = color;
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.sm;
+        e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.base;
         e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = THEME_CONSTANTS.colors.border;
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.md }}>
-        <div>
-          <div style={{ fontSize: THEME_CONSTANTS.typography.bodySmall.size, color: THEME_CONSTANTS.colors.textSecondary, marginBottom: THEME_CONSTANTS.spacing.sm }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.md }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ 
+            fontSize: THEME_CONSTANTS.typography.label.size, 
+            color: THEME_CONSTANTS.colors.textSecondary, 
+            marginBottom: THEME_CONSTANTS.spacing.sm,
+            fontWeight: 500,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
             {title}
           </div>
-          <div style={{ fontSize: screens.xs ? '24px' : '28px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, marginBottom: THEME_CONSTANTS.spacing.xs }}>
+          <div style={{ 
+            fontSize: screens.xs ? '26px' : '32px', 
+            fontWeight: 700, 
+            color: THEME_CONSTANTS.colors.text, 
+            marginBottom: trend !== undefined ? THEME_CONSTANTS.spacing.xs : 0,
+            lineHeight: 1.2
+          }}>
             {typeof value === 'number' ? value.toLocaleString('en-IN') : value}
           </div>
           {trend !== undefined && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.xs, fontSize: THEME_CONSTANTS.typography.caption.size, color: trend > 0 ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.danger }}>
-              {trend > 0 ? <ArrowUpOutlined style={{ fontSize: '11px' }} /> : <ArrowDownOutlined style={{ fontSize: '11px' }} />}
-              <span>{Math.abs(trend)}% {screens.xs ? '' : 'this month'}</span>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: THEME_CONSTANTS.spacing.xs, 
+              fontSize: THEME_CONSTANTS.typography.caption.size, 
+              color: trend > 0 ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.danger,
+              fontWeight: 600
+            }}>
+              {trend > 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+              <span>{Math.abs(trend)}% vs last month</span>
             </div>
           )}
         </div>
-        <div style={{ width: screens.xs ? 40 : 48, height: screens.xs ? 40 : 48, borderRadius: THEME_CONSTANTS.radius.lg, background: bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color, fontSize: screens.xs ? 18 : 24 }}>
+        <div style={{ 
+          width: screens.xs ? 56 : 64, 
+          height: screens.xs ? 56 : 64, 
+          borderRadius: THEME_CONSTANTS.radius.xl, 
+          background: `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          color: color, 
+          fontSize: screens.xs ? 24 : 28,
+          flexShrink: 0
+        }}>
           <Icon />
         </div>
       </div>
@@ -535,94 +569,63 @@ function AdminDashboard() {
   }
 
   return (
-    <>
-      <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh' }}>
-        <div style={{ 
-          maxWidth: THEME_CONSTANTS.layout.maxContentWidth, 
-          margin: '0 auto',
-          padding: THEME_CONSTANTS.spacing.xl
+    <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', padding: screens.xs ? THEME_CONSTANTS.spacing.lg : THEME_CONSTANTS.spacing.xxl }}>
+      <div style={{ maxWidth: THEME_CONSTANTS.layout.maxContentWidth, margin: '0 auto' }}>
+        {/* Header Section - Left Aligned */}
+        <div style={{
+          marginBottom: THEME_CONSTANTS.spacing.xxxl,
+          paddingBottom: THEME_CONSTANTS.spacing.xxl,
+          borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`
         }}>
-          {/* Enhanced Header Section */}
-          <div style={{
-            marginBottom: THEME_CONSTANTS.spacing.xxxl,
-            paddingBottom: THEME_CONSTANTS.spacing.xl,
-            borderBottom: `2px solid ${THEME_CONSTANTS.colors.primaryLight}`
-          }}>
-            <Breadcrumb style={{
-              marginBottom: THEME_CONSTANTS.spacing.md,
-              fontSize: THEME_CONSTANTS.typography.caption.size
+          <Breadcrumb style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
+            <Breadcrumb.Item>
+              <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Admin</span>
+            </Breadcrumb.Item>
+            <Breadcrumb.Item>
+              <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>Dashboard</span>
+            </Breadcrumb.Item>
+          </Breadcrumb>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.lg }}>
+            <div style={{
+              width: screens.xs ? '56px' : '72px',
+              height: screens.xs ? '56px' : '72px',
+              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+              borderRadius: THEME_CONSTANTS.radius.xl,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.primary}40`,
+              flexShrink: 0
             }}>
-              <Breadcrumb.Item>
-                <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>Admin</span>
-              </Breadcrumb.Item>
-              <Breadcrumb.Item>
-                <span style={{ 
-                  color: THEME_CONSTANTS.colors.primary,
-                  fontWeight: THEME_CONSTANTS.typography.h6.weight
-                }}>
-                  Dashboard
-                </span>
-              </Breadcrumb.Item>
-            </Breadcrumb>
-
-            <Row gutter={[16, 16]} align="middle" justify="space-between">
-              <Col xs={24} lg={18}>
-                <Row gutter={[16, 16]} align="middle">
-                  <Col xs={24} sm={4} md={3} lg={3}>
-                    <div style={{
-                      width: '64px',
-                      height: '64px',
-                      background: THEME_CONSTANTS.colors.primaryLight,
-                      borderRadius: THEME_CONSTANTS.radius.xl,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: THEME_CONSTANTS.shadow.md,
-                      margin: '0 auto'
-                    }}>
-                      <DashboardOutlined style={{
-                        color: THEME_CONSTANTS.colors.primary,
-                        fontSize: '32px'
-                      }} />
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={20} md={21} lg={21}>
-                    <div style={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                      <h1 style={{
-                        fontSize: THEME_CONSTANTS.typography.h1.size,
-                        fontWeight: THEME_CONSTANTS.typography.h1.weight,
-                        color: THEME_CONSTANTS.colors.text,
-                        marginBottom: THEME_CONSTANTS.spacing.sm,
-                        lineHeight: THEME_CONSTANTS.typography.h1.lineHeight,
-                        '@media (max-width: 768px)': {
-                          fontSize: THEME_CONSTANTS.typography.h2.size,
-                        }
-                      }}>
-                        Admin Dashboard 📊
-                      </h1>
-                      <p style={{
-                        color: THEME_CONSTANTS.colors.textSecondary,
-                        fontSize: THEME_CONSTANTS.typography.body.size,
-                        fontWeight: 500,
-                        lineHeight: THEME_CONSTANTS.typography.body.lineHeight,
-                        margin: 0
-                      }}>
-                        Real-time platform analytics, user management, and comprehensive system monitoring.
-                      </p>
-                    </div>
-                  </Col>
-                </Row>
-              </Col>
-              <Col xs={24} lg={6}>
-                <div style={{ textAlign: { xs: 'center', lg: 'right' } }}>
-                  {/* Dashboard actions can go here if needed */}
-                </div>
-              </Col>
-            </Row>
+              <DashboardOutlined style={{ color: '#fff', fontSize: screens.xs ? '28px' : '36px' }} />
+            </div>
+            <div>
+              <h1 style={{
+                fontSize: screens.xs ? THEME_CONSTANTS.typography.h2.size : THEME_CONSTANTS.typography.h1.size,
+                fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                color: THEME_CONSTANTS.colors.text,
+                marginBottom: THEME_CONSTANTS.spacing.xs,
+                lineHeight: 1.2,
+                letterSpacing: '-0.02em'
+              }}>
+                Admin Dashboard
+              </h1>
+              <p style={{
+                color: THEME_CONSTANTS.colors.textSecondary,
+                fontSize: THEME_CONSTANTS.typography.body.size,
+                lineHeight: 1.5,
+                margin: 0,
+                maxWidth: '600px'
+              }}>
+                Monitor platform analytics, manage users, and track system performance in real-time.
+              </p>
+            </div>
           </div>
+        </div>
 
-        {/* STAT CARDS - 4 COLUMN GRID */}
-        <Row gutter={[THEME_CONSTANTS.spacing.lg, THEME_CONSTANTS.spacing.lg]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxl }}>
+        {/* Stats Overview */}
+        <Row gutter={[screens.xs ? 12 : 20, screens.xs ? 12 : 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
           <Col xs={24} sm={12} md={6}>
             <StatCard
               icon={UserOutlined}
@@ -665,93 +668,100 @@ function AdminDashboard() {
           </Col>
         </Row>
 
-        {/* USERS TABLE */}
+        {/* Recent Users */}
         <Card
           title={
-            <div style={{ fontSize: 16, fontWeight: 600 }}>
-              <UserOutlined style={{ marginRight: 8, color: THEME_CONSTANTS.colors.primary }} />
-              Recent Users
-            </div>
+            <Space size={8}>
+              <UserOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
+              <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>Recent Users</span>
+            </Space>
           }
           style={{
             borderRadius: THEME_CONSTANTS.radius.lg,
-            boxShadow: THEME_CONSTANTS.shadow.sm,
-            marginBottom: 24,
+            border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+            boxShadow: THEME_CONSTANTS.shadow.base,
+            marginBottom: THEME_CONSTANTS.spacing.xxl,
+            background: THEME_CONSTANTS.colors.surface
           }}
           extra={
-            <Button type="primary" href="/admin/users">
-              View All Users
+            <Button type="primary" href="/admin/users" style={{ borderRadius: THEME_CONSTANTS.radius.md, fontWeight: 500 }}>
+              View All <RightOutlined style={{ fontSize: '12px' }} />
             </Button>
           }
+          bodyStyle={{ padding: 0 }}
         >
           <Table
             dataSource={recentUsers}
             columns={userColumns}
             rowKey="_id"
-            pagination={{ pageSize: 5 }}
-            locale={{ emptyText: <Empty /> }}
+            pagination={{ pageSize: 5, showSizeChanger: false }}
+            locale={{ emptyText: <Empty description="No users found" /> }}
             scroll={{ x: screens.md ? 0 : 600 }}
-            style={{ fontSize: 14 }}
           />
         </Card>
 
-        {/* WALLET REQUESTS & TRANSACTIONS - 2 COLUMN GRID */}
-        <Row gutter={[THEME_CONSTANTS.spacing.lg, THEME_CONSTANTS.spacing.lg]}>
-          {/* WALLET REQUESTS */}
+        {/* Activity Overview */}
+        <Row gutter={[screens.xs ? 12 : 20, screens.xs ? 12 : 20]}>
+          {/* Wallet Requests */}
           <Col xs={24} lg={12}>
             <Card
               title={
-                <div style={{ fontSize: 16, fontWeight: 600 }}>
-                  <WalletOutlined style={{ marginRight: 8, color: THEME_CONSTANTS.colors.warning }} />
-                  Wallet Requests
-                </div>
+                <Space size={8}>
+                  <WalletOutlined style={{ color: THEME_CONSTANTS.colors.warning, fontSize: '18px' }} />
+                  <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>Wallet Requests</span>
+                </Space>
               }
               style={{
                 borderRadius: THEME_CONSTANTS.radius.lg,
-                boxShadow: THEME_CONSTANTS.shadow.sm,
+                border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                boxShadow: THEME_CONSTANTS.shadow.base,
+                background: THEME_CONSTANTS.colors.surface,
+                height: '100%'
               }}
+              bodyStyle={{ padding: 0 }}
             >
               <Table
                 dataSource={recentRequests}
                 columns={walletColumns}
                 rowKey="_id"
-                pagination={{ pageSize: 5 }}
-                locale={{ emptyText: <Empty /> }}
+                pagination={{ pageSize: 5, showSizeChanger: false }}
+                locale={{ emptyText: <Empty description="No requests found" /> }}
                 scroll={{ x: screens.md ? 0 : 500 }}
-                style={{ fontSize: 14 }}
               />
             </Card>
           </Col>
 
-          {/* TRANSACTIONS */}
+          {/* Recent Transactions */}
           <Col xs={24} lg={12}>
             <Card
               title={
-                <div style={{ fontSize: 16, fontWeight: 600 }}>
-                  <DollarOutlined style={{ marginRight: 8, color: THEME_CONSTANTS.colors.danger }} />
-                  Recent Transactions
-                </div>
+                <Space size={8}>
+                  <DollarOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '18px' }} />
+                  <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>Recent Transactions</span>
+                </Space>
               }
               style={{
                 borderRadius: THEME_CONSTANTS.radius.lg,
-                boxShadow: THEME_CONSTANTS.shadow.sm,
+                border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                boxShadow: THEME_CONSTANTS.shadow.base,
+                background: THEME_CONSTANTS.colors.surface,
+                height: '100%'
               }}
+              bodyStyle={{ padding: 0 }}
             >
               <Table
                 dataSource={recentTransactions}
                 columns={transactionColumns}
                 rowKey="_id"
-                pagination={{ pageSize: 5 }}
-                locale={{ emptyText: <Empty /> }}
+                pagination={{ pageSize: 5, showSizeChanger: false }}
+                locale={{ emptyText: <Empty description="No transactions found" /> }}
                 scroll={{ x: screens.md ? 0 : 500 }}
-                style={{ fontSize: 14 }}
               />
             </Card>
           </Col>
         </Row>
-        </div>
       </div>
-    </>
+    </div>
   );
 }
 
