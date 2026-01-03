@@ -185,22 +185,26 @@ function UserManagement() {
       const values = await editUserForm.validateFields();
       const { clientId, clientSecret, assistantId, ...userData } = values;
       
-      await dispatch(updateUser({
+      // Validate Jio config - all 3 required if any is provided
+      if ((clientId || clientSecret || assistantId) && (!clientId || !clientSecret || !assistantId)) {
+        message.error('All 3 Jio config fields (Client ID, Client Secret, Assistant ID) are required if updating');
+        return;
+      }
+      
+      const updatePayload = {
         userId: selectedUser._id,
         ...userData
-      })).unwrap();
+      };
       
-      if (clientId || clientSecret || assistantId) {
-        await dispatch(updateUser({
-          userId: selectedUser._id,
-          jioConfig: {
-            clientId: clientId?.trim() || '',
-            clientSecret: clientSecret?.trim() || '',
-            assistantId: assistantId?.trim() || '',
-            isConfigured: !!(clientId && clientSecret)
-          }
-        })).unwrap();
+      if (clientId && clientSecret && assistantId) {
+        updatePayload.jioConfig = {
+          clientId: clientId.trim(),
+          clientSecret: clientSecret.trim(),
+          assistantId: assistantId.trim()
+        };
       }
+      
+      await dispatch(updateUser(updatePayload)).unwrap();
       
       message.success('User updated successfully!');
       setIsEditUserModalVisible(false);
@@ -331,7 +335,7 @@ function UserManagement() {
       key: 'phone',
       responsive: ['md'],
       width: '15%',
-      render: (phone) => <span style={{ fontSize: 13, color: '#666' }}>{phone}</span>,
+      render: (phone) => <span style={{ fontSize: 14, color: '#666' }}>{phone}</span>,
     },
     {
       title: 'Wallet',
@@ -370,13 +374,16 @@ function UserManagement() {
       key: 'actions',
       width: '20%',
       render: (_, record) => (
-        <Space size="small" wrap>
+        <Space size={4} wrap>
           <Tooltip title="View Report">
             <Button
               type="primary"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => navigate(`/admin/user-report/${record._id}`)}
+              size="middle"
+              icon={<EyeOutlined style={{ fontSize: '16px' }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/admin/user-report/${record._id}`);
+              }}
               style={{ borderRadius: THEME_CONSTANTS.radius.sm }}
             />
           </Tooltip>
@@ -387,9 +394,12 @@ function UserManagement() {
                 color: THEME_CONSTANTS.colors.primary,
                 borderColor: THEME_CONSTANTS.colors.primary,
               }}
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => openEditModal(record)}
+              size="middle"
+              icon={<EditOutlined style={{ fontSize: '16px' }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditModal(record);
+              }}
             />
           </Tooltip>
           <Tooltip title="Wallet">
@@ -399,9 +409,12 @@ function UserManagement() {
                 color: THEME_CONSTANTS.colors.success,
                 borderColor: THEME_CONSTANTS.colors.success,
               }}
-              size="small"
-              icon={<DollarOutlined />}
-              onClick={() => openWalletModal(record)}
+              size="middle"
+              icon={<DollarOutlined style={{ fontSize: '16px' }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                openWalletModal(record);
+              }}
             />
           </Tooltip>
           <Tooltip title="Password">
@@ -411,9 +424,12 @@ function UserManagement() {
                 color: THEME_CONSTANTS.colors.warning,
                 borderColor: THEME_CONSTANTS.colors.warning,
               }}
-              size="small"
-              icon={<KeyOutlined />}
-              onClick={() => openPasswordModal(record)}
+              size="middle"
+              icon={<KeyOutlined style={{ fontSize: '16px' }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                openPasswordModal(record);
+              }}
             />
           </Tooltip>
           <Tooltip title="History">
@@ -423,9 +439,12 @@ function UserManagement() {
                 color: THEME_CONSTANTS.colors.primary,
                 borderColor: THEME_CONSTANTS.colors.primary,
               }}
-              size="small"
-              icon={<HistoryOutlined />}
-              onClick={() => openTransactionModal(record)}
+              size="middle"
+              icon={<HistoryOutlined style={{ fontSize: '16px' }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                openTransactionModal(record);
+              }}
             />
           </Tooltip>
           <Tooltip title={record.isActive ? 'Deactivate' : 'Activate'}>
@@ -435,9 +454,12 @@ function UserManagement() {
                 color: record.isActive ? THEME_CONSTANTS.colors.danger : THEME_CONSTANTS.colors.success,
                 borderColor: record.isActive ? THEME_CONSTANTS.colors.danger : THEME_CONSTANTS.colors.success,
               }}
-              size="small"
-              icon={<StopOutlined />}
-              onClick={() => handleToggleStatus(record._id, record.isActive)}
+              size="middle"
+              icon={<StopOutlined style={{ fontSize: '16px' }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleStatus(record._id, record.isActive);
+              }}
             />
           </Tooltip>
         </Space>
@@ -588,6 +610,10 @@ function UserManagement() {
             pagination={{ pageSize: 10, showSizeChanger: false }}
             locale={{ emptyText: <Empty description="No users found" /> }}
             scroll={{ x: 800 }}
+            onRow={(record) => ({
+              onClick: () => navigate(`/admin/user-report/${record._id}`),
+              style: { cursor: 'pointer' }
+            })}
           />
         </Card>
         </Spin>

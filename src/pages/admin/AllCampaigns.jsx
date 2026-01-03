@@ -47,6 +47,7 @@ import {
   getAllCampaignsForAdmin, 
   getCampaignMessages, 
   getAllCampaignMessagesForExport,
+  getAllCampaignsForExport,
   setCurrentCampaign, 
   clearCurrentCampaign,
   clearCampaignMessages 
@@ -103,7 +104,7 @@ export default function AllCampaigns() {
 
   // Fetch all campaigns with pagination
   const fetchAllCampaigns = (page = 1, filters = {}) => {
-    const params = { page, limit: 10, ...filters };
+    const params = { page, limit: 10, sort: sortOrder, ...filters };
     dispatch(getAllCampaignsForAdmin(params));
   };
 
@@ -121,8 +122,19 @@ export default function AllCampaigns() {
     if (typeFilter !== 'all') filters.type = typeFilter;
     if (userFilter !== 'all') filters.user = userFilter;
     
+    setCurrentPage(1);
+    fetchAllCampaigns(1, filters);
+  }, [dispatch, searchText, statusFilter, typeFilter, userFilter, sortOrder]);
+
+  useEffect(() => {
+    const filters = {};
+    if (searchText) filters.search = searchText;
+    if (statusFilter !== 'all') filters.status = statusFilter;
+    if (typeFilter !== 'all') filters.type = typeFilter;
+    if (userFilter !== 'all') filters.user = userFilter;
+    
     fetchAllCampaigns(currentPage, filters);
-  }, [dispatch, currentPage, searchText, statusFilter, typeFilter, userFilter]);
+  }, [dispatch, currentPage]);
 
   useEffect(() => {
     if (error) {
@@ -361,14 +373,26 @@ export default function AllCampaigns() {
   // Remove client-side filtering - use server data directly
   const filteredCampaigns = campaigns;
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     try {
-      if (!campaigns || campaigns?.length === 0) {
-        toast.error('No data to export');
+      toast.loading('Fetching all campaigns for export...');
+      
+      const filters = { sort: sortOrder };
+      if (searchText) filters.search = searchText;
+      if (statusFilter !== 'all') filters.status = statusFilter;
+      if (typeFilter !== 'all') filters.type = typeFilter;
+      if (userFilter !== 'all') filters.user = userFilter;
+
+      const result = await dispatch(getAllCampaignsForExport(filters)).unwrap();
+      const allCampaigns = result.data || [];
+
+      if (allCampaigns.length === 0) {
+        toast.dismiss();
+        toast.error('No campaigns to export');
         return;
       }
 
-      const exportData = campaigns?.map((campaign, idx) => {
+      const exportData = allCampaigns.map((campaign, idx) => {
         const successCount = campaign?.successCount || 0;
         const failedCount = campaign?.failedCount || 0;
         const totalRecipients = campaign?.cost || 0;
@@ -377,24 +401,36 @@ export default function AllCampaigns() {
           'ID': `#${idx + 1}`,
           'Campaign Name': campaign?.CampaignName || 'N/A',
           'User': campaign?.userId?.name || 'N/A',
+          'User Email': campaign?.userId?.email || 'N/A',
           'Message Type': campaign?.type || 'N/A',
           'Total Recipients': totalRecipients,
           'Successful': successCount,
           'Failed': failedCount,
+          'Success Rate': totalRecipients > 0 ? `${((successCount / totalRecipients) * 100).toFixed(2)}%` : '0%',
+          'Status': campaign?.status || 'N/A',
           'Date': new Date(campaign.createdAt).toLocaleDateString(),
           'Time': new Date(campaign.createdAt).toLocaleTimeString(),
         };
       });
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
+      worksheet['!cols'] = [
+        { wch: 8 }, { wch: 25 }, { wch: 20 }, { wch: 30 },
+        { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
+        { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }
+      ];
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'All Campaign Reports');
 
       XLSX.writeFile(workbook, `all-campaign-reports-${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Report exported successfully');
+      
+      toast.dismiss();
+      toast.success(`Exported ${exportData.length} campaigns successfully`);
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Failed to export report');
+      toast.dismiss();
+      toast.error(error.message || 'Failed to export campaigns');
     }
   };
 

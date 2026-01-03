@@ -80,6 +80,12 @@ export const getAllCampaignMessagesForExport = createAsyncThunkHandler(
   (payload) => `admin/campaigns/${payload.campaignId}/messages/all`
 );
 
+export const getAllCampaignsForExport = createAsyncThunkHandler(
+  'campaigns/getAllCampaignsForExport',
+  _get,
+  (payload) => buildUrlWithParams('admin/campaigns/export/all', payload || {})
+);
+
 const initialState = {
   campaigns: [],
   adminCampaigns: [],

@@ -201,7 +201,7 @@ const AdminProfile = () => {
                         marginBottom: THEME_CONSTANTS.spacing.sm,
                         lineHeight: THEME_CONSTANTS.typography.h1.lineHeight
                       }}>
-                        Admin Profile 👤
+                        Admin Profile
                       </h1>
                       <p style={{
                         color: THEME_CONSTANTS.colors.textSecondary,
