@@ -38,9 +38,11 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   HistoryOutlined,
+  EyeOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
-import { getAllUsers, updateWallet, updateUserPassword, getUserTransactionHistory, createUser, updateUser } from '../../redux/slices/adminSlice';
+import { getAllUsers, updateWallet, updateUserPassword, getUserTransactionHistory, createUser, updateUser, toggleUserStatus, getUserPassword } from '../../redux/slices/adminSlice';
 import { useNavigate } from 'react-router-dom';
 
 
@@ -59,6 +61,7 @@ function UserManagement() {
   const [isEditUserModalVisible, setIsEditUserModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [walletAmount, setWalletAmount] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [createUserForm] = Form.useForm();
   const [editUserForm] = Form.useForm();
@@ -77,10 +80,18 @@ function UserManagement() {
     setIsWalletModalVisible(true);
   };
 
-  const openPasswordModal = (user) => {
+  const openPasswordModal = async (user) => {
     setSelectedUser(user);
     setNewPassword('');
+    setCurrentPassword('');
     setIsPasswordModalVisible(true);
+    
+    try {
+      const result = await dispatch(getUserPassword({ userId: user._id })).unwrap();
+      setCurrentPassword(result.data?.currentPassword || '');
+    } catch (error) {
+      console.error('Failed to fetch password:', error);
+    }
   };
 
   const openTransactionModal = async (user) => {
@@ -161,7 +172,10 @@ function UserManagement() {
       email: user.email,
       phone: user.phone,
       companyname: user.companyname || '',
-      isActive: user.isActive
+      isActive: user.isActive,
+      clientId: user.jioConfig?.clientId || '',
+      clientSecret: user.jioConfig?.clientSecret || '',
+      assistantId: user.jioConfig?.assistantId || ''
     });
     setIsEditUserModalVisible(true);
   };
@@ -169,10 +183,25 @@ function UserManagement() {
   const handleEditUser = async () => {
     try {
       const values = await editUserForm.validateFields();
+      const { clientId, clientSecret, assistantId, ...userData } = values;
+      
       await dispatch(updateUser({
         userId: selectedUser._id,
-        ...values
+        ...userData
       })).unwrap();
+      
+      if (clientId || clientSecret || assistantId) {
+        await dispatch(updateUser({
+          userId: selectedUser._id,
+          jioConfig: {
+            clientId: clientId?.trim() || '',
+            clientSecret: clientSecret?.trim() || '',
+            assistantId: assistantId?.trim() || '',
+            isConfigured: !!(clientId && clientSecret)
+          }
+        })).unwrap();
+      }
+      
       message.success('User updated successfully!');
       setIsEditUserModalVisible(false);
       dispatch(getAllUsers({ page: 1, limit: 50 }));
@@ -185,8 +214,13 @@ function UserManagement() {
     }
   };
 
-  const handleToggleStatus = (userId, currentStatus) => {
-    message.info('Toggle user status functionality will be implemented soon');
+  const handleToggleStatus = async (userId, currentStatus) => {
+    try {
+      await dispatch(toggleUserStatus({ userId })).unwrap();
+      message.success(`User ${currentStatus ? 'deactivated' : 'activated'} successfully`);
+    } catch (error) {
+      message.error(error || 'Failed to update user status');
+    }
   };
 
   const handleDeleteUser = (userId, userName) => {
@@ -337,13 +371,25 @@ function UserManagement() {
       width: '20%',
       render: (_, record) => (
         <Space size="small" wrap>
-          <Tooltip title="Edit">
+          <Tooltip title="View Report">
             <Button
               type="primary"
               size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/admin/user-report/${record._id}`)}
+              style={{ borderRadius: THEME_CONSTANTS.radius.sm }}
+            />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button
+              style={{
+                borderRadius: THEME_CONSTANTS.radius.sm,
+                color: THEME_CONSTANTS.colors.primary,
+                borderColor: THEME_CONSTANTS.colors.primary,
+              }}
+              size="small"
               icon={<EditOutlined />}
               onClick={() => openEditModal(record)}
-              style={{ borderRadius: THEME_CONSTANTS.radius.sm }}
             />
           </Tooltip>
           <Tooltip title="Wallet">
@@ -386,29 +432,14 @@ function UserManagement() {
             <Button
               style={{
                 borderRadius: THEME_CONSTANTS.radius.sm,
-                color: record.isActive ? '#ef4444' : '#10b981',
-                borderColor: record.isActive ? '#ef4444' : '#10b981',
+                color: record.isActive ? THEME_CONSTANTS.colors.danger : THEME_CONSTANTS.colors.success,
+                borderColor: record.isActive ? THEME_CONSTANTS.colors.danger : THEME_CONSTANTS.colors.success,
               }}
               size="small"
-              icon={
-                record.isActive ? (
-                  <CloseOutlined />
-                ) : (
-                  <CheckOutlined />
-                )
-              }
+              icon={<StopOutlined />}
               onClick={() => handleToggleStatus(record._id, record.isActive)}
             />
           </Tooltip>
-          {/* <Tooltip title="Delete">
-            <Button
-              danger
-              size="small"
-              icon={<DeleteOutlined />}
-              onClick={() => handleDeleteUser(record._id, record.name)}
-              style={{ borderRadius: THEME_CONSTANTS.radius.sm }}
-            />
-          </Tooltip> */}
         </Space>
       ),
     },
@@ -646,6 +677,34 @@ function UserManagement() {
               </Form.Item>
             </Col>
           </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Client ID"
+                name="clientId"
+              >
+                <Input placeholder="Enter Jio RCS Client ID (optional)" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Client Secret"
+                name="clientSecret"
+              >
+                <Input.Password placeholder="Enter Jio RCS Client Secret (optional)" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Assistant ID"
+                name="assistantId"
+              >
+                <Input placeholder="Enter Jio RCS Assistant ID (optional)" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
 
@@ -822,6 +881,14 @@ function UserManagement() {
               value={selectedUser?.name}
               disabled
               prefix={<UserOutlined />}
+            />
+          </Form.Item>
+          <Form.Item label="Current Password">
+            <Input.Password
+              value={currentPassword}
+              prefix={<LockOutlined />}
+              readOnly
+              style={{ cursor: 'not-allowed', backgroundColor: '#f5f5f5' }}
             />
           </Form.Item>
           <Form.Item label="New Password *">

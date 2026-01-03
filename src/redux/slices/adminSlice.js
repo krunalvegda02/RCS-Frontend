@@ -51,6 +51,12 @@ export const getUserTransactionHistory = createAsyncThunkHandler(
   }
 );
 
+export const getUserPassword = createAsyncThunkHandler(
+  'admin/getUserPassword',
+  _get,
+  (payload) => `auth/admin/password/${payload.userId}`
+);
+
 export const getWalletRequests = createAsyncThunkHandler(
   'admin/getWalletRequests',
   _get,
@@ -75,6 +81,12 @@ export const deleteWalletRequest = createAsyncThunkHandler(
   (payload) => `v1/wallet/admin/delete/${payload.requestId}`
 );
 
+export const toggleUserStatus = createAsyncThunkHandler(
+  'admin/toggleUserStatus',
+  _put,
+  (payload) => `auth/admin/toggle-status/${payload.userId}`
+);
+
 const initialState = {
   users: [],
   transactions: [],
@@ -91,11 +103,13 @@ const initialState = {
     updateUser: false,
     updateWallet: false,
     updatePassword: false,
+    getUserPassword: false,
     transactions: false,
     walletRequests: false,
     approveRequest: false,
     rejectRequest: false,
     deleteRequest: false,
+    toggleStatus: false,
   },
   error: null,
   stats: {
@@ -301,6 +315,26 @@ const adminSlice = createSlice({
       })
       .addCase(deleteWalletRequest.rejected, (state, action) => {
         state.loading.deleteRequest = false;
+        state.error = action.payload;
+      });
+
+    // Toggle User Status
+    builder
+      .addCase(toggleUserStatus.pending, (state) => {
+        state.loading.toggleStatus = true;
+        state.error = null;
+      })
+      .addCase(toggleUserStatus.fulfilled, (state, action) => {
+        state.loading.toggleStatus = false;
+        const userId = action.meta.arg.userId;
+        const userIndex = state.users.findIndex(u => u._id === userId);
+        if (userIndex !== -1) {
+          state.users[userIndex].isActive = action.payload.data.isActive;
+        }
+        state.stats.activeUsers = state.users.filter(u => u.isActive).length;
+      })
+      .addCase(toggleUserStatus.rejected, (state, action) => {
+        state.loading.toggleStatus = false;
         state.error = action.payload;
       });
   },

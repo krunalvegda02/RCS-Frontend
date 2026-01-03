@@ -207,6 +207,11 @@ const authSlice = createSlice({
         } catch (error) {
           console.error('Error clearing localStorage:', error);
         }
+        
+        // Check if account is deactivated
+        if (action.payload?.deactivated) {
+          state.error = 'Account is deactivated. Please contact administrator.';
+        }
       })
 
     // Register

@@ -33,11 +33,13 @@ export default function Login() {
         'session_expired': 'Your session has expired. Please login again.',
         'unauthorized': 'Please login to access this page.',
         'token_invalid': 'Your session is invalid. Please login again.',
-        'logged_out': 'You have been logged out successfully.'
+        'logged_out': 'You have been logged out successfully.',
+        'deactivated': 'Your account has been deactivated by admin. Please contact administrator.'
       };
       
       const message = messages[redirectReason] || 'Please login to continue.';
-      toast.error(message, { duration: 4000 });
+      const toastType = redirectReason === 'deactivated' ? 'error' : 'error';
+      toast[toastType](message, { duration: 5000 });
       
       // Clear URL params
       if (redirectReason) {
@@ -87,8 +89,15 @@ export default function Login() {
       }
     } catch (error) {
       const errorMsg = error || 'Login failed. Please try again.';
-      toast.error(errorMsg);
-      setError(errorMsg);
+      const isDeactivated = errorMsg.toLowerCase().includes('deactivated');
+      
+      if (isDeactivated) {
+        toast.error('Your account has been deactivated. Please contact administrator.', { duration: 5000 });
+        setError('Your account has been deactivated. Please contact administrator.');
+      } else {
+        toast.error(errorMsg);
+        setError(errorMsg);
+      }
     }
   };
 
@@ -154,14 +163,14 @@ export default function Login() {
             <Form.Item name="password" label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600 }}>Password</span>} rules={[{ required: true, message: 'Please input your password!' }, { min: 6, message: 'Password must be at least 6 characters!' }]}>
               <Input.Password prefix={<LockOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />} placeholder="Enter your password" iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)} style={{ borderRadius: THEME_CONSTANTS.radius.md, border: `1px solid ${THEME_CONSTANTS.colors.border}`, padding: '10px 14px' }} />
             </Form.Item>
-            <Form.Item>
+            {/* <Form.Item>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Form.Item name="remember" valuePropName="checked" noStyle>
                   <Checkbox style={{ color: THEME_CONSTANTS.colors.textSecondary, fontSize: '14px' }}>Remember me</Checkbox>
                 </Form.Item>
                 <a href="#" style={{ color: THEME_CONSTANTS.colors.primary, textDecoration: 'none', fontSize: '14px' }}>Forgot password?</a>
               </div>
-            </Form.Item>
+            </Form.Item> */}
             <Form.Item>
               <Button type="primary" htmlType="submit" loading={loading} block style={{ height: '44px', borderRadius: THEME_CONSTANTS.radius.md, background: THEME_CONSTANTS.colors.primary, border: 'none', fontSize: '16px', fontWeight: 600 }}>
                 {loading ? 'Signing in...' : 'Sign In'}
@@ -412,9 +421,9 @@ export default function Login() {
                   <Form.Item name="remember" valuePropName="checked" noStyle>
                     <Checkbox style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Remember me</Checkbox>
                   </Form.Item>
-                  <a href="#" style={{ color: THEME_CONSTANTS.colors.primary, textDecoration: 'none' }}>
+                  {/* <a href="#" style={{ color: THEME_CONSTANTS.colors.primary, textDecoration: 'none' }}>
                     Forgot password?
-                  </a>
+                  </a> */}
                 </div>
               </Form.Item>
 

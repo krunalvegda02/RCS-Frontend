@@ -2,6 +2,7 @@ import { lazy } from 'react'
 
 // Lazy loaded components
 const Dashboard = lazy(() => import('../pages/user/Dashboard.jsx'))
+const UserReports = lazy(() => import('../pages/admin/UserReports.jsx'))
 const AllCampaigns = lazy(() => import('../pages/admin/AllCampaigns.jsx'))
 const CreateCampaign = lazy(() => import('../pages/user/CreateCampaignNew.jsx'))
 const TemplatePage = lazy(() => import('../pages/user/TemplatePage.jsx'))
@@ -111,6 +112,10 @@ export const pageData = {
         {
           path: 'all-campaigns',
           component: AllCampaigns
+        },
+        {
+          path: 'user-report/:userId',
+          component: UserReports
         }
       ]
     }

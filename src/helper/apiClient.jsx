@@ -39,16 +39,39 @@ let isHandlingAuth = false;
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
+        const currentPath = window.location.pathname;
+        const isAuthPage = currentPath.includes('/login');
+        
+        // Check for deactivated account in any error response
+        const errorMessage = error.response?.data?.message || '';
+        const isDeactivated = errorMessage.toLowerCase().includes('deactivated');
+        
+        if (isDeactivated && !isAuthPage && !isHandlingAuth) {
+            isHandlingAuth = true;
+            console.log('Deactivated account detected, clearing auth and redirecting...');
+            
+            // Clear auth data
+            localStorage.clear();
+            
+            // Dispatch logout to Redux store
+            if (window.__REDUX_STORE__) {
+                window.__REDUX_STORE__.dispatch({ type: 'auth/logout' });
+            }
+            
+            // Force redirect
+            setTimeout(() => {
+                isHandlingAuth = false;
+                window.location.href = '/login?reason=deactivated';
+            }, 100);
+            
+            return Promise.reject(error);
+        }
+        
         const originalRequest = error.config;
         
         // Handle 401 errors (Unauthorized)
         if (error.response?.status === 401 && !originalRequest._isRetry) {
             originalRequest._isRetry = true;
-            
-            const currentPath = window.location.pathname;
-            const isAuthPage = ['/login'].some(path => 
-                currentPath.includes(path)
-            );
             
             // Don't redirect if it's a password update error (wrong current password)
             const isPasswordUpdateError = originalRequest.url?.includes('update-password') || 
@@ -59,7 +82,6 @@ apiClient.interceptors.response.use(
                 isHandlingAuth = true;
                 
                 // Determine redirect reason
-                const errorMessage = error.response?.data?.message || '';
                 let reason = 'unauthorized';
                 
                 if (errorMessage.toLowerCase().includes('expired')) {

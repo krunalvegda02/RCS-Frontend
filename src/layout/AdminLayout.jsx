@@ -135,12 +135,12 @@ export default function AdminLayout() {
     label: 'All Campaigns',
     onClick: () => navigate('/admin/all-campaigns'),
   },
-  {
-    key: '/admin/reports',
-    icon: <FileTextOutlined className="text-xl" />,
-    label: 'Reports',
-    onClick: () => navigate('/admin/reports'),
-  },
+  // {
+  //   key: '/admin/reports',
+  //   icon: <FileTextOutlined className="text-xl" />,
+  //   label: 'Reports',
+  //   onClick: () => navigate('/admin/reports'),
+  // },
   ];
 
   const userMenuItems = [

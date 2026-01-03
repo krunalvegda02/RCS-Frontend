@@ -77,6 +77,7 @@ export default function AllCampaigns() {
     campaignMessages, 
     currentCampaign: selectedCampaign,
     messagesPagination,
+    pagination: campaignsPagination,
     loading, 
     error 
   } = useSelector(state => state.campaigns);
@@ -91,7 +92,6 @@ export default function AllCampaigns() {
   const [showModal, setShowModal] = useState(false);
   const [modalSearchText, setModalSearchText] = useState('');
   const [modalStatusFilter, setModalStatusFilter] = useState('all');
-  const [campaignsPagination, setCampaignsPagination] = useState({ page: 1, limit: 10, total: 0 });
 
   // Filter states
   const [searchText, setSearchText] = useState('');
@@ -115,12 +115,13 @@ export default function AllCampaigns() {
   };
 
   useEffect(() => {
-    fetchAllCampaigns(currentPage, {
-      search: searchText || undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      type: typeFilter !== 'all' ? typeFilter : undefined,
-      user: userFilter !== 'all' ? userFilter : undefined
-    });
+    const filters = {};
+    if (searchText) filters.search = searchText;
+    if (statusFilter !== 'all') filters.status = statusFilter;
+    if (typeFilter !== 'all') filters.type = typeFilter;
+    if (userFilter !== 'all') filters.user = userFilter;
+    
+    fetchAllCampaigns(currentPage, filters);
   }, [dispatch, currentPage, searchText, statusFilter, typeFilter, userFilter]);
 
   useEffect(() => {
@@ -716,8 +717,8 @@ export default function AllCampaigns() {
             </Card>
           )}
 
-          {/* Summary Stats */}
-          {campaigns.length > 0 && (
+          {/* Summary Stats - Universal Data */}
+          {campaignsPagination?.totalCampaigns > 0 && (
             <Row gutter={[20, 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
               <Col xs={24} sm={12} md={6}>
                 <Card
@@ -730,7 +731,7 @@ export default function AllCampaigns() {
                 >
                   <Statistic
                     title="Total Campaigns"
-                    value={campaigns?.length}
+                    value={campaignsPagination?.totalCampaigns || 0}
                     prefix={<BarChartOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
                     valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
                     titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
@@ -749,8 +750,7 @@ export default function AllCampaigns() {
                 >
                   <Statistic
                     title="Total Delivered"
-                    value={Object.values(realTimeStats).reduce((acc, stats) => acc + (stats?.delivered || 0), 0) || 
-                           campaigns?.reduce((acc, campaign) => acc + (campaign?.successCount || 0), 0)}
+                    value={campaignsPagination?.totalDelivered || 0}
                     prefix={<CheckCircleOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.success }} />}
                     valueStyle={{ color: THEME_CONSTANTS.colors.success, fontSize: '28px', fontWeight: 700 }}
                     titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
@@ -769,8 +769,7 @@ export default function AllCampaigns() {
                 >
                   <Statistic
                     title="Total Failed"
-                    value={Object.values(realTimeStats).reduce((acc, stats) => acc + (stats?.failed || 0), 0) || 
-                           campaigns?.reduce((acc, campaign) => acc + (campaign?.failedCount || 0), 0)}
+                    value={campaignsPagination?.totalFailed || 0}
                     prefix={<CloseCircleOutlined style={{ marginRight: '8px', color: '#ff4d4f' }} />}
                     valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 700 }}
                     titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
@@ -791,11 +790,9 @@ export default function AllCampaigns() {
                     title="Success Rate"
                     value={
                       (() => {
-                        const totalDelivered = Object.values(realTimeStats).reduce((acc, stats) => acc + (stats?.delivered || 0), 0) || 
-                                             campaigns?.reduce((acc, campaign) => acc + (campaign?.successCount || 0), 0);
-                        const totalSent = Object.values(realTimeStats).reduce((acc, stats) => acc + (stats?.sent || 0), 0) || 
-                                        campaigns?.reduce((acc, campaign) => acc + ((campaign?.successCount || 0) + (campaign?.failedCount || 0)), 0);
-                        return totalSent > 0 ? ((totalDelivered / totalSent) * 100).toFixed(2) : 0;
+                        const totalDelivered = campaignsPagination?.totalDelivered || 0;
+                        const totalMessages = (campaignsPagination?.totalDelivered || 0) + (campaignsPagination?.totalFailed || 0);
+                        return totalMessages > 0 ? ((totalDelivered / totalMessages) * 100).toFixed(2) : 0;
                       })()
                     }
                     suffix="%"
@@ -970,7 +967,7 @@ export default function AllCampaigns() {
                 pagination={{ 
                   current: currentPage, 
                   pageSize: 10, 
-                  total: campaignsPagination.total || campaigns.length, 
+                  total: campaignsPagination?.total || 0, 
                   onChange: (page) => {
                     setCurrentPage(page);
                     window.scrollTo({ top: 0, behavior: 'smooth' });

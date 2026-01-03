@@ -13,6 +13,7 @@ import uploadSlice from './slices/uploadSlice.js';
 import adminSlice from './slices/adminSlice.js';
 import walletSlice from './slices/walletSlice.js';
 import contactUploadSlice from './slices/contactUploadSlice.js';
+import userReportSlice from './slices/userReportSlice.js';
 
 const persistConfig = {
   key: 'root',
@@ -32,6 +33,7 @@ const rootReducer = combineReducers({
   admin: adminSlice,
   wallet: walletSlice,
   contactUpload: contactUploadSlice,
+  userReport: userReportSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
