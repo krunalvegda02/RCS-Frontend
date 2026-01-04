@@ -501,15 +501,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      ₹{loading ? 0 : (() => {
-                        const totalCost = messageReports.reduce((total, report) => {
-                          console.log("report:", report);
-                          return total + (report.cost || 0);
-                        }, 0);
-                        console.log("Total cost calculated:", totalCost);
-                        console.log("Message reports:", messageReports);
-                        return totalCost;
-                      })()}
+                      ₹{loading ? 0 : (stats?.totalCost || 0)}
                     </span>
                     <span
                       style={{
@@ -521,7 +513,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <Progress
-                    percent={user?.Wallet && messageReports.length > 0 ? Math.min(100, Math.round(((messageReports.reduce((total, report) => total + (report.cost || 0), 0)) / user.Wallet) * 100)) : 0}
+                    percent={user?.Wallet && stats?.totalCost ? Math.min(100, Math.round((stats.totalCost / user.Wallet) * 100)) : 0}
                     strokeColor={{ '0%': THEME_CONSTANTS.colors.primary, '100%': THEME_CONSTANTS.colors.primaryDark }}
                   />
                 </div>
@@ -555,7 +547,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency((user?.Wallet || 0) - (loading ? 0 : messageReports.reduce((total, report) => total + (report.cost || 0), 0)))}
+                      {formatCurrency((user?.Wallet || 0) - (stats?.totalCost || 0))}
                     </span>
                   </div>
                   <p
