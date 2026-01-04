@@ -125,15 +125,11 @@ export default function Orders() {
   };
 
   const getStatusBadge = (order) => {
-    const campaignId = order._id;
-    const liveStats = realTimeStats[campaignId];
-    console.log(liveStats,":===========")
-    
-    // Use real-time stats if available, fallback to order data
-    const successCount = liveStats?.delivered || order?.successCount || 0;
-    const failedCount = liveStats?.failed || order?.failedCount || 0;
-    const sentCount = liveStats?.sent || order?.successCount || 0;
-    const totalMessages = liveStats?.total || order?.cost || 0;
+    // Use order data directly (no live stats)
+    const deliveredCount = order?.totalDelivered || 0;
+    const failedCount = order?.failedCount || 0;
+    const sentCount = order?.successCount || 0;
+    const totalMessages = order?.cost || 0;
 
     // Check campaign status first
     const isCompleted = order?.status === 'completed';
@@ -186,7 +182,7 @@ export default function Orders() {
     }
 
     // Show status for active campaigns
-    const successRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
+    const successRate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
     
     const getStatusText = () => {
       if (successRate >= 80) return 'Success';
@@ -352,12 +348,10 @@ export default function Orders() {
     // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(order => {
-        const campaignId = order._id;
-        const liveStats = realTimeStats[campaignId];
-        const successCount = liveStats?.delivered || order?.successCount || 0;
-        const failedCount = liveStats?.failed || order?.failedCount || 0;
-        const totalMessages = liveStats?.total || order?.cost || 0;
-        const successRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
+        const deliveredCount = order?.totalDelivered || 0;
+        const failedCount = order?.failedCount || 0;
+        const totalMessages = order?.cost || 0;
+        const successRate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
         
         switch (statusFilter) {
           case 'completed':
@@ -367,7 +361,7 @@ export default function Orders() {
           case 'failed':
             return successRate === 0 && totalMessages > 0;
           case 'pending':
-            return successCount === 0 && !order?.status === 'completed';
+            return deliveredCount === 0 && order?.status !== 'completed';
           default:
             return true;
         }
@@ -490,10 +484,10 @@ export default function Orders() {
 
       // Create campaigns overview sheet
       const campaignsData = allCampaigns.map((order, idx) => {
-        const successCount = order?.successCount || 0;
+        const deliveredCount = order?.totalDelivered || 0;
         const failedCount = order?.failedCount || 0;
         const totalRecipients = order?.cost || 0;
-        const successRate = totalRecipients > 0 ? ((successCount / totalRecipients) * 100).toFixed(2) : 0;
+        const successRate = totalRecipients > 0 ? ((deliveredCount / totalRecipients) * 100).toFixed(2) : 0;
 
         return {
           'S.No': idx + 1,
@@ -502,7 +496,7 @@ export default function Orders() {
           'Message Type': order?.type || 'N/A',
           'Status': order?.status || 'N/A',
           'Total Recipients': totalRecipients,
-          'Successfully Delivered': successCount,
+          'Successfully Delivered': deliveredCount,
           'Failed': failedCount,
           'Success Rate (%)': successRate,
           'Created Date': new Date(order.createdAt).toLocaleDateString(),
@@ -641,7 +635,7 @@ export default function Orders() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
           <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '15px' }}>
-            {record?.successCount || 0}
+            {record?.totalDelivered || 0}
           </span>
         </div>
       ),
@@ -666,9 +660,9 @@ export default function Orders() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        const successCount = record?.successCount || 0;
+        const deliveredCount = record?.totalDelivered || 0;
         const totalMessages = record?.cost || 0;
-        const rate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
+        const rate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         
         return (
@@ -882,8 +876,7 @@ export default function Orders() {
               >
                 <Statistic
                   title="Total Delivered"
-                  value={Object.values(realTimeStats).reduce((acc, stats) => acc + (stats?.delivered || 0), 0) || 
-                         orders?.reduce((acc, order) => acc + (order?.successCount || 0), 0)}
+                  value={orders?.reduce((acc, order) => acc + (order?.totalDelivered || 0), 0)}
                   prefix={<CheckCircleOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.success }} />}
                   valueStyle={{ color: THEME_CONSTANTS.colors.success, fontSize: '28px', fontWeight: 700 }}
                   titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
@@ -902,8 +895,7 @@ export default function Orders() {
               >
                 <Statistic
                   title="Total Failed"
-                  value={Object.values(realTimeStats).reduce((acc, stats) => acc + (stats?.failed || 0), 0) || 
-                         orders?.reduce((acc, order) => acc + (order?.failedCount || 0), 0)}
+                  value={orders?.reduce((acc, order) => acc + (order?.failedCount || 0), 0)}
                   prefix={<CloseCircleOutlined style={{ marginRight: '8px', color: '#ff4d4f' }} />}
                   valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 700 }}
                   titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
@@ -924,10 +916,8 @@ export default function Orders() {
                   title="Success Rate"
                   value={
                     (() => {
-                      const totalDelivered = Object.values(realTimeStats).reduce((acc, stats) => acc + (stats?.delivered || 0), 0) || 
-                                           orders?.reduce((acc, order) => acc + (order?.successCount || 0), 0);
-                      const totalSent = Object.values(realTimeStats).reduce((acc, stats) => acc + (stats?.sent || 0), 0) || 
-                                      orders?.reduce((acc, order) => acc + ((order?.successCount || 0) + (order?.failedCount || 0)), 0);
+                      const totalDelivered = orders?.reduce((acc, order) => acc + (order?.totalDelivered || 0), 0);
+                      const totalSent = orders?.reduce((acc, order) => acc + ((order?.successCount || 0) + (order?.failedCount || 0)), 0);
                       return totalSent > 0 ? ((totalDelivered / totalSent) * 100).toFixed(2) : 0;
                     })()
                   }

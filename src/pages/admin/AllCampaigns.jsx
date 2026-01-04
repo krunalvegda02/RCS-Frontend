@@ -93,6 +93,7 @@ export default function AllCampaigns() {
   const [showModal, setShowModal] = useState(false);
   const [modalSearchText, setModalSearchText] = useState('');
   const [modalStatusFilter, setModalStatusFilter] = useState('all');
+  const [allUsers, setAllUsers] = useState([]); // Store all users for filter
 
   // Filter states
   const [searchText, setSearchText] = useState('');
@@ -119,12 +120,29 @@ export default function AllCampaigns() {
     const filters = {};
     if (searchText) filters.search = searchText;
     if (statusFilter !== 'all') filters.status = statusFilter;
-    if (typeFilter !== 'all') filters.type = typeFilter;
+    if (typeFilter !== 'all') {
+      filters.type = typeFilter;
+      console.log('[AllCampaigns] Filtering by type:', typeFilter);
+    }
     if (userFilter !== 'all') filters.user = userFilter;
     
     setCurrentPage(1);
     fetchAllCampaigns(1, filters);
   }, [dispatch, searchText, statusFilter, typeFilter, userFilter, sortOrder]);
+
+  // Fetch all users once on mount for the filter dropdown
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      try {
+        const result = await dispatch(getAllCampaignsForExport({ sort: 'newest' })).unwrap();
+        const uniqueUsers = [...new Set(result.data.map(c => c.userId?.name).filter(Boolean))];
+        setAllUsers(uniqueUsers);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+    fetchAllUsers();
+  }, [dispatch]);
 
   useEffect(() => {
     const filters = {};
@@ -143,7 +161,9 @@ export default function AllCampaigns() {
   }, [error]);
 
   const getUniqueTypes = () => {
-    return [...new Set(campaigns.map((campaign) => campaign.type).filter(Boolean))];
+    const types = [...new Set(campaigns.map((campaign) => campaign.type).filter(Boolean))];
+    console.log('[AllCampaigns] Available types in campaigns:', types);
+    return types;
   };
 
   const getUniqueUsers = () => {
@@ -470,27 +490,39 @@ export default function AllCampaigns() {
       title: 'Type',
       dataIndex: 'type',
       key: 'type',
-      render: (type) => (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <Tag
-            style={{
-              background: type === 'SMS' ? '#e6f7ff' : '#f6f8fb',
-              color: type === 'SMS' ? THEME_CONSTANTS.colors.primary : '#667085',
-              border: 'none',
-              fontWeight: 600,
-              padding: '6px 0',
-              borderRadius: THEME_CONSTANTS.radius.sm,
-              fontSize: '13px',
-              width: '90px',
-              textAlign: 'center',
-              display: 'inline-block'
-            }}
-          >
-            {type}
-          </Tag>
-        </div>
-      ),
-      width: 120,
+      render: (type) => {
+        const typeConfig = {
+          'plainText': { label: 'Text Message', color: '#1890ff', bg: '#e6f7ff', icon: '📝' },
+          'richCard': { label: 'Rich Card', color: '#722ed1', bg: '#f9f0ff', icon: '🎴' },
+          'carousel': { label: 'Carousel', color: '#eb2f96', bg: '#fff0f6', icon: '🎠' },
+          'textWithAction': { label: 'Action Message', color: '#13c2c2', bg: '#e6fffb', icon: '⚡' }
+        };
+        
+        const config = typeConfig[type] || { label: type || 'Unknown', color: '#666', bg: '#f5f5f5', icon: '📄' };
+        
+        return (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <Tag
+              style={{
+                background: config.bg,
+                color: config.color,
+                border: `1px solid ${config.color}30`,
+                fontWeight: 600,
+                padding: '6px 12px',
+                borderRadius: THEME_CONSTANTS.radius.sm,
+                fontSize: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>{config.icon}</span>
+              <span>{config.label}</span>
+            </Tag>
+          </div>
+        );
+      },
+      width: 160,
       align: 'center',
     },
     {
@@ -906,11 +938,11 @@ export default function AllCampaigns() {
                   style={{ width: '100%' }}
                   size="large"
                   options={[
-                    { label: 'All Message Types', value: 'all' },
-                    ...getUniqueTypes().map((type) => ({ 
-                      label: getProfessionalTypeName(type), 
-                      value: type 
-                    })),
+                    { label: '📊 All Message Types', value: 'all' },
+                    { label: '📝 Text Message', value: 'plainText' },
+                    { label: '🎴 Rich Card', value: 'richCard' },
+                    { label: '🎠 Carousel', value: 'carousel' },
+                    { label: '⚡ Action Message', value: 'textWithAction' },
                   ]}
                 />
               </Col>
@@ -924,9 +956,11 @@ export default function AllCampaigns() {
                   onChange={setUserFilter}
                   style={{ width: '100%' }}
                   size="large"
+                  showSearch
+                  optionFilterProp="label"
                   options={[
                     { label: 'All Users', value: 'all' },
-                    ...getUniqueUsers().map((user) => ({
+                    ...allUsers.map((user) => ({
                       label: user,
                       value: user,
                     })),
@@ -1279,7 +1313,7 @@ export default function AllCampaigns() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedCampaign?.userClickCount || 0}
+                          {campaignMessages?.reduce((sum, msg) => sum + (msg.interactions || 0), 0) || 0}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Interactions</div>
                       </div>
