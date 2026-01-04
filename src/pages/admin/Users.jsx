@@ -316,7 +316,7 @@ function UserManagement() {
         <Space>
           <Avatar
             size={40}
-            style={{ background: THEME_CONSTANTS.colors.primary }}
+            style={{ background: THEME_CONSTANTS.colors.primaryLight , color: THEME_CONSTANTS.colors.primary }}
           >
             {record.name?.charAt(0)?.toUpperCase()}
           </Avatar>
@@ -498,7 +498,7 @@ function UserManagement() {
                 <div style={{
                   width: '72px',
                   height: '72px',
-                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, ${THEME_CONSTANTS.colors.primaryLight} 100%)`,
                   borderRadius: THEME_CONSTANTS.radius.xl,
                   display: 'flex',
                   alignItems: 'center',
@@ -506,7 +506,7 @@ function UserManagement() {
                   boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.primary}40`,
                   flexShrink: 0
                 }}>
-                  <UserOutlined style={{ color: '#fff', fontSize: '36px' }} />
+                  <UserOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '36px' }} />
                 </div>
                 <div>
                   <h1 style={{

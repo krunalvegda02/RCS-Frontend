@@ -590,7 +590,7 @@ function AdminDashboard() {
             <div style={{
               width: screens.xs ? '56px' : '72px',
               height: screens.xs ? '56px' : '72px',
-              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, ${THEME_CONSTANTS.colors.primaryLight} 100%)`,
               borderRadius: THEME_CONSTANTS.radius.xl,
               display: 'flex',
               alignItems: 'center',
@@ -598,7 +598,7 @@ function AdminDashboard() {
               boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.primary}40`,
               flexShrink: 0
             }}>
-              <DashboardOutlined style={{ color: '#fff', fontSize: screens.xs ? '28px' : '36px' }} />
+              <DashboardOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: screens.xs ? '28px' : '36px' }} />
             </div>
             <div>
               <h1 style={{

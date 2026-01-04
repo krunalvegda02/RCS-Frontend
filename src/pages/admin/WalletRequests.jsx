@@ -39,10 +39,10 @@ const { useBreakpoint } = Grid;
 function WalletRequests() {
   const screens = useBreakpoint();
   const dispatch = useDispatch();
-  
+
   // Redux state
   const { walletRequests, loading } = useSelector(state => state.admin);
-  
+
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [form] = Form.useForm();
@@ -189,9 +189,9 @@ function WalletRequests() {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.md }}>
         <div style={{ flex: 1 }}>
-          <div style={{ 
-            fontSize: THEME_CONSTANTS.typography.label.size, 
-            color: THEME_CONSTANTS.colors.textSecondary, 
+          <div style={{
+            fontSize: THEME_CONSTANTS.typography.label.size,
+            color: THEME_CONSTANTS.colors.textSecondary,
             marginBottom: THEME_CONSTANTS.spacing.sm,
             fontWeight: 500,
             textTransform: 'uppercase',
@@ -199,25 +199,25 @@ function WalletRequests() {
           }}>
             {title}
           </div>
-          <div style={{ 
-            fontSize: '32px', 
-            fontWeight: 700, 
-            color: THEME_CONSTANTS.colors.text, 
+          <div style={{
+            fontSize: '32px',
+            fontWeight: 700,
+            color: THEME_CONSTANTS.colors.text,
             lineHeight: 1.2
           }}>
             {value}
             {unit && <span style={{ fontSize: '16px', marginLeft: '4px', color: THEME_CONSTANTS.colors.textSecondary }}>{unit}</span>}
           </div>
         </div>
-        <div style={{ 
-          width: 64, 
-          height: 64, 
-          borderRadius: THEME_CONSTANTS.radius.xl, 
+        <div style={{
+          width: 64,
+          height: 64,
+          borderRadius: THEME_CONSTANTS.radius.xl,
           background: `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          color: color, 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: color,
           fontSize: 28,
           flexShrink: 0
         }}>
@@ -237,14 +237,12 @@ function WalletRequests() {
       render: (text, record) => (
         <Space size={8}>
           <Avatar
-            size={32}
-            icon={<UserOutlined />}
-            style={{
-              backgroundColor: THEME_CONSTANTS.colors.primary,
-            }}
+            size={40}
+            style={{ background: THEME_CONSTANTS.colors.primaryLight, color: THEME_CONSTANTS.colors.primary }}
           >
             {record.userId?.name?.charAt(0).toUpperCase()}
           </Avatar>
+
           <div>
             <div
               style={{
@@ -342,8 +340,8 @@ function WalletRequests() {
       render: (reason, record) => (
         record.status === 'rejected' ? (
           <Tooltip title={reason}>
-            <span style={{ 
-              fontSize: '13px', 
+            <span style={{
+              fontSize: '13px',
               color: '#ff4d4f',
               display: 'block',
               maxWidth: '150px',
@@ -535,7 +533,7 @@ function WalletRequests() {
                 <div style={{
                   width: '72px',
                   height: '72px',
-                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.warning} 0%, #f59e0b 100%)`,
+                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.warningLight} 0%, ${THEME_CONSTANTS.colors.warningLight} 100%)`,
                   borderRadius: THEME_CONSTANTS.radius.xl,
                   display: 'flex',
                   alignItems: 'center',
@@ -543,7 +541,7 @@ function WalletRequests() {
                   boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.warning}40`,
                   flexShrink: 0
                 }}>
-                  <WalletOutlined style={{ color: '#fff', fontSize: '36px' }} />
+                  <WalletOutlined style={{ color: THEME_CONSTANTS.colors.warning, fontSize: '36px' }} />
                 </div>
                 <div>
                   <h1 style={{
@@ -570,48 +568,48 @@ function WalletRequests() {
 
             {/* Stats Cards */}
             <Row gutter={[20, 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
-          <Col xs={24} sm={12} lg={5}>
-              <StatCard
-                icon={WalletOutlined}
-                title="Total Requests"
-                value={stats.totalRequests}
-                color={THEME_CONSTANTS.colors.primary}
-              />
-          </Col>
-          <Col xs={24} sm={12} lg={5}>
-              <StatCard
-                icon={ClockCircleOutlined}
-                title="Pending"
-                value={stats.pendingRequests}
-                color="#FAAD14"
-              />
-          </Col>
-          <Col xs={24} sm={12} lg={5}>
-              <StatCard
-                icon={CheckCircleOutlined}
-                title="Approved"
-                value={stats.approvedRequests}
-                color={THEME_CONSTANTS.colors.success}
-              />
-          </Col>
-          <Col xs={24} sm={12} lg={5}>
-              <StatCard
-                icon={CloseOutlined}
-                title="Rejected"
-                value={stats.totalReject}
-                color={THEME_CONSTANTS.colors.danger}
-              />
-          </Col>
-          <Col xs={24} sm={24} lg={4}>
-              <StatCard
-                icon={DollarOutlined}
-                title="Total Amount"
-                value={stats.totalAmount > 999999 ? (stats.totalAmount / 100000).toFixed(1) : stats.totalAmount}
-                unit={stats.totalAmount > 999999 ? 'L' : ''}
-                color="#EB2F96"
-              />
-          </Col>
-        </Row>
+              <Col xs={24} sm={12} lg={5}>
+                <StatCard
+                  icon={WalletOutlined}
+                  title="Total Requests"
+                  value={stats.totalRequests}
+                  color={THEME_CONSTANTS.colors.primary}
+                />
+              </Col>
+              <Col xs={24} sm={12} lg={5}>
+                <StatCard
+                  icon={ClockCircleOutlined}
+                  title="Pending"
+                  value={stats.pendingRequests}
+                  color="#FAAD14"
+                />
+              </Col>
+              <Col xs={24} sm={12} lg={5}>
+                <StatCard
+                  icon={CheckCircleOutlined}
+                  title="Approved"
+                  value={stats.approvedRequests}
+                  color={THEME_CONSTANTS.colors.success}
+                />
+              </Col>
+              <Col xs={24} sm={12} lg={5}>
+                <StatCard
+                  icon={CloseOutlined}
+                  title="Rejected"
+                  value={stats.totalReject}
+                  color={THEME_CONSTANTS.colors.danger}
+                />
+              </Col>
+              <Col xs={24} sm={24} lg={4}>
+                <StatCard
+                  icon={DollarOutlined}
+                  title="Total Amount"
+                  value={stats.totalAmount > 999999 ? (stats.totalAmount / 100000).toFixed(1) : stats.totalAmount}
+                  unit={stats.totalAmount > 999999 ? 'L' : ''}
+                  color="#EB2F96"
+                />
+              </Col>
+            </Row>
 
             {/* Table Card */}
             <Card

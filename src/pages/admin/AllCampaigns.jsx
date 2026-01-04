@@ -640,7 +640,7 @@ export default function AllCampaigns() {
                 <div style={{
                   width: '72px',
                   height: '72px',
-                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, ${THEME_CONSTANTS.colors.primaryLight} 100%)`,
                   borderRadius: THEME_CONSTANTS.radius.xl,
                   display: 'flex',
                   alignItems: 'center',
@@ -648,7 +648,7 @@ export default function AllCampaigns() {
                   boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.primary}40`,
                   flexShrink: 0
                 }}>
-                  <TeamOutlined style={{ color: '#fff', fontSize: '36px' }} />
+                  <TeamOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '36px' }} />
                 </div>
                 <div>
                   <h1 style={{
