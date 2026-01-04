@@ -47,7 +47,7 @@ import { THEME_CONSTANTS } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { fetchDashboardStats, fetchRecentOrders, submitWalletRequest } from '../../redux/slices/dashboardSlice';
+import { fetchDashboardStats, fetchRecentOrders, addWalletRequest } from '../../redux/slices/dashboardSlice';
 
 const { useBreakpoint } = Grid;
 
@@ -81,7 +81,7 @@ export default function Dashboard() {
   const handleAddMoney = async () => {
     if (addAmount && Number.parseFloat(addAmount) > 0) {
       try {
-        const result = await dispatch(submitWalletRequest({
+        const result = await dispatch(addWalletRequest({
           amount: Number.parseFloat(addAmount),
           userId: user._id,
         })).unwrap();
