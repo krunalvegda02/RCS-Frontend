@@ -78,7 +78,7 @@ function AdminDashboard() {
 
   // ================= HELPERS =================
   const formatCurrency = (v) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
-  
+
   const formatDate = (d) => {
     if (!d) return '-';
     const now = new Date();
@@ -121,9 +121,9 @@ function AdminDashboard() {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.md }}>
         <div style={{ flex: 1 }}>
-          <div style={{ 
-            fontSize: THEME_CONSTANTS.typography.label.size, 
-            color: THEME_CONSTANTS.colors.textSecondary, 
+          <div style={{
+            fontSize: THEME_CONSTANTS.typography.label.size,
+            color: THEME_CONSTANTS.colors.textSecondary,
             marginBottom: THEME_CONSTANTS.spacing.sm,
             fontWeight: 500,
             textTransform: 'uppercase',
@@ -131,21 +131,21 @@ function AdminDashboard() {
           }}>
             {title}
           </div>
-          <div style={{ 
-            fontSize: screens.xs ? '26px' : '32px', 
-            fontWeight: 700, 
-            color: THEME_CONSTANTS.colors.text, 
+          <div style={{
+            fontSize: screens.xs ? '26px' : '32px',
+            fontWeight: 700,
+            color: THEME_CONSTANTS.colors.text,
             marginBottom: trend !== undefined ? THEME_CONSTANTS.spacing.xs : 0,
             lineHeight: 1.2
           }}>
             {typeof value === 'number' ? value.toLocaleString('en-IN') : value}
           </div>
           {trend !== undefined && (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: THEME_CONSTANTS.spacing.xs, 
-              fontSize: THEME_CONSTANTS.typography.caption.size, 
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: THEME_CONSTANTS.spacing.xs,
+              fontSize: THEME_CONSTANTS.typography.caption.size,
               color: trend > 0 ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.danger,
               fontWeight: 600
             }}>
@@ -154,15 +154,15 @@ function AdminDashboard() {
             </div>
           )}
         </div>
-        <div style={{ 
-          width: screens.xs ? 56 : 64, 
-          height: screens.xs ? 56 : 64, 
-          borderRadius: THEME_CONSTANTS.radius.xl, 
+        <div style={{
+          width: screens.xs ? 56 : 64,
+          height: screens.xs ? 56 : 64,
+          borderRadius: THEME_CONSTANTS.radius.xl,
           background: `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          color: color, 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: color,
           fontSize: screens.xs ? 24 : 28,
           flexShrink: 0
         }}>
@@ -182,11 +182,7 @@ function AdminDashboard() {
         <Space size={12}>
           <Avatar
             size={40}
-            style={{
-              backgroundColor: THEME_CONSTANTS.colors.primary,
-              fontWeight: 600,
-            }}
-            icon={<UserOutlined />}
+            style={{ background: THEME_CONSTANTS.colors.primaryLight, color: THEME_CONSTANTS.colors.primary }}
           >
             {record.name?.charAt(0)?.toUpperCase()}
           </Avatar>
@@ -458,6 +454,14 @@ function AdminDashboard() {
             >
               {record.userId?.name}
             </div>
+            <div
+              style={{
+                fontSize: '12px',
+                color: THEME_CONSTANTS.colors.textSecondary,
+              }}
+            >
+              {record.userId?.email}
+            </div>
           </div>
         </Space>
       ),
@@ -633,7 +637,7 @@ function AdminDashboard() {
               value={stats.totalUsers || 0}
               color={THEME_CONSTANTS.colors.primary}
               bgColor={THEME_CONSTANTS.colors.primaryLight}
-              // trend={2.5}
+            // trend={2.5}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -643,7 +647,7 @@ function AdminDashboard() {
               value={stats.totalMessages || 0}
               color={THEME_CONSTANTS.colors.success}
               bgColor={THEME_CONSTANTS.colors.successLight}
-              // trend={5.2}
+            // trend={5.2}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -653,7 +657,7 @@ function AdminDashboard() {
               value={stats.pendingRequests || 0}
               color={THEME_CONSTANTS.colors.warning}
               bgColor={THEME_CONSTANTS.colors.warningLight}
-              // trend={-1.3}
+            // trend={-1.3}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -663,7 +667,7 @@ function AdminDashboard() {
               value={formatCurrency(stats.totalWalletBalance || 0)}
               color={THEME_CONSTANTS.colors.danger}
               bgColor={THEME_CONSTANTS.colors.dangerLight}
-              // trend={3.8}
+            // trend={3.8}
             />
           </Col>
         </Row>
