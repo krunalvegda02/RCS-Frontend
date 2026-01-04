@@ -1,7 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { createAsyncThunkHandler } from '../../helper/createAsyncThunkHandler.jsx';
 import { _get, _post } from '../../helper/apiClient.jsx';
-import { updateWalletBalance } from './authSlice';
 
 // Async thunks using helper functions
 export const fetchDashboardStats = createAsyncThunkHandler(
