@@ -58,6 +58,8 @@ export default function Dashboard() {
   const dispatch = useDispatch();
 
   const { stats, recentOrders, loading, error } = useSelector(state => state.dashboard);
+  
+  const isLoading = loading.stats || loading.orders;
 
   const [refreshing, setRefreshing] = useState(false);
   const [showAddMoney, setShowAddMoney] = useState(false);
@@ -433,7 +435,7 @@ export default function Dashboard() {
                       WebkitTextFillColor: 'transparent',
                     }}
                   >
-                    {formatCurrency(user?.Wallet || 0)}
+                    {formatCurrency(user?.wallet?.balance || user?.Wallet || 0)}
                   </h2>
                   <p
                     style={{
@@ -501,7 +503,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      ₹{loading ? 0 : (stats?.totalCost || 0)}
+                      ₹{isLoading ? 0 : (stats?.totalCost || 0)}
                     </span>
                     <span
                       style={{
@@ -509,11 +511,15 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.textMuted
                       }}
                     >
-                      of {formatCurrency(user?.Wallet || 0)}
+                      of {formatCurrency(user?.wallet?.balance || user?.Wallet || 0)}
                     </span>
                   </div>
                   <Progress
-                    percent={user?.Wallet && stats?.totalCost ? Math.min(100, Math.round((stats.totalCost / user.Wallet) * 100)) : 0}
+                    percent={(() => {
+                      const walletBalance = user?.wallet?.balance || user?.Wallet || 0;
+                      const totalCost = stats?.totalCost || 0;
+                      return walletBalance && totalCost ? Math.min(100, Math.round((totalCost / walletBalance) * 100)) : 0;
+                    })()}
                     strokeColor={{ '0%': THEME_CONSTANTS.colors.primary, '100%': THEME_CONSTANTS.colors.primaryDark }}
                   />
                 </div>
@@ -547,7 +553,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency((user?.Wallet || 0) - (stats?.totalCost || 0))}
+                      {formatCurrency(Math.max(0, (user?.wallet?.balance || user?.Wallet || 0) - (stats?.totalCost || 0)))}
                     </span>
                   </div>
                   <p
@@ -605,7 +611,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : stats.totalCampaigns}
+                      {isLoading ? '-' : (stats?.totalCampaigns || 0)}
                     </h3>
                   </div>
                   <div
@@ -679,7 +685,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : stats.sendtoteltemplet}
+                      {isLoading ? '-' : (stats?.sendtoteltemplet || 0)}
                     </h3>
                   </div>
                   <div
@@ -750,7 +756,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : (stats.totalMessages / 1000).toFixed(1)}K
+                      {isLoading ? '-' : ((stats?.totalMessages || 0) / 1000).toFixed(1)}K
                     </h3>
                   </div>
                   <div
@@ -821,9 +827,9 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                        return totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
+                      {isLoading ? '-' : (() => {
+                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                        return totalSent > 0 ? (((stats?.totalSuccessCount || 0) / totalSent) * 100).toFixed(1) : 0;
                       })()}%
                     </h3>
                   </div>
@@ -852,9 +858,9 @@ export default function Dashboard() {
                     fontWeight: THEME_CONSTANTS.typography.label.weight,
                   }}
                 >
-                  {loading ? 'Loading...' : (() => {
-                    const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                    const successRate = totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100) : 0;
+                  {isLoading ? 'Loading...' : (() => {
+                    const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                    const successRate = totalSent > 0 ? (((stats?.totalSuccessCount || 0) / totalSent) * 100) : 0;
                     return successRate >= 90 ? 'Excellent performance.' : totalSent > 0 ? 'Good performance.' : 'No data yet.';
                   })()}
                 </p>
@@ -919,13 +925,13 @@ export default function Dashboard() {
                           fontSize: THEME_CONSTANTS.typography.body.size,
                         }}
                       >
-                        {loading ? '-' : stats.totalSuccessCount}
+                        {isLoading ? '-' : (stats?.totalSuccessCount || 0)}
                       </span>
                     </div>
                     <Progress
-                      percent={loading ? 0 : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                        return totalSent > 0 ? Math.round((stats.totalSuccessCount / totalSent) * 100) : 0;
+                      percent={isLoading ? 0 : (() => {
+                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                        return totalSent > 0 ? Math.round(((stats?.totalSuccessCount || 0) / totalSent) * 100) : 0;
                       })()}
                       strokeColor={THEME_CONSTANTS.colors.success}
                     />
@@ -957,13 +963,13 @@ export default function Dashboard() {
                           fontSize: THEME_CONSTANTS.typography.body.size,
                         }}
                       >
-                        {loading ? '-' : stats.totalFailedCount}
+                        {isLoading ? '-' : (stats?.totalFailedCount || 0)}
                       </span>
                     </div>
                     <Progress
-                      percent={loading ? 0 : (() => {
-                        const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                        return totalSent > 0 ? Math.round((stats.totalFailedCount / totalSent) * 100) : 0;
+                      percent={isLoading ? 0 : (() => {
+                        const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                        return totalSent > 0 ? Math.round(((stats?.totalFailedCount || 0) / totalSent) * 100) : 0;
                       })()}
                       strokeColor={THEME_CONSTANTS.colors.danger}
                     />
@@ -994,9 +1000,9 @@ export default function Dashboard() {
                           color: THEME_CONSTANTS.colors.success,
                         }}
                       >
-                        {loading ? '-' : (() => {
-                          const totalSent = stats.totalSuccessCount + stats.totalFailedCount;
-                          return totalSent > 0 ? ((stats.totalSuccessCount / totalSent) * 100).toFixed(1) : 0;
+                        {isLoading ? '-' : (() => {
+                          const totalSent = (stats?.totalSuccessCount || 0) + (stats?.totalFailedCount || 0);
+                          return totalSent > 0 ? (((stats?.totalSuccessCount || 0) / totalSent) * 100).toFixed(1) : 0;
                         })()}%
                       </span>
                     </p>
@@ -1061,7 +1067,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.text,
                       }}
                     >
-                      {loading ? '-' : stats.totalMessages}
+                      {isLoading ? '-' : (stats?.totalMessages || 0)}
                     </span>
                   </div>
 
@@ -1093,7 +1099,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {loading ? '-' : stats.totalSuccessCount}
+                      {isLoading ? '-' : (stats?.totalSuccessCount || 0)}
                     </span>
                   </div>
 
@@ -1125,7 +1131,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.danger,
                       }}
                     >
-                      {loading ? '-' : stats.totalFailedCount}
+                      {isLoading ? '-' : (stats?.totalFailedCount || 0)}
                     </span>
                   </div>
                 </Space>
@@ -1178,7 +1184,7 @@ export default function Dashboard() {
               </Button>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              {loading ? (
+              {loading.orders ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
                   <div
                     style={{
@@ -1194,7 +1200,7 @@ export default function Dashboard() {
                     Loading campaign data...
                   </p>
                 </div>
-              ) : messageReports.length === 0 ? (
+              ) : recentOrders.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px' }}>
                   <MessageOutlined style={{ fontSize: '48px', color: `${THEME_CONSTANTS.colors.textSecondary}40`, marginBottom: '16px' }} />
                   <p style={{ fontSize: '16px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, margin: 0 }}>
@@ -1207,7 +1213,7 @@ export default function Dashboard() {
               ) : (
                 <Table
                   columns={messageColumns}
-                  dataSource={messageReports.slice(0, 5)}
+                  dataSource={recentOrders.slice(0, 5)}
                   rowKey="_id"
                   pagination={{ pageSize: 5 }}
                   style={{ borderCollapse: 'collapse' }}
