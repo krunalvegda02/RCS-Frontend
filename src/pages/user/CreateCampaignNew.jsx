@@ -97,13 +97,16 @@ export default function CreateCampaignNew() {
         if (result?.data) {
           setRecipients(prev => prev.map(contact => {
             const phoneWithoutPrefix = contact.number.replace('+91', '');
-            const capabilityResult = result.data.find(r => r.phoneNumber === phoneWithoutPrefix);
+            const capabilityResult = result.data.find(r => {
+              const resultPhone = r.phoneNumber.replace(/^\+?91/, '');
+              return resultPhone === phoneWithoutPrefix;
+            });
             if (capabilityResult && imported.includes(phoneWithoutPrefix)) {
               return { ...contact, capable: capabilityResult.isCapable, checking: false };
             }
             return contact;
           }));
-          const rcsCount = result.data.filter(r => r.isCapable).length;
+          const rcsCount = result.summary?.rcsCapable || result.data.filter(r => r.isCapable).length;
           message.success(`${imported.length} contacts uploaded! ${rcsCount} are RCS capable.`);
         }
         setUploading(false);
@@ -166,7 +169,10 @@ export default function CreateCampaignNew() {
       if (result?.data) {
         setRecipients(prev => prev.map(contact => {
           const phoneWithoutPrefix = contact.number.replace('+91', '');
-          const capabilityResult = result.data.find(r => r.phoneNumber === phoneWithoutPrefix);
+          const capabilityResult = result.data.find(r => {
+            const resultPhone = r.phoneNumber.replace(/^\+?91/, '');
+            return resultPhone === phoneWithoutPrefix;
+          });
           if (capabilityResult && phoneNumbersOnly.includes(phoneWithoutPrefix)) {
             return { ...contact, capable: capabilityResult.isCapable, checking: false };
           }

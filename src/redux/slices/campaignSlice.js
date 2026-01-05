@@ -238,7 +238,7 @@ const campaignSlice = createSlice({
       })
       .addCase(checkCapability.fulfilled, (state, action) => {
         state.loading.campaigns = false;
-        state.capabilityResults = action.payload.data;
+        state.capabilityResults = action.payload; // Store full response with success, data, summary
       })
       .addCase(checkCapability.rejected, (state, action) => {
         state.loading.campaigns = false;

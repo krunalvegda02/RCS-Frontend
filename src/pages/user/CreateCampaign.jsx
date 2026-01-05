@@ -247,6 +247,14 @@ function CreateCampaign() {
   const [carouselCards, setCarouselCards] = useState([]);
 
   const [recipients, setRecipients] = useState([]);
+  
+  // Debug: Log recipients state changes
+  useEffect(() => {
+    const checkingCount = recipients.filter(r => r.checking).length;
+    if (checkingCount > 0) {
+      console.log('[DEBUG] Recipients with checking=true:', checkingCount);
+    }
+  }, [recipients]);
   const [sendSchedule, setSendSchedule] = useState({ type: 'immediate', dateTime: null });
   const [campaignName, setCampaignName] = useState('');
 
@@ -468,73 +476,86 @@ function CreateCampaign() {
             return;
           }
 
+          console.log('[DEBUG] File parsed, imported:', imported.length, 'numbers');
+          console.log('[DEBUG] First 5 numbers:', imported.slice(0, 5));
+
           // Show loading message
-          const hideLoading = message.loading(`Processing ${imported.length} contacts...`, 0);
+          let loadingMessage = message.loading(`Processing ${imported.length} contacts...`, 0);
+          
+          console.log('[DEBUG] Loading message shown');
           
           try {
-            // Add contacts with checking status first
+            console.log('[DEBUG] Starting capability check for', imported.length, 'numbers');
+            
+            // Check RCS capability using Redux action
+            const dispatchResult = dispatch(checkCapability({
+              phoneNumbers: imported,
+              userId: user._id
+            }));
+            
+            console.log('[DEBUG] Dispatch result:', dispatchResult);
+            
+            const result = await dispatchResult;
+            
+            console.log('[DEBUG] After await, before unwrap:', result);
+            
+            const unwrapped = result.payload;
+            
+            console.log('[DEBUG] Unwrapped result:', unwrapped);
+            console.log('[DEBUG] Unwrapped.success:', unwrapped?.success);
+            console.log('[DEBUG] Unwrapped.data length:', unwrapped?.data?.length);
+            
+            // Hide loading
+            if (typeof loadingMessage === 'function') {
+              loadingMessage();
+            }
+            
+            // Build capability map from response
+            const capabilityMap = new Map();
+            if (unwrapped?.data && Array.isArray(unwrapped.data)) {
+              unwrapped.data.forEach(r => {
+                const phone = String(r.phoneNumber).replace(/^\+?91/, '');
+                capabilityMap.set(phone, r.isCapable);
+              });
+            }
+            
+            console.log('[DEBUG] Capability map built, size:', capabilityMap.size);
+            
+            // Add contacts with capability results
             const newContacts = imported.map(phone => ({
               id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               number: `+91${phone}`,
-              capable: null,
-              checking: true
+              capable: capabilityMap.has(phone) ? capabilityMap.get(phone) : false,
+              checking: false
+            }));
+            
+            console.log('[DEBUG] New contacts created:', newContacts.length, 'checking count:', newContacts.filter(c => c.checking).length);
+            
+            setRecipients(prev => [...prev, ...newContacts]);
+            setUploadedFile(file.name);
+            
+            const rcsCapableCount = unwrapped?.summary?.rcsCapable || newContacts.filter(c => c.capable).length;
+            message.success(`${imported.length} contacts uploaded! ${rcsCapableCount} are RCS capable.`);
+            
+          } catch (capabilityError) {
+            console.log('[DEBUG] Capability check error:', capabilityError);
+            if (typeof loadingMessage === 'function') {
+              loadingMessage();
+            }
+            console.error('Capability check failed:', capabilityError);
+            
+            // Add contacts without capability info
+            const newContacts = imported.map(phone => ({
+              id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              number: `+91${phone}`,
+              capable: false,
+              checking: false
             }));
             
             setRecipients(prev => [...prev, ...newContacts]);
             setUploadedFile(file.name);
             
-            // Check RCS capability using Redux action
-            const result = await dispatch(checkCapability({
-              phoneNumbers: imported,
-              userId: user._id
-            })).unwrap();
-            
-            hideLoading();
-            
-            if (result && result.data) {
-              // Update contacts with capability results
-              setRecipients(prev => prev.map(contact => {
-                const phoneWithoutPrefix = contact.number.replace('+91', '');
-                const capabilityResult = result.data.find(r => r.phoneNumber === phoneWithoutPrefix);
-                
-                if (capabilityResult && imported.includes(phoneWithoutPrefix)) {
-                  return {
-                    ...contact,
-                    capable: capabilityResult.isCapable,
-                    checking: false
-                  };
-                }
-                return contact;
-              }));
-              
-              const rcsCapableCount = result.data.filter(r => r.isCapable).length;
-              message.success(`${imported.length} contacts uploaded! ${rcsCapableCount} are RCS capable.`);
-            } else {
-              // Fallback: mark all as unknown capability
-              setRecipients(prev => prev.map(contact => {
-                const phoneWithoutPrefix = contact.number.replace('+91', '');
-                if (imported.includes(phoneWithoutPrefix)) {
-                  return { ...contact, capable: false, checking: false };
-                }
-                return contact;
-              }));
-              message.warning(`${imported.length} contacts uploaded, but capability check failed.`);
-            }
-            
-          } catch (capabilityError) {
-            hideLoading();
-            console.error('Capability check failed:', capabilityError);
-            
-            // Mark all contacts as unknown capability
-            setRecipients(prev => prev.map(contact => {
-              const phoneWithoutPrefix = contact.number.replace('+91', '');
-              if (imported.includes(phoneWithoutPrefix)) {
-                return { ...contact, capable: false, checking: false };
-              }
-              return contact;
-            }));
-            
-            message.warning(`${imported.length} contacts uploaded, but RCS capability check failed. They will be treated as SMS contacts.`);
+            message.warning(`${imported.length} contacts uploaded, but RCS capability check failed.`);
           }
 
         } catch (error) {
@@ -633,42 +654,15 @@ function CreateCampaign() {
         const newContacts = validNumbers.map(phone => ({
           id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           number: phone,
-          capable: null,
-          checking: true
+          capable: false,
+          checking: false
         }));
         
         setRecipients(prev => [...prev, ...newContacts]);
         manualContactForm.resetFields();
         setManualContactModal(false);
         
-        message.success(`${newContacts.length} contacts added. Checking RCS capability...`);
-        
-        // Check capability in background
-        setTimeout(async () => {
-          try {
-            const response = await checkRcsCapability(validNumbers);
-            if (response?.data) {
-              setRecipients(prev => prev.map(contact => {
-                const result = response.data.find(r => r.phoneNumber === contact.number);
-                if (result && validNumbers.includes(contact.number)) {
-                  return {
-                    ...contact,
-                    capable: result.isCapable,
-                    checking: false
-                  };
-                }
-                return contact;
-              }));
-            }
-          } catch (error) {
-            setRecipients(prev => prev.map(contact => {
-              if (validNumbers.includes(contact.number)) {
-                return { ...contact, capable: false, checking: false };
-              }
-              return contact;
-            }));
-          }
-        }, 1000);
+        message.warning(`${newContacts.length} contacts added, but capability check failed.`);
       }
 
     } catch (error) {
@@ -681,6 +675,13 @@ function CreateCampaign() {
   const deleteContact = (id) => {
     setRecipients(recipients.filter((c) => c.id !== id));
     message.success('Contact removed');
+  };
+  
+  // Clear all contacts
+  const clearAllContacts = () => {
+    setRecipients([]);
+    setUploadedFile(null);
+    message.success('All contacts cleared');
   };
 
 
