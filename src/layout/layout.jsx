@@ -26,6 +26,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { THEME_CONSTANTS } from '../theme';
 import AccountStatusChecker from '../components/AccountStatusChecker';
+import RCSTimeWarning from '../components/RCSTimeWarning';
 
 const { Sider, Header, Content, Footer } = Layout;
 
@@ -309,6 +310,7 @@ export default function UserLayout() {
   return (
     <>
       <AccountStatusChecker />
+      <RCSTimeWarning />
       <Layout className="min-h-screen bg-gray-50">
         {/* Desktop sidebar */}
         {isDesktop && (

@@ -1,4 +1,4 @@
-  import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Card, Button, Row, Col, Input, Upload, Empty, message, Breadcrumb, Select, Modal, Form, Table, Tag, Spin, Progress } from 'antd';
 import { SendOutlined, UploadOutlined, DownloadOutlined, HomeOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
@@ -8,6 +8,7 @@ import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
 import { checkCapability, createCampaign, uploadContactBatch, processContactBatch, getContactBatches, getAllContactsFromBatches, sendBulkMessage, clearContactBatches, deleteContactFromBatch } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
+import RCSCampaignTimeWarning from '../../components/RCSCampaignTimeWarning';
 
 // Add keyframes for spinner animation
 const spinnerStyle = document.createElement('style');
@@ -142,7 +143,7 @@ export default function CreateCampaignNew() {
     if (campaignId && !processingBatches) {
       const interval = setInterval(() => {
         dispatch(getContactBatches({ campaignId, limit: 1000 }));
-      }, 2000);
+      }, 500);
       dispatch(getContactBatches({ campaignId, limit: 1000 }));
       return () => clearInterval(interval);
     }
@@ -227,7 +228,7 @@ export default function CreateCampaignNew() {
         const progressInterval = setInterval(async () => {
           try {
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-            const response = await fetch(`${apiUrl}/v1/campaigns/check-capability/progress`, {
+            const response = await fetch(`${apiUrl}/v1/campaigns/check-capability/progress?campaignId=${currentCampaignId}`, {
               headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
             const data = await response.json();
@@ -314,18 +315,34 @@ export default function CreateCampaignNew() {
             countOnly: true
           })).unwrap();
 
+          console.log('[Upload] Capability check completed:', result);
+
           // Stop progress polling and show completion
           setTimeout(() => {
             clearInterval(progressInterval);
             message.destroy('capability');
-            message.success(`${imported.length} contacts uploaded! ${result?.summary?.rcsCapable || 0} are RCS capable.`, 3);
+            
+            const rcsCount = result?.summary?.rcsCapable || result?.data?.summary?.rcsCapable || 0;
+            const totalCount = result?.summary?.total || result?.data?.summary?.total || imported.length;
+            
+            message.success({
+              content: (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '16px', color: THEME_CONSTANTS.colors.success }}>✓</span>
+                  <span>{totalCount.toLocaleString()} contacts uploaded! {rcsCount.toLocaleString()} are RCS capable.</span>
+                </div>
+              ),
+              duration: 3
+            });
             setUploading(false);
           }, 2000);
         } catch (error) {
           clearInterval(progressInterval);
           console.error('[Upload] Capability check error:', error);
           message.destroy('capability');
-          message.error('Capability check failed: ' + (error?.message || 'Unknown error'));
+          
+          const errorMsg = error?.message || error?.data?.message || error?.error || 'Failed to verify contacts';
+          message.error(`Capability check failed: ${errorMsg}`);
           setUploading(false);
         }
       };
@@ -498,17 +515,34 @@ export default function CreateCampaignNew() {
           countOnly: true
         })).unwrap();
 
+        console.log('[Manual] Capability check completed:', result);
+
         // Stop progress polling and show completion
         setTimeout(() => {
           clearInterval(progressInterval);
           message.destroy('capability');
-          message.success(`${validNumbers.length} contacts added! ${result?.summary?.rcsCapable || 0} are RCS capable.`, 3);
+          
+          const rcsCount = result?.summary?.rcsCapable || result?.data?.summary?.rcsCapable || 0;
+          const totalCount = result?.summary?.total || result?.data?.summary?.total || validNumbers.length;
+          
+          message.success({
+            content: (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '16px', color: THEME_CONSTANTS.colors.success }}>✓</span>
+                <span>{totalCount.toLocaleString()} contacts added! {rcsCount.toLocaleString()} are RCS capable.</span>
+              </div>
+            ),
+            duration: 3
+          });
           setProcessingManual(false);
         }, 2000);
       } catch (error) {
         clearInterval(progressInterval);
+        console.error('[Manual] Capability check error:', error);
         message.destroy('capability');
-        message.error('Capability check failed: ' + (error?.message || 'Unknown error'));
+        
+        const errorMsg = error?.message || error?.data?.message || error?.error || 'Failed to verify contacts';
+        message.error(`Capability check failed: ${errorMsg}`);
         setProcessingManual(false);
       }
     } catch (error) {
@@ -685,6 +719,8 @@ export default function CreateCampaignNew() {
 
           <Row gutter={[24, 24]}>
             <Col xs={24} lg={14}>
+              {/* <RCSCampaignTimeWarning /> */}
+              
               <Card style={{ marginBottom: '24px', borderRadius: THEME_CONSTANTS.radius.lg, border: `1px solid ${THEME_CONSTANTS.colors.borderLight}` }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>1. Select Template</h3>
                 <Select

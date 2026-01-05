@@ -5,7 +5,7 @@ import { buildUrlWithParams } from './helperFunction';
 export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMultipart = false) =>
   createAsyncThunk(typePrefix, async (payload, { rejectWithValue, getState }) => {
     try {
-      console.log(`🔹 [AsyncThunk] ${typePrefix} - Starting...`);
+      // console.log(`🔹 [AsyncThunk] ${typePrefix} - Starting...`);
       const token = getState().auth.token;
 
       const url = typeof urlResolver === "function" ? urlResolver(payload) : urlResolver;
@@ -29,11 +29,11 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
       
       // Log differently for FormData vs regular objects
       if (isFormData) {
-        console.log(`📦 [AsyncThunk] ${typePrefix} - Request Body: FormData with`, requestBody.entries ? Array.from(requestBody.entries()).length : 'unknown', 'entries');
+        // console.log(`📦 [AsyncThunk] ${typePrefix} - Request Body: FormData with`, requestBody.entries ? Array.from(requestBody.entries()).length : 'unknown', 'entries');
       } else {
         console.log(`📦 [AsyncThunk] ${typePrefix} - Request Body:`, JSON.stringify(requestBody, null, 2));
       }
-      console.log(`📎 [AsyncThunk] ${typePrefix} - isMultipart:`, shouldUseMultipart);
+      // console.log(`📎 [AsyncThunk] ${typePrefix} - isMultipart:`, shouldUseMultipart);
       
       const config = {
         headers: {
@@ -43,7 +43,7 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
       
       const response = await apiMethod(url, requestBody, config);
       
-      console.log(`✅ [AsyncThunk] ${typePrefix} - Response:`, response.data);
+      // console.log(`✅ [AsyncThunk] ${typePrefix} - Response:`, response.data);
       
       if (response.data.success) {
         return response.data;

@@ -354,12 +354,9 @@ const campaignSlice = createSlice({
         
         if (newBatches.length > 0) {
           const total = newBatches.reduce((sum, batch) => sum + batch.totalContacts, 0);
-          const rcsCapable = newBatches.reduce((sum, batch) => sum + batch.rcsCapableCount, 0);
-          // Only count as notCapable if batch is completed
-          const completedBatches = newBatches.filter(b => b.status === 'completed');
-          const completedTotal = completedBatches.reduce((sum, batch) => sum + batch.totalContacts, 0);
-          const completedRcsCapable = completedBatches.reduce((sum, batch) => sum + batch.rcsCapableCount, 0);
-          const notCapable = completedTotal - completedRcsCapable;
+          const rcsCapable = newBatches.reduce((sum, batch) => sum + (batch.rcsCapableCount || 0), 0);
+          const checkedCount = newBatches.reduce((sum, batch) => sum + (batch.processedContacts || 0), 0);
+          const notCapable = checkedCount - rcsCapable;
           
           state.batchStats = { total, rcsCapable, notCapable };
         }

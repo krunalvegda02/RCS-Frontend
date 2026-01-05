@@ -28,6 +28,7 @@ import {
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { THEME_CONSTANTS } from '../theme';
+import RCSTimeWarning from '../components/RCSTimeWarning';
 
 const { Sider, Header, Content, Footer } = Layout;
 
@@ -300,7 +301,9 @@ export default function AdminLayout() {
   );
 
   return (
-    <Layout className="min-h-screen bg-gray-50">
+    <>
+      <RCSTimeWarning />
+      <Layout className="min-h-screen bg-gray-50">
       {/* Desktop sidebar */}
       {isDesktop && (
         <Sider
@@ -566,6 +569,6 @@ export default function AdminLayout() {
           </p>
         </Footer>
       </Layout>
-    </Layout>
+    </>
   );
 }
