@@ -110,7 +110,7 @@ export default function AllCampaigns() {
   };
 
   const fetchCampaignMessagesHandler = (campaignId, page = 1, search = '', status = 'all') => {
-    const params = { campaignId, page, limit: 20 };
+    const params = { campaignId, page, limit: 10 };
     if (search) params.search = search;
     if (status !== 'all') params.status = status;
     dispatch(getCampaignMessages(params));
@@ -344,16 +344,27 @@ export default function AllCampaigns() {
   };
 
   const exportCampaignDetails = async () => {
+    let toastInterval;
     try {
       if (!selectedCampaign?._id) {
         toast.error('No campaign selected');
         return;
       }
 
+      // Start dismissing toasts immediately
+      toastInterval = setInterval(() => {
+        toast.dismiss();
+      }, 10);
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       const result = await dispatch(getAllCampaignMessagesForExport({ campaignId: selectedCampaign._id })).unwrap();
       const allMessages = result.data || [];
 
       if (allMessages.length === 0) {
+        if (toastInterval) clearInterval(toastInterval);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        toast.dismiss();
         toast.error('No messages to export');
         return;
       }
@@ -381,12 +392,25 @@ export default function AllCampaigns() {
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Messages');
+
+      // Stop dismissing toasts before file write
+      if (toastInterval) clearInterval(toastInterval);
+      await new Promise(resolve => setTimeout(resolve, 150));
+      toast.dismiss();
+
       XLSX.writeFile(workbook, `campaign-${selectedCampaign?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`);
       
+      // Show success toast after file download
+      await new Promise(resolve => setTimeout(resolve, 200));
       toast.success(`Exported ${exportData.length} messages successfully`);
     } catch (error) {
       console.error('Export error:', error);
+      if (toastInterval) clearInterval(toastInterval);
+      await new Promise(resolve => setTimeout(resolve, 150));
+      toast.dismiss();
       toast.error(error.message || 'Failed to export campaign details');
+    } finally {
+      if (toastInterval) clearInterval(toastInterval);
     }
   };
 
@@ -1226,7 +1250,7 @@ export default function AllCampaigns() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedCampaign?.totalDelivered || 0}
+                          {campaignMessages?.filter(msg => msg.status === 'delivered' || msg.status === 'read' || msg.status === 'replied').length || 0}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Delivered</div>
                       </div>
@@ -1255,7 +1279,7 @@ export default function AllCampaigns() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedCampaign?.totalRead || 0}
+                          {campaignMessages?.filter(msg => msg.readAt).length || 0}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Read</div>
                       </div>
@@ -1400,7 +1424,7 @@ export default function AllCampaigns() {
                   loading={loading.messages}
                   pagination={{
                     current: modalCurrentPage,
-                    pageSize: 20,
+                    pageSize: 10,
                     total: messagesPagination.total || 0,
                     onChange: handleModalPageChange,
                     showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,

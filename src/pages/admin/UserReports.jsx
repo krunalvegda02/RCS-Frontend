@@ -328,7 +328,7 @@ const UserReports = () => {
               >
                 Back
               </Button>
-              <Button
+              {/* <Button
                 type="primary"
                 icon={<DownloadOutlined />}
                 onClick={exportToExcel}
@@ -341,7 +341,7 @@ const UserReports = () => {
                 }}
               >
                 Export Report
-              </Button>
+              </Button> */}
             </Space>
           </div>
         </div>

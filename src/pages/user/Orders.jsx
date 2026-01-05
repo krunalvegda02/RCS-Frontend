@@ -421,8 +421,8 @@ export default function Orders() {
   
   // Paginate filtered messages
   const paginatedMessages = filteredMessages.slice(
-    (modalCurrentPage - 1) * 20,
-    modalCurrentPage * 20
+    (modalCurrentPage - 1) * 10,
+    modalCurrentPage * 10
   );
 
   const deleteOrderHandler = async (orderId) => {
@@ -1717,7 +1717,7 @@ export default function Orders() {
                   loading={loading.messages}
                   pagination={{
                     current: modalCurrentPage,
-                    pageSize: 20,
+                    pageSize: 10,
                     total: filteredMessages.length,
                     onChange: handleModalPageChange,
                     showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
