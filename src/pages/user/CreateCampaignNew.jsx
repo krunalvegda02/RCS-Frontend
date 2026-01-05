@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+  import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Card, Button, Row, Col, Input, Upload, Empty, message, Breadcrumb, Select, Modal, Form } from 'antd';
+import { Card, Button, Row, Col, Input, Upload, Empty, message, Breadcrumb, Select, Modal, Form, Table, Tag, Spin, Progress } from 'antd';
 import { SendOutlined, UploadOutlined, DownloadOutlined, HomeOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { checkCapability } from '../../redux/slices/campaignSlice';
-import { _post } from '../../helper/apiClient.jsx';
+import { checkCapability, createCampaign, uploadContactBatch, processContactBatch, getContactBatches, getAllContactsFromBatches, sendBulkMessage, clearContactBatches, deleteContactFromBatch } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 
 // Add keyframes for spinner animation
@@ -20,37 +19,149 @@ spinnerStyle.textContent = `
 `;
 document.head.appendChild(spinnerStyle);
 
+const PaginatedContactList = ({ campaignId, totalContacts }) => {
+  const [contacts, setContacts] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const pageSize = 10;
+
+  useEffect(() => {
+    if (campaignId) {
+      loadContacts();
+    }
+  }, [campaignId, currentPage]);
+
+  const dispatch = useDispatch();
+
+  const loadContacts = async () => {
+    setLoading(true);
+    try {
+      const response = await dispatch(getAllContactsFromBatches({ campaignId, page: currentPage, limit: pageSize })).unwrap();
+      setContacts(response.data);
+    } catch (error) {
+      message.error('Failed to load contacts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (phoneNumber) => {
+    try {
+      await dispatch(deleteContactFromBatch({ campaignId, phoneNumber })).unwrap();
+      message.success('Contact deleted');
+      loadContacts();
+    } catch (error) {
+      message.error('Failed to delete contact');
+    }
+  };
+
+  return (
+    <Table
+      dataSource={contacts}
+      loading={loading}
+      pagination={{
+        current: currentPage,
+        pageSize: pageSize,
+        total: totalContacts,
+        onChange: (page) => setCurrentPage(page),
+        showSizeChanger: false,
+        showTotal: (total) => `Total ${total} contacts`
+      }}
+      rowKey={(record) => record.phoneNumber}
+      columns={[
+        {
+          title: 'SN',
+          key: 'sn',
+          width: 60,
+          render: (_, __, index) => (currentPage - 1) * pageSize + index + 1
+        },
+        {
+          title: 'Phone',
+          dataIndex: 'phoneNumber',
+          key: 'phoneNumber',
+          render: (phone) => <span style={{ fontFamily: 'monospace' }}>+91{phone}</span>
+        },
+        {
+          title: 'Status',
+          dataIndex: 'isRcsCapable',
+          key: 'status',
+          render: (capable) => {
+            if (capable === true) return <Tag color="green">✓ RCS Ready</Tag>;
+            if (capable === false) return <Tag color="red">✗ Not Capable</Tag>;
+            return <Tag color="orange">Checking...</Tag>;
+          }
+        },
+        {
+          title: 'Action',
+          key: 'action',
+          width: 100,
+          render: (_, record) => (
+            <Button
+              type="text"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record.phoneNumber)}
+            >
+              Clear
+            </Button>
+          )
+        }
+      ]}
+    />
+  );
+};
+
 export default function CreateCampaignNew() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   const { userTemplates, loading: templatesLoading } = useSelector(state => state.templates);
+  const { batchStats: reduxBatchStats } = useSelector(state => state.campaigns);
 
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [campaignName, setCampaignName] = useState('');
-  const [recipients, setRecipients] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [manualContactModal, setManualContactModal] = useState(false);
   const [manualContactForm] = Form.useForm();
-  const [contactsPage, setContactsPage] = useState(1);
-  const [contactsPerPage, setContactsPerPage] = useState(10);
-
-  const validRcsContacts = recipients.filter(c => c.capable === true);
-  const checkingContacts = recipients.filter(c => c.checking === true);
-  
-  // Paginate contacts for display
-  const paginatedContacts = validRcsContacts.slice(
-    (contactsPage - 1) * contactsPerPage,
-    contactsPage * contactsPerPage
-  );
+  const [campaignId, setCampaignId] = useState(null);
+  const [processingBatches, setProcessingBatches] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
+  const [batchStats, setBatchStats] = useState({ total: 0, rcsCapable: 0, notCapable: 0 });
+  const [batchProgress, setBatchProgress] = useState(null);
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+  const [processingManual, setProcessingManual] = useState(false);
 
   useEffect(() => {
     if (user?._id) {
       dispatch(fetchUserTemplates({ userId: user._id, page: 1, limit: 1000 }));
     }
-  }, [user, dispatch]);
+  }, [user?._id, dispatch]);
+
+  useEffect(() => {
+    if (campaignId && !processingBatches) {
+      const interval = setInterval(() => {
+        dispatch(getContactBatches({ campaignId, limit: 1000 }));
+      }, 2000);
+      dispatch(getContactBatches({ campaignId, limit: 1000 }));
+      return () => clearInterval(interval);
+    }
+  }, [campaignId, processingBatches, dispatch]);
+
+  useEffect(() => {
+    if (reduxBatchStats) {
+      setBatchStats(reduxBatchStats);
+    }
+  }, [reduxBatchStats]);
 
   const handleExcelUpload = async (file) => {
+    console.log('[Upload] handleExcelUpload called with file:', file?.name);
+    
+    if (!selectedTemplate) {
+      message.error('Please select a template first');
+      return false;
+    }
+
     try {
       setUploading(true);
       const reader = new FileReader();
@@ -83,43 +194,157 @@ export default function CreateCampaignNew() {
           return;
         }
 
-        const newContacts = imported.map(phone => ({
-          id: `${Date.now()}_${Math.random()}`,
-          number: `+91${phone}`,
-          capable: null,
-          checking: true
+        // Create campaign if not exists
+        let currentCampaignId = campaignId;
+        if (!currentCampaignId) {
+          const campaignRes = await dispatch(createCampaign({
+            name: campaignName || `Campaign ${Date.now()}`,
+            templateId: selectedTemplate?._id,
+            userId: user._id,
+            status: 'draft',
+            totalRecipients: imported.length
+          })).unwrap();
+          currentCampaignId = campaignRes.data._id;
+          setCampaignId(currentCampaignId);
+        }
+
+        // Upload contacts to batch
+        const batchContacts = imported.map(phone => ({
+          phoneNumber: phone,
+          variables: {}
         }));
 
-        setRecipients(prev => [...prev, ...newContacts]);
+        await dispatch(uploadContactBatch({
+          campaignId: currentCampaignId,
+          batchNumber: Date.now(),
+          contacts: batchContacts
+        })).unwrap();
 
-        const result = await dispatch(checkCapability({ phoneNumbers: imported, userId: user._id })).unwrap();
+        // Initialize stats
+        setBatchStats({ total: imported.length, rcsCapable: 0, notCapable: 0 });
 
-        if (result?.data) {
-          setRecipients(prev => prev.map(contact => {
-            const phoneWithoutPrefix = contact.number.replace('+91', '');
-            const capabilityResult = result.data.find(r => {
-              const resultPhone = r.phoneNumber.replace(/^\+?91/, '');
-              return resultPhone === phoneWithoutPrefix;
+        // Start progress polling for real-time updates
+        const progressInterval = setInterval(async () => {
+          try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+            const response = await fetch(`${apiUrl}/v1/campaigns/check-capability/progress`, {
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
-            if (capabilityResult && imported.includes(phoneWithoutPrefix)) {
-              return { ...contact, capable: capabilityResult.isCapable, checking: false };
+            const data = await response.json();
+            
+            if (data.progress && data.progress.chunk > 0) {
+              const { chunk, totalChunks, rcsCapable } = data.progress;
+              const percent = Math.round((chunk / totalChunks) * 100);
+              
+              message.loading({ 
+                content: (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: '12px',
+                    padding: '4px 0'
+                  }}>
+                    <div style={{ 
+                      width: '40px', 
+                      height: '40px', 
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <div style={{ 
+                        width: '20px', 
+                        height: '20px', 
+                        border: `3px solid white`, 
+                        borderTopColor: 'transparent', 
+                        borderRadius: '50%', 
+                        animation: 'spin 1s linear infinite' 
+                      }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        fontSize: '15px', 
+                        fontWeight: 600, 
+                        color: THEME_CONSTANTS.colors.text,
+                        marginBottom: '6px',
+                        lineHeight: 1.3
+                      }}>
+                        Verifying RCS Capability
+                      </div>
+                      <div style={{ 
+                        fontSize: '13px', 
+                        color: THEME_CONSTANTS.colors.textSecondary,
+                        marginBottom: '4px',
+                        lineHeight: 1.4
+                      }}>
+                        Processing batch {chunk} of {totalChunks} • {percent}% complete
+                      </div>
+                      <div style={{ 
+                        fontSize: '13px', 
+                        color: THEME_CONSTANTS.colors.success,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <span style={{ fontSize: '16px' }}>✓</span>
+                        {(rcsCapable || 0).toLocaleString()} contacts ready
+                      </div>
+                    </div>
+                  </div>
+                ), 
+                key: 'capability', 
+                duration: 0 
+              });
             }
-            return contact;
-          }));
-          const rcsCount = result.summary?.rcsCapable || result.data.filter(r => r.isCapable).length;
-          message.success(`${imported.length} contacts uploaded! ${rcsCount} are RCS capable.`);
+          } catch (e) {
+            console.error('[Progress] Poll error:', e);
+          }
+        }, 2000);
+
+        // Use Redux slice for API call
+        try {
+          console.log('[Upload] Starting capability check for', imported.length, 'contacts');
+          
+          const result = await dispatch(checkCapability({
+            phoneNumbers: imported,
+            campaignId: currentCampaignId,
+            countOnly: true
+          })).unwrap();
+
+          // Stop progress polling and show completion
+          setTimeout(() => {
+            clearInterval(progressInterval);
+            message.destroy('capability');
+            message.success(`${imported.length} contacts uploaded! ${result?.summary?.rcsCapable || 0} are RCS capable.`, 3);
+            setUploading(false);
+          }, 2000);
+        } catch (error) {
+          clearInterval(progressInterval);
+          console.error('[Upload] Capability check error:', error);
+          message.destroy('capability');
+          message.error('Capability check failed: ' + (error?.message || 'Unknown error'));
+          setUploading(false);
         }
-        setUploading(false);
       };
       reader.readAsArrayBuffer(file);
     } catch (error) {
-      message.error('Upload failed: ' + error.message);
+      const errorMsg = error?.message || error?.data?.message || String(error);
+      message.error('Upload failed: ' + errorMsg);
       setUploading(false);
+      setBatchProgress(null);
     }
     return false;
   };
 
   const handleAddContact = async (values) => {
+    if (!selectedTemplate) {
+      message.error('Please select a template first');
+      return;
+    }
+
     try {
       let phoneNumbers = values.phone.trim();
       if (!phoneNumbers) {
@@ -134,7 +359,6 @@ export default function CreateCampaignNew() {
       }
 
       const validNumbers = [];
-      const existingNumbers = new Set(recipients.map(r => r.number));
 
       for (let phone of numbers) {
         if (!phone.startsWith('+91')) {
@@ -142,8 +366,8 @@ export default function CreateCampaignNew() {
           else if (phone.length === 10) phone = '+91' + phone;
           else continue;
         }
-        if (/^\+91\d{10}$/.test(phone) && !existingNumbers.has(phone)) {
-          validNumbers.push(phone);
+        if (/^\+91\d{10}$/.test(phone)) {
+          validNumbers.push(phone.replace('+91', ''));
         }
       }
 
@@ -152,36 +376,163 @@ export default function CreateCampaignNew() {
         return;
       }
 
-      const phoneNumbersOnly = validNumbers.map(phone => phone.replace('+91', ''));
-      const newContacts = phoneNumbersOnly.map(phone => ({
-        id: `${Date.now()}_${Math.random()}`,
-        number: `+91${phone}`,
-        capable: null,
-        checking: true
-      }));
-
-      setRecipients(prev => [...prev, ...newContacts]);
       manualContactForm.resetFields();
       setManualContactModal(false);
-      message.success(`${newContacts.length} contacts added. Checking RCS capability...`);
+      setProcessingManual(true);
 
-      const result = await dispatch(checkCapability({ phoneNumbers: phoneNumbersOnly, userId: user._id })).unwrap();
-      if (result?.data) {
-        setRecipients(prev => prev.map(contact => {
-          const phoneWithoutPrefix = contact.number.replace('+91', '');
-          const capabilityResult = result.data.find(r => {
-            const resultPhone = r.phoneNumber.replace(/^\+?91/, '');
-            return resultPhone === phoneWithoutPrefix;
+      // Create campaign if not exists
+      let currentCampaignId = campaignId;
+      if (!currentCampaignId) {
+        const campaignRes = await dispatch(createCampaign({
+          name: campaignName || `Campaign ${Date.now()}`,
+          templateId: selectedTemplate?._id,
+          userId: user._id,
+          status: 'draft',
+          totalRecipients: validNumbers.length
+        })).unwrap();
+        currentCampaignId = campaignRes.data._id;
+        setCampaignId(currentCampaignId);
+      }
+
+      const batchContacts = validNumbers.map(phone => ({
+        phoneNumber: phone,
+        variables: {}
+      }));
+
+      // Upload batch
+      await dispatch(uploadContactBatch({
+        campaignId: currentCampaignId,
+        batchNumber: Date.now(),
+        contacts: batchContacts
+      })).unwrap();
+
+      // Initialize stats
+      setBatchStats(prev => ({ ...prev, total: prev.total + validNumbers.length }));
+
+      // Start progress polling for real-time updates
+      const progressInterval = setInterval(async () => {
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+          const response = await fetch(`${apiUrl}/v1/campaigns/check-capability/progress`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
           });
-          if (capabilityResult && phoneNumbersOnly.includes(phoneWithoutPrefix)) {
-            return { ...contact, capable: capabilityResult.isCapable, checking: false };
+          const data = await response.json();
+          
+          if (data.progress && data.progress.chunk > 0) {
+            const { chunk, totalChunks, rcsCapable } = data.progress;
+            const percent = Math.round((chunk / totalChunks) * 100);
+            
+            message.loading({ 
+              content: (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '12px',
+                  padding: '4px 0'
+                }}>
+                  <div style={{ 
+                    width: '40px', 
+                    height: '40px', 
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <div style={{ 
+                      width: '20px', 
+                      height: '20px', 
+                      border: `3px solid white`, 
+                      borderTopColor: 'transparent', 
+                      borderRadius: '50%', 
+                      animation: 'spin 1s linear infinite' 
+                    }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      fontSize: '15px', 
+                      fontWeight: 600, 
+                      color: THEME_CONSTANTS.colors.text,
+                      marginBottom: '6px',
+                      lineHeight: 1.3
+                    }}>
+                      Verifying RCS Capability
+                    </div>
+                    <div style={{ 
+                      fontSize: '13px', 
+                      color: THEME_CONSTANTS.colors.textSecondary,
+                      marginBottom: '4px',
+                      lineHeight: 1.4
+                    }}>
+                      Processing batch {chunk} of {totalChunks} • {percent}% complete
+                    </div>
+                    <div style={{ 
+                      fontSize: '13px', 
+                      color: THEME_CONSTANTS.colors.success,
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <span style={{ fontSize: '16px' }}>✓</span>
+                      {(rcsCapable || 0).toLocaleString()} contacts ready
+                    </div>
+                  </div>
+                </div>
+              ), 
+              key: 'capability', 
+              duration: 0 
+            });
           }
-          return contact;
-        }));
+        } catch (e) {
+          console.error('[Progress] Poll error:', e);
+        }
+      }, 2000);
+
+      // Check capability
+      try {
+        const result = await dispatch(checkCapability({
+          phoneNumbers: validNumbers,
+          campaignId: currentCampaignId,
+          countOnly: true
+        })).unwrap();
+
+        // Stop progress polling and show completion
+        setTimeout(() => {
+          clearInterval(progressInterval);
+          message.destroy('capability');
+          message.success(`${validNumbers.length} contacts added! ${result?.summary?.rcsCapable || 0} are RCS capable.`, 3);
+          setProcessingManual(false);
+        }, 2000);
+      } catch (error) {
+        clearInterval(progressInterval);
+        message.destroy('capability');
+        message.error('Capability check failed: ' + (error?.message || 'Unknown error'));
+        setProcessingManual(false);
       }
     } catch (error) {
-      message.error('Error adding contacts: ' + error.message);
+      const errorMsg = error?.message || error?.data?.message || String(error);
+      message.error('Error adding contacts: ' + errorMsg);
+      setProcessingManual(false);
     }
+  };
+
+  const handleClearContacts = () => {
+    Modal.confirm({
+      title: 'Clear All Contacts?',
+      content: 'This will remove all uploaded contacts and batches. This action cannot be undone.',
+      okText: 'Yes, Clear All',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: () => {
+        dispatch(clearContactBatches());
+        setBatchStats({ total: 0, rcsCapable: 0, notCapable: 0 });
+        setCampaignId(null);
+        setShowContacts(false);
+        message.success('All contacts cleared');
+      }
+    });
   };
 
   const handleSendCampaign = () => {
@@ -193,12 +544,12 @@ export default function CreateCampaignNew() {
       message.error('Please enter campaign name');
       return;
     }
-    if (validRcsContacts.length === 0) {
+    if (batchStats.rcsCapable === 0) {
       message.error('No valid RCS contacts found');
       return;
     }
 
-    const estimatedCost = validRcsContacts.length * 1;
+    const estimatedCost = batchStats.rcsCapable * 1;
 
     Modal.confirm({
       title: (
@@ -229,7 +580,7 @@ export default function CreateCampaignNew() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
             <div style={{ background: THEME_CONSTANTS.colors.success, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
               <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
-              <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{validRcsContacts.length}</div>
+              <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
               <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
             </div>
             
@@ -244,7 +595,7 @@ export default function CreateCampaignNew() {
             <div style={{ fontSize: '20px' }}>ℹ️</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.primary, marginBottom: '4px' }}>Ready to Send</div>
-              <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text, lineHeight: 1.5 }}>Messages will be sent to {validRcsContacts.length} RCS capable contacts immediately.</div>
+              <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text, lineHeight: 1.5 }}>Messages will be sent to {batchStats.rcsCapable} RCS capable contacts immediately.</div>
             </div>
           </div>
         </div>
@@ -264,27 +615,41 @@ export default function CreateCampaignNew() {
         style: { height: '48px', borderRadius: THEME_CONSTANTS.radius.md }
       },
       onOk: async () => {
-        const hideLoading = message.loading('Creating campaign...', 0);
+        const hideLoading = message.loading('Sending campaign...', 0);
         try {
-          const response = await _post('v1/campaigns/send-bulk', {
-            name: campaignName.trim(),
-            templateId: selectedTemplate._id,
-            recipients: validRcsContacts.map(c => ({
-              phoneNumber: c.number.replace('+91', ''),
+          // Fetch all RCS capable contacts from batches
+          const contactsRes = await dispatch(getAllContactsFromBatches({ 
+            campaignId, 
+            limit: 10000 
+          })).unwrap();
+
+          const rcsContacts = contactsRes.data
+            .filter(c => c.isRcsCapable)
+            .map(c => ({
+              phoneNumber: c.phoneNumber,
               isRcsCapable: true,
               variables: {}
-            })),
+            }));
+
+          if (rcsContacts.length === 0) {
+            hideLoading();
+            message.error('No RCS capable contacts found');
+            return;
+          }
+
+          await dispatch(sendBulkMessage({
+            name: campaignName.trim(),
+            templateId: selectedTemplate._id,
+            recipients: rcsContacts,
             autoStart: true
-          }, {}, localStorage.getItem('token'));
+          })).unwrap();
 
           hideLoading();
-          if (response.data.success) {
-            message.success('Campaign started successfully!');
-            navigate('/reports');
-          }
+          message.success('Campaign started successfully!');
+          navigate('/reports');
         } catch (error) {
           hideLoading();
-          message.error('Failed to start campaign: ' + error.message);
+          message.error('Failed to start campaign: ' + (error.message || error));
         }
       }
     });
@@ -345,152 +710,113 @@ export default function CreateCampaignNew() {
 
               <Card style={{ marginBottom: '24px', borderRadius: THEME_CONSTANTS.radius.lg, border: `1px solid ${THEME_CONSTANTS.colors.borderLight}` }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>2. Upload Contacts</h3>
+                {batchProgress && (
+                  <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '16px', borderRadius: '12px', marginBottom: '16px', color: 'white' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <div style={{ width: '20px', height: '20px', border: '3px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 600 }}>Processing Batch {batchProgress.chunk}/{batchProgress.totalChunks}</div>
+                        <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '2px' }}>
+                          {batchProgress.processed.toLocaleString()} / {batchProgress.total.toLocaleString()} contacts checked
+                        </div>
+                        <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '2px' }}>
+                          ✅ {batchProgress.rcsCapable.toLocaleString()} RCS capable found
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.3)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ background: 'white', height: '100%', width: `${Math.round((batchProgress.processed / batchProgress.total) * 100)}%`, transition: 'width 0.3s' }} />
+                    </div>
+                    <div style={{ fontSize: '11px', textAlign: 'right', marginTop: '4px', opacity: 0.9 }}>
+                      {Math.round((batchProgress.processed / batchProgress.total) * 100)}%
+                    </div>
+                  </div>
+                )}
                 <Row gutter={[12, 12]}>
-                  <Col span={8}>
+                  <Col span={6}>
                     <Upload beforeUpload={handleExcelUpload} showUploadList={false} accept=".xlsx,.xls,.csv">
                       <Button icon={<UploadOutlined />} loading={uploading} style={{ width: '100%', height: '44px' }}>Upload Excel</Button>
                     </Upload>
                   </Col>
-                  <Col span={8}>
+                  <Col span={6}>
                     <Button icon={<PlusOutlined />} onClick={() => setManualContactModal(true)} style={{ width: '100%', height: '44px' }}>Add Manually</Button>
                   </Col>
-                  <Col span={8}>
+                  <Col span={6}>
                     <Button icon={<DownloadOutlined />} onClick={downloadDemo} style={{ width: '100%', height: '44px' }}>Download Demo</Button>
                   </Col>
+                  <Col span={6}>
+                    <Button 
+                      type="primary"
+                      onClick={() => setShowContacts(!showContacts)}
+                      disabled={batchStats.total === 0}
+                      style={{ width: '100%', height: '44px' }}
+                    >
+                      {showContacts ? 'Hide' : 'Show'} Contacts ({batchStats.total})
+                    </Button>
+                  </Col>
                 </Row>
-                {recipients.length > 0 && (
-                  <div style={{ marginTop: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>Uploaded Contacts</h4>
-                      <Button size="small" danger icon={<DeleteOutlined />} onClick={() => setRecipients([])}>Clear All</Button>
-                    </div>
-                    
-                    {checkingContacts.length > 0 && (
+                {batchStats.total > 0 && (
+                  <div style={{ marginTop: '12px' }}>
+                    <Button 
+                      danger 
+                      icon={<DeleteOutlined />} 
+                      onClick={handleClearContacts}
+                      style={{ width: '100%' }}
+                    >
+                      Clear All Contacts
+                    </Button>
+                  </div>
+                )}
+                {(uploading || processingManual) && (
+                  <div style={{
+                    background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+                    padding: '20px',
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    marginTop: '16px',
+                    color: 'white',
+                    boxShadow: THEME_CONSTANTS.shadow.md
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <div style={{ 
-                        background: '#e6f7ff', 
-                        border: '1px solid #91d5ff',
-                        padding: '12px 16px', 
-                        borderRadius: '8px', 
-                        marginBottom: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                      }}>
-                        <div style={{ 
-                          width: '20px', 
-                          height: '20px', 
-                          border: '3px solid #1890ff',
-                          borderTopColor: 'transparent',
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite'
-                        }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 600, color: '#1890ff' }}>
-                            Checking RCS Capability...
-                          </div>
-                          <div style={{ fontSize: '12px', color: '#096dd9', marginTop: '2px' }}>
-                            {checkingContacts.length} contact{checkingContacts.length > 1 ? 's' : ''} being verified
-                          </div>
-                        </div>
+                        width: '40px', 
+                        height: '40px',
+                        border: '3px solid white',
+                        borderTopColor: 'transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>Processing Contacts</div>
+                        <div style={{ fontSize: '13px', opacity: 0.9 }}>Checking RCS capability for contacts...</div>
                       </div>
-                    )}
-                    
-                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '12px' }}>
-                      <Row gutter={[16, 16]}>
-                        <Col span={8}>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>{recipients.length}</div>
-                            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Total</div>
-                          </div>
-                        </Col>
-                        <Col span={8}>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.success }}>{validRcsContacts.length}</div>
-                            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>RCS Ready</div>
-                          </div>
-                        </Col>
-                        <Col span={8}>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '24px', fontWeight: 700, color: '#ff4d4f' }}>{recipients.length - validRcsContacts.length}</div>
-                            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Invalid</div>
-                          </div>
-                        </Col>
-                      </Row>
                     </div>
-                    <div style={{ border: `1px solid ${THEME_CONSTANTS.colors.border}`, borderRadius: '8px', overflow: 'hidden' }}>
-                      <div style={{ height: '300px', overflowY: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 10 }}>
-                            <tr>
-                              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary, borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}` }}>SN</th>
-                              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary, borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}` }}>Phone</th>
-                              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary, borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}` }}>Status</th>
-                              <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary, borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}` }}>Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {paginatedContacts.map((contact, idx) => {
-                              const globalIndex = (contactsPage - 1) * contactsPerPage + idx + 1;
-                              return (
-                                <tr key={contact.id} style={{ borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`, background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                                  <td style={{ padding: '8px 16px', fontSize: '13px' }}>{globalIndex}</td>
-                                  <td style={{ padding: '8px 16px', fontSize: '13px', fontFamily: 'monospace', color: THEME_CONSTANTS.colors.success }}>{contact.number}</td>
-                                  <td style={{ padding: '8px 16px', fontSize: '13px' }}>
-                                    <span style={{ background: '#f6ffed', color: THEME_CONSTANTS.colors.success, padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>✓ RCS Ready</span>
-                                  </td>
-                                  <td style={{ padding: '8px 16px', textAlign: 'center' }}>
-                                    <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => setRecipients(recipients.filter(c => c.id !== contact.id))} />
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                  </div>
+                )}
+                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', marginTop: '16px' }} key={updateTrigger}>
+                  <Row gutter={[16, 16]}>
+                    <Col span={8}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>{batchStats.total}</div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Total</div>
                       </div>
-                      {validRcsContacts.length > 0 && (
-                        <div style={{ padding: '12px 16px', borderTop: `1px solid ${THEME_CONSTANTS.colors.border}`, background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>
-                              Showing {((contactsPage - 1) * contactsPerPage) + 1} - {Math.min(contactsPage * contactsPerPage, validRcsContacts.length)} of {validRcsContacts.length}
-                            </span>
-                            <Select
-                              size="small"
-                              value={contactsPerPage}
-                              onChange={(value) => {
-                                setContactsPerPage(value);
-                                setContactsPage(1);
-                              }}
-                              style={{ width: '100px' }}
-                              options={[
-                                { label: '10 / page', value: 10 },
-                                { label: '25 / page', value: 25 },
-                                { label: '50 / page', value: 50 },
-                                { label: '100 / page', value: 100 },
-                              ]}
-                            />
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <Button 
-                              size="small" 
-                              disabled={contactsPage === 1}
-                              onClick={() => setContactsPage(p => p - 1)}
-                            >
-                              Previous
-                            </Button>
-                            <span style={{ padding: '0 12px', display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: 600 }}>
-                              Page {contactsPage} of {Math.ceil(validRcsContacts.length / contactsPerPage)}
-                            </span>
-                            <Button 
-                              size="small" 
-                              disabled={contactsPage >= Math.ceil(validRcsContacts.length / contactsPerPage)}
-                              onClick={() => setContactsPage(p => p + 1)}
-                            >
-                              Next
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.success }}>{batchStats.rcsCapable}</div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>RCS Ready</div>
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: '#ff4d4f' }}>{batchStats.notCapable || 0}</div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Invalid</div>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+                {showContacts && batchStats.total > 0 && campaignId && (
+                  <div style={{ marginTop: '16px', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+                    <PaginatedContactList campaignId={campaignId} totalContacts={batchStats.total} />
                   </div>
                 )}
               </Card>
@@ -509,12 +835,12 @@ export default function CreateCampaignNew() {
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={handleSendCampaign}
-                disabled={!selectedTemplate || !campaignName.trim() || validRcsContacts.length === 0}
+                disabled={!selectedTemplate || !campaignName.trim() || batchStats.rcsCapable === 0}
                 size="large"
                 block
                 style={{ height: '52px', fontSize: '16px', fontWeight: 600 }}
               >
-                Send Campaign ({validRcsContacts.length} contacts)
+                Send Campaign ({batchStats.rcsCapable} contacts)
               </Button>
             </Col>
 

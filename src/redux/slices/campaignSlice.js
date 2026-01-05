@@ -86,6 +86,37 @@ export const getAllCampaignsForExport = createAsyncThunkHandler(
   (payload) => buildUrlWithParams('admin/campaigns/export/all', payload || {})
 );
 
+// Contact batch thunks
+export const uploadContactBatch = createAsyncThunkHandler(
+  'campaigns/uploadBatch',
+  _post,
+  'campaigns/batches/upload'
+);
+
+export const processContactBatch = createAsyncThunkHandler(
+  'campaigns/processBatch',
+  _post,
+  (payload) => `campaigns/batches/${payload.batchId}/process`
+);
+
+export const getContactBatches = createAsyncThunkHandler(
+  'campaigns/getBatches',
+  _get,
+  (payload) => buildUrlWithParams(`campaigns/batches/${payload.campaignId}`, { limit: payload.limit || 1000 })
+);
+
+export const getAllContactsFromBatches = createAsyncThunkHandler(
+  'campaigns/getAllContacts',
+  _get,
+  (payload) => buildUrlWithParams(`campaigns/batches/${payload.campaignId}/contacts`, { page: payload.page || 1, limit: payload.limit || 50 })
+);
+
+export const deleteContactFromBatch = createAsyncThunkHandler(
+  'campaigns/deleteContact',
+  _delete,
+  (payload) => `campaigns/batches/${payload.campaignId}/contacts/${payload.phoneNumber}`
+);
+
 const initialState = {
   campaigns: [],
   adminCampaigns: [],
@@ -113,6 +144,10 @@ const initialState = {
     total: 0,
     pages: 0,
   },
+  contactBatches: [],
+  batchStats: { total: 0, rcsCapable: 0, notCapable: 0 },
+  allContacts: [],
+  contactsPagination: { page: 1, limit: 50, total: 0, pages: 0 },
 };
 
 const campaignSlice = createSlice({
@@ -134,6 +169,16 @@ const campaignSlice = createSlice({
     },
     clearCampaignMessages: (state) => {
       state.campaignMessages = [];
+    },
+    setBatchStats: (state, action) => {
+      state.batchStats = action.payload;
+    },
+    clearContactBatches: (state) => {
+      state.contactBatches = [];
+      state.batchStats = { total: 0, rcsCapable: 0, notCapable: 0 };
+    },
+    clearAllContacts: (state) => {
+      state.allContacts = [];
     },
   },
   extraReducers: (builder) => {
@@ -279,6 +324,52 @@ const campaignSlice = createSlice({
     builder
       .addCase(deleteCampaign.fulfilled, (state, action) => {
         state.campaigns = state.campaigns.filter(c => c._id !== action.meta.arg.id);
+      })
+
+    // Upload Contact Batch
+    builder
+      .addCase(uploadContactBatch.fulfilled, (state, action) => {
+        const newBatch = action.payload.data;
+        const exists = state.contactBatches.some(batch => batch._id === newBatch._id);
+        if (!exists) {
+          state.contactBatches.unshift(newBatch);
+        }
+      })
+
+    // Process Contact Batch
+    builder
+      .addCase(processContactBatch.fulfilled, (state, action) => {
+        const updatedBatch = action.payload.data;
+        const index = state.contactBatches.findIndex(batch => batch._id === updatedBatch._id);
+        if (index !== -1) {
+          state.contactBatches[index] = updatedBatch;
+        }
+      })
+
+    // Get Contact Batches
+    builder
+      .addCase(getContactBatches.fulfilled, (state, action) => {
+        const newBatches = action.payload.data || [];
+        state.contactBatches = newBatches;
+        
+        if (newBatches.length > 0) {
+          const total = newBatches.reduce((sum, batch) => sum + batch.totalContacts, 0);
+          const rcsCapable = newBatches.reduce((sum, batch) => sum + batch.rcsCapableCount, 0);
+          // Only count as notCapable if batch is completed
+          const completedBatches = newBatches.filter(b => b.status === 'completed');
+          const completedTotal = completedBatches.reduce((sum, batch) => sum + batch.totalContacts, 0);
+          const completedRcsCapable = completedBatches.reduce((sum, batch) => sum + batch.rcsCapableCount, 0);
+          const notCapable = completedTotal - completedRcsCapable;
+          
+          state.batchStats = { total, rcsCapable, notCapable };
+        }
+      })
+
+    // Get All Contacts From Batches
+    builder
+      .addCase(getAllContactsFromBatches.fulfilled, (state, action) => {
+        state.allContacts = action.payload.data || [];
+        state.contactsPagination = action.payload.pagination || state.contactsPagination;
       });
   },
 });
@@ -288,6 +379,9 @@ export const {
   setCurrentCampaign, 
   clearCurrentCampaign, 
   clearCapabilityResults,
-  clearCampaignMessages 
+  clearCampaignMessages,
+  setBatchStats,
+  clearContactBatches,
+  clearAllContacts
 } = campaignSlice.actions;
 export default campaignSlice.reducer;

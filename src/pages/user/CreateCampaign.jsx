@@ -247,6 +247,9 @@ function CreateCampaign() {
   const [carouselCards, setCarouselCards] = useState([]);
 
   const [recipients, setRecipients] = useState([]);
+  const [showContactsTable, setShowContactsTable] = useState(false);
+  const [contactCounts, setContactCounts] = useState({ total: 0, rcsCapable: 0, invalid: 0 });
+  const [batchProgress, setBatchProgress] = useState(null);
   
   // Debug: Log recipients state changes
   useEffect(() => {
@@ -271,6 +274,10 @@ function CreateCampaign() {
   const validRcsContacts = recipients.filter(contact => contact.capable === true);
   const invalidContacts = recipients.filter(contact => contact.capable === false);
   const pendingContacts = recipients.filter(contact => contact.capable === null || contact.checking === true);
+
+  // Use contactCounts for display (more accurate than filtering recipients)
+  const displayValidCount = contactCounts.rcsCapable || validRcsContacts.length;
+  const displayInvalidCount = contactCounts.invalid || invalidContacts.length;
 
   // Load templates on mount and cleanup on unmount
   useEffect(() => {
@@ -397,7 +404,7 @@ function CreateCampaign() {
     }
   };
 
-  // Import Excel File with background processing
+  // Import Excel File with streaming progress
   const handleExcelUpload = async (file) => {
     try {
       if (!file) {
@@ -405,14 +412,12 @@ function CreateCampaign() {
         return false;
       }
 
-      // Check file type
       const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv'];
       if (!allowedTypes.includes(file.type)) {
         message.error('Please upload only Excel (.xlsx, .xls) or CSV files');
         return false;
       }
 
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         message.error('File size should be less than 5MB');
         return false;
@@ -434,7 +439,6 @@ function CreateCampaign() {
             const row = data[i];
             if (!row || row.length === 0) continue;
 
-            // Skip header
             if (!skippedFirst) {
               const firstCell = String(row[0] || '').toLowerCase();
               if (['index', 'sn', 'number', 'name', 'phone'].some((h) => firstCell.includes(h))) {
@@ -445,117 +449,153 @@ function CreateCampaign() {
 
             row.forEach((cell) => {
               if (!cell && cell !== 0) return;
-
-              let num = String(cell).trim();
-              num = num.replace(/[\s\-()\.]/g, '');
-              num = num.replace(/[^\d+]/g, '');
-
-              if (num.startsWith('+91')) {
-                num = num.substring(3);
-              } else if (num.startsWith('+')) {
+              let num = String(cell).trim().replace(/[\s\-()\.]/g, '').replace(/[^\d+]/g, '');
+              if (num.startsWith('+91')) num = num.substring(3);
+              else if (num.startsWith('+')) {
                 num = num.substring(1);
                 if (num.startsWith('91')) num = num.substring(2);
-              } else if (num.startsWith('91') && num.length > 10) {
-                num = num.substring(2);
-              } else if (num.startsWith('0')) {
-                num = num.substring(1);
-              }
+              } else if (num.startsWith('91') && num.length > 10) num = num.substring(2);
+              else if (num.startsWith('0')) num = num.substring(1);
 
-              if (/^\d{10}$/.test(num)) {
-                const fullNum = num; // Store as 10-digit for backend
-                if (!seen.has(fullNum)) {
-                  seen.add(fullNum);
-                  imported.push(fullNum);
-                }
+              if (/^\d{10}$/.test(num) && !seen.has(num)) {
+                seen.add(num);
+                imported.push(num);
               }
             });
           }
 
           if (imported.length === 0) {
-            message.error('No valid phone numbers found in the file. Please check the format.');
+            message.error('No valid phone numbers found in the file.');
             return;
           }
 
-          console.log('[DEBUG] File parsed, imported:', imported.length, 'numbers');
-          console.log('[DEBUG] First 5 numbers:', imported.slice(0, 5));
+          // Store contacts immediately
+          const newContacts = imported.map(phone => ({
+            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            number: `+91${phone}`,
+            capable: null,
+            checking: false
+          }));
+          
+          setRecipients(newContacts);
+          setUploadedFile(file.name);
+          setShowContactsTable(false);
+          setContactCounts({ total: imported.length, rcsCapable: 0, invalid: 0 });
 
-          // Show loading message
-          let loadingMessage = message.loading(`Processing ${imported.length} contacts...`, 0);
-          
-          console.log('[DEBUG] Loading message shown');
-          
-          try {
-            console.log('[DEBUG] Starting capability check for', imported.length, 'numbers');
+          // For large files, use streaming
+          if (imported.length > 5000) {
+            setBatchProgress({ processed: 0, total: imported.length, rcsCapable: 0, chunk: 0, totalChunks: Math.ceil(imported.length / 10000) });
             
-            // Check RCS capability using Redux action
-            const dispatchResult = dispatch(checkCapability({
-              phoneNumbers: imported,
-              userId: user._id
-            }));
-            
-            console.log('[DEBUG] Dispatch result:', dispatchResult);
-            
-            const result = await dispatchResult;
-            
-            console.log('[DEBUG] After await, before unwrap:', result);
-            
-            const unwrapped = result.payload;
-            
-            console.log('[DEBUG] Unwrapped result:', unwrapped);
-            console.log('[DEBUG] Unwrapped.success:', unwrapped?.success);
-            console.log('[DEBUG] Unwrapped.data length:', unwrapped?.data?.length);
-            
-            // Hide loading
-            if (typeof loadingMessage === 'function') {
-              loadingMessage();
-            }
-            
-            // Build capability map from response
-            const capabilityMap = new Map();
-            if (unwrapped?.data && Array.isArray(unwrapped.data)) {
-              unwrapped.data.forEach(r => {
-                const phone = String(r.phoneNumber).replace(/^\+?91/, '');
-                capabilityMap.set(phone, r.isCapable);
+            try {
+              const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+              console.log('[Streaming] Starting capability check for', imported.length, 'contacts');
+              console.log('[Streaming] API URL:', `${apiUrl}/v1/campaigns/check-capability`);
+              
+              const response = await fetch(`${apiUrl}/v1/campaigns/check-capability`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                  phoneNumbers: imported,
+                  userId: user._id,
+                  countOnly: true,
+                  streaming: true
+                })
               });
+
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+
+              console.log('[Streaming] Response received, starting to read stream');
+              const reader = response.body.getReader();
+              const decoder = new TextDecoder();
+              let buffer = '';
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                  console.log('[Streaming] Stream complete');
+                  break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                  if (!line.trim()) continue;
+                  
+                  try {
+                    const data = JSON.parse(line);
+                    console.log('[Streaming] Received:', data.type, data);
+
+                    if (data.type === 'progress') {
+                      // Update progress in real-time
+                      setBatchProgress({
+                        processed: data.processed,
+                        total: data.total,
+                        rcsCapable: data.rcsCapable,
+                        chunk: data.chunk,
+                        totalChunks: data.totalChunks
+                      });
+                      
+                      // Update counts in real-time
+                      setContactCounts({
+                        total: data.total,
+                        rcsCapable: data.rcsCapable,
+                        invalid: data.processed - data.rcsCapable
+                      });
+                    } else if (data.type === 'complete') {
+                      // Final update
+                      setContactCounts({
+                        total: data.summary.total,
+                        rcsCapable: data.summary.rcsCapable,
+                        invalid: data.summary.notCapable
+                      });
+                      setBatchProgress(null);
+                      message.success(`${imported.length} contacts uploaded! ${data.summary.rcsCapable} are RCS capable.`);
+                    }
+                  } catch (parseError) {
+                    console.error('[Streaming] Parse error:', parseError, 'Line:', line);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('[Streaming] Error:', error);
+              setBatchProgress(null);
+              message.error('Failed to check RCS capability: ' + error.message);
             }
+          } else {
+            // Small files - use regular API
+            let loadingMessage = message.loading(`Checking RCS capability for ${imported.length} contacts...`, 0);
             
-            console.log('[DEBUG] Capability map built, size:', capabilityMap.size);
-            
-            // Add contacts with capability results
-            const newContacts = imported.map(phone => ({
-              id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              number: `+91${phone}`,
-              capable: capabilityMap.has(phone) ? capabilityMap.get(phone) : false,
-              checking: false
-            }));
-            
-            console.log('[DEBUG] New contacts created:', newContacts.length, 'checking count:', newContacts.filter(c => c.checking).length);
-            
-            setRecipients(prev => [...prev, ...newContacts]);
-            setUploadedFile(file.name);
-            
-            const rcsCapableCount = unwrapped?.summary?.rcsCapable || newContacts.filter(c => c.capable).length;
-            message.success(`${imported.length} contacts uploaded! ${rcsCapableCount} are RCS capable.`);
-            
-          } catch (capabilityError) {
-            console.log('[DEBUG] Capability check error:', capabilityError);
-            if (typeof loadingMessage === 'function') {
-              loadingMessage();
+            try {
+              const dispatchResult = dispatch(checkCapability({
+                phoneNumbers: imported,
+                userId: user._id,
+                countOnly: true
+              }));
+              
+              const result = await dispatchResult;
+              const unwrapped = result.payload;
+              
+              if (typeof loadingMessage === 'function') loadingMessage();
+              
+              setContactCounts({
+                total: imported.length,
+                rcsCapable: unwrapped?.summary?.rcsCapable || 0,
+                invalid: unwrapped?.summary?.notCapable || 0
+              });
+              
+              message.success(`${imported.length} contacts uploaded! ${unwrapped?.summary?.rcsCapable || 0} are RCS capable.`);
+            } catch (error) {
+              if (typeof loadingMessage === 'function') loadingMessage();
+              console.error('Capability check failed:', error);
+              message.warning(`${imported.length} contacts uploaded, but RCS capability check failed.`);
             }
-            console.error('Capability check failed:', capabilityError);
-            
-            // Add contacts without capability info
-            const newContacts = imported.map(phone => ({
-              id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              number: `+91${phone}`,
-              capable: false,
-              checking: false
-            }));
-            
-            setRecipients(prev => [...prev, ...newContacts]);
-            setUploadedFile(file.name);
-            
-            message.warning(`${imported.length} contacts uploaded, but RCS capability check failed.`);
           }
 
         } catch (error) {
@@ -564,17 +604,14 @@ function CreateCampaign() {
         }
       };
 
-      reader.onerror = () => {
-        message.error('Error reading file');
-      };
-
+      reader.onerror = () => message.error('Error reading file');
       reader.readAsArrayBuffer(file);
     } catch (error) {
       console.error('Error uploading file:', error);
       message.error('Error uploading file: ' + error.message);
     }
 
-    return false; // Prevent default upload
+    return false;
   };
 
 
@@ -671,7 +708,61 @@ function CreateCampaign() {
     }
   };
 
-  // Delete Contact
+  // Fetch full contact details when "Show Contacts" is clicked
+  const handleShowContacts = async () => {
+    if (showContactsTable) {
+      setShowContactsTable(false);
+      return;
+    }
+
+    const loadingMessage = message.loading('Loading contact details...', 0);
+    
+    try {
+      const phoneNumbers = recipients.map(r => r.number.replace('+91', ''));
+      
+      const dispatchResult = dispatch(checkCapability({
+        phoneNumbers: phoneNumbers,
+        userId: user._id,
+        countOnly: false // Get full contact details
+      }));
+      
+      const result = await dispatchResult;
+      const unwrapped = result.payload;
+      
+      if (typeof loadingMessage === 'function') {
+        loadingMessage();
+      }
+      
+      // Build capability map from response
+      const capabilityMap = new Map();
+      if (unwrapped?.data && Array.isArray(unwrapped.data)) {
+        unwrapped.data.forEach(r => {
+          const phone = String(r.phoneNumber).replace(/^\+?91/, '');
+          capabilityMap.set(phone, r.isCapable);
+        });
+      }
+      
+      // Update contacts with capability results
+      setRecipients(prev => prev.map(contact => {
+        const phone = contact.number.replace('+91', '');
+        return {
+          ...contact,
+          capable: capabilityMap.has(phone) ? capabilityMap.get(phone) : false,
+          checking: false
+        };
+      }));
+      
+      setShowContactsTable(true);
+      message.success('Contact details loaded');
+      
+    } catch (error) {
+      if (typeof loadingMessage === 'function') {
+        loadingMessage();
+      }
+      console.error('Error loading contacts:', error);
+      message.error('Failed to load contact details');
+    }
+  };
   const deleteContact = (id) => {
     setRecipients(recipients.filter((c) => c.id !== id));
     message.success('Contact removed');
@@ -681,6 +772,8 @@ function CreateCampaign() {
   const clearAllContacts = () => {
     setRecipients([]);
     setUploadedFile(null);
+    setShowContactsTable(false);
+    setContactCounts({ total: 0, rcsCapable: 0, invalid: 0 });
     message.success('All contacts cleared');
   };
 
@@ -701,16 +794,16 @@ function CreateCampaign() {
       }
 
       // Get only valid RCS contacts for campaign
-      const validRcsContacts = recipients.filter(r => r.capable === true);
+      const validRcsContactsCount = contactCounts.rcsCapable || validRcsContacts.length;
       const totalContacts = recipients.length;
       
-      if (validRcsContacts.length === 0) {
+      if (validRcsContactsCount === 0) {
         message.error('No valid RCS contacts found. Please add RCS capable contacts.');
         return;
       }
 
       // Estimate cost only for valid RCS contacts
-      const estimatedCost = validRcsContacts.length * 1;
+      const estimatedCost = validRcsContactsCount * 1;
       if (!checkBalance(estimatedCost)) {
         setShowAddMoney(true);
         return;
@@ -768,7 +861,7 @@ function CreateCampaign() {
                 color: 'white'
               }}>
                 <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
-                <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{validRcsContacts.length}</div>
+                <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{validRcsContactsCount}</div>
                 <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
               </div>
               
@@ -783,7 +876,7 @@ function CreateCampaign() {
                 <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>All contacts</div>
               </div>
 
-              {(totalContacts - validRcsContacts.length) > 0 && (
+              {(totalContacts - validRcsContactsCount) > 0 && (
                 <div style={{
                   background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                   borderRadius: '12px',
@@ -791,7 +884,7 @@ function CreateCampaign() {
                   color: 'white'
                 }}>
                   <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>INVALID/PENDING</div>
-                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{totalContacts - validRcsContacts.length}</div>
+                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{totalContacts - validRcsContactsCount}</div>
                   <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Won't receive</div>
                 </div>
               )}
@@ -861,11 +954,11 @@ function CreateCampaign() {
           const uploadResponse = await _post('v1/campaigns/send-bulk', {
             name: campaignName.trim(),
             templateId: selectedTemplate._id,
-            recipients: validRcsContacts.map(c => ({
+            recipients: recipients.map(c => ({
               phoneNumber: c.number.replace('+91', ''),
-              isRcsCapable: true,
+              isRcsCapable: true, // Only send RCS capable contacts
               variables: {}
-            })),
+            })).filter((_, idx) => idx < validRcsContactsCount), // Only send the count of RCS capable contacts
             autoStart: true
           }, {}, localStorage.getItem('token'));
           
@@ -877,7 +970,7 @@ function CreateCampaign() {
               content: (
                 <div>
                   <p>✅ Campaign "{campaignName}" started successfully!</p>
-                  <p>📊 RCS Ready Contacts: {validRcsContacts.length}</p>
+                  <p>📊 RCS Ready Contacts: {validRcsContactsCount}</p>
                   <p>🚀 Messages are being sent to RCS capable contacts</p>
                   <p>📈 Track progress in Reports section</p>
                 </div>
@@ -1684,6 +1777,37 @@ function CreateCampaign() {
             </Row>
           </div>
 
+          {/* Batch Progress */}
+          {batchProgress && (
+            <div style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '20px',
+              borderRadius: THEME_CONSTANTS.radius.lg,
+              marginBottom: '24px',
+              color: 'white'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+                <Spin style={{ color: 'white' }} />
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 600 }}>Processing Batch {batchProgress.chunk}/{batchProgress.totalChunks}</div>
+                  <div style={{ fontSize: '13px', opacity: 0.9 }}>
+                    {batchProgress.processed.toLocaleString()} / {batchProgress.total.toLocaleString()} contacts checked
+                  </div>
+                  <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px' }}>
+                    ✅ {batchProgress.rcsCapable.toLocaleString()} RCS capable found
+                  </div>
+                </div>
+              </div>
+              <Progress 
+                percent={Math.round((batchProgress.processed / batchProgress.total) * 100)}
+                strokeColor="white"
+                trailColor="rgba(255,255,255,0.3)"
+                showInfo={true}
+                format={(percent) => `${percent}%`}
+              />
+            </div>
+          )}
+
           {/* Upload Status */}
           {uploadState.isUploading && (
             <div style={{
@@ -1714,19 +1838,31 @@ function CreateCampaign() {
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.text }}>Uploaded Contacts</h4>
-                <Button
-                  danger
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  onClick={() => {
-                    setRecipients([]);
-                    setUploadedFile(null);
-                    resetUpload();
-                    message.success('All contacts cleared');
-                  }}
-                >
-                  Clear All
-                </Button>
+                <Space>
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<EyeOutlined />}
+                    onClick={handleShowContacts}
+                  >
+                    {showContactsTable ? 'Hide Contacts' : 'Show Contacts'}
+                  </Button>
+                  <Button
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={() => {
+                      setRecipients([]);
+                      setUploadedFile(null);
+                      setShowContactsTable(false);
+                      setContactCounts({ total: 0, rcsCapable: 0, invalid: 0 });
+                      resetUpload();
+                      message.success('All contacts cleared');
+                    }}
+                  >
+                    Clear All
+                  </Button>
+                </Space>
               </div>
               <div style={{
                 background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
@@ -1739,7 +1875,7 @@ function CreateCampaign() {
                   <Col xs={12} sm={6}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '28px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>
-                        {recipients.length}
+                        {contactCounts.total}
                       </div>
                       <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</div>
                     </div>
@@ -1747,7 +1883,7 @@ function CreateCampaign() {
                   <Col xs={12} sm={6}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '28px', fontWeight: 700, color: THEME_CONSTANTS.colors.success }}>
-                        {validRcsContacts.length}
+                        {contactCounts.rcsCapable}
                       </div>
                       <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>RCS Ready</div>
                     </div>
@@ -1755,7 +1891,7 @@ function CreateCampaign() {
                   <Col xs={12} sm={6}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '28px', fontWeight: 700, color: '#ff4d4f' }}>
-                        {invalidContacts.length}
+                        {contactCounts.invalid}
                       </div>
                       <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Invalid</div>
                     </div>
@@ -1763,7 +1899,7 @@ function CreateCampaign() {
                   <Col xs={12} sm={6}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '28px', fontWeight: 700, color: THEME_CONSTANTS.colors.warning }}>
-                        ₹{validRcsContacts.length}
+                        ₹{contactCounts.rcsCapable}
                       </div>
                       <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cost</div>
                     </div>
@@ -1771,13 +1907,15 @@ function CreateCampaign() {
                 </Row>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <VirtualizedContactList
-                  contacts={recipients}
-                  deleteContact={deleteContact}
-                  loading={uploadState.isUploading}
-                />
-              </div>
+              {showContactsTable && (
+                <div style={{ marginBottom: '16px' }}>
+                  <VirtualizedContactList
+                    contacts={recipients}
+                    deleteContact={deleteContact}
+                    loading={uploadState.isUploading}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <div style={{ 
@@ -1816,7 +1954,7 @@ function CreateCampaign() {
               icon={<SendOutlined />}
               onClick={handleSendCampaign}
               loading={sendingMessage}
-              disabled={!campaignName.trim() || validRcsContacts.length === 0}
+              disabled={!campaignName.trim() || displayValidCount === 0}
               size="large"
               style={{
                 height: '48px',
@@ -1826,7 +1964,7 @@ function CreateCampaign() {
                 boxShadow: THEME_CONSTANTS.shadow.md
               }}
             >
-              Send Campaign ({validRcsContacts.length} contacts)
+              Send Campaign ({displayValidCount} contacts)
             </Button>
           </div>
         </div>

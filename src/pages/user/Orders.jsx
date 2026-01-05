@@ -96,6 +96,22 @@ export default function Orders() {
   const [modalStatusFilter, setModalStatusFilter] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
   const [allCampaignMessages, setAllCampaignMessages] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    if (user?._id) {
+      setIsRefreshing(true);
+      try {
+        await dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 })).unwrap();
+        toast.success('Campaigns refreshed successfully');
+      } catch (error) {
+        toast.error('Failed to refresh campaigns');
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  };
 
   // Fetch orders on component mount and page change
   useEffect(() => {
@@ -103,6 +119,17 @@ export default function Orders() {
       dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }));
     }
   }, [dispatch, user?._id, currentPage]);
+
+  // // Auto-refresh orders every 3 seconds to update campaign status (faster refresh)
+  // useEffect(() => {
+  //   if (user?._id) {
+  //     const interval = setInterval(() => {
+  //       dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }));
+  //     }, 3000); // Refresh every 3 seconds (faster)
+      
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [dispatch, user?._id, currentPage]);
 
 
 
@@ -822,7 +849,18 @@ export default function Orders() {
                 </div>
               </Col>
               <Col xs={24} lg={6}>
-                <div style={{ textAlign: screens.lg ? 'right' : 'left' }}>
+                <div style={{ textAlign: screens.lg ? 'right' : 'left', display: 'flex', gap: '12px', justifyContent: screens.lg ? 'flex-end' : 'flex-start' }}>
+                  <Button
+                    icon={<ReloadOutlined spin={isRefreshing} />}
+                    onClick={handleRefresh}
+                    loading={isRefreshing}
+                    disabled={isRefreshing}
+                    style={{
+                      height: '44px',
+                    }}
+                  >
+                    Refresh
+                  </Button>
                   <Button
                     type="primary"
                     icon={<DownloadOutlined />}
