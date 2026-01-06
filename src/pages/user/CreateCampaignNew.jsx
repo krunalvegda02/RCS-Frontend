@@ -132,6 +132,8 @@ export default function CreateCampaignNew() {
   const [batchProgress, setBatchProgress] = useState(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
   const [processingManual, setProcessingManual] = useState(false);
+  const [finalStatsSet, setFinalStatsSet] = useState(false);
+  // const [verifyingSync, setVerifyingSync] = useState(false);
 
   useEffect(() => {
     if (user?._id) {
@@ -150,10 +152,10 @@ export default function CreateCampaignNew() {
   }, [campaignId, processingBatches, dispatch]);
 
   useEffect(() => {
-    if (reduxBatchStats) {
+    if (reduxBatchStats && !uploading && !processingManual && !finalStatsSet) {
       setBatchStats(reduxBatchStats);
     }
-  }, [reduxBatchStats]);
+  }, [reduxBatchStats, uploading, processingManual, finalStatsSet]);
 
   const handleExcelUpload = async (file) => {
     console.log('[Upload] handleExcelUpload called with file:', file?.name);
@@ -210,15 +212,12 @@ export default function CreateCampaignNew() {
         }
 
         // Upload contacts to batch
-        const batchContacts = imported.map(phone => ({
-          phoneNumber: phone,
-          variables: {}
-        }));
+        const batchPhoneNumbers = imported;
 
         await dispatch(uploadContactBatch({
           campaignId: currentCampaignId,
           batchNumber: Date.now(),
-          contacts: batchContacts
+          phoneNumbers: batchPhoneNumbers
         })).unwrap();
 
         // Initialize stats
@@ -234,8 +233,15 @@ export default function CreateCampaignNew() {
             const data = await response.json();
             
             if (data.progress && data.progress.chunk > 0) {
-              const { chunk, totalChunks, rcsCapable } = data.progress;
+              const { chunk, totalChunks, rcsCapable, processed, total } = data.progress;
               const percent = Math.round((chunk / totalChunks) * 100);
+              
+              // Update stat card with real-time data
+              setBatchStats(prev => ({
+                ...prev,
+                rcsCapable: rcsCapable || 0,
+                notCapable: (total || prev.total) - (rcsCapable || 0)
+              }));
               
               message.loading({ 
                 content: (
@@ -325,6 +331,14 @@ export default function CreateCampaignNew() {
             const rcsCount = result?.summary?.rcsCapable || result?.data?.summary?.rcsCapable || 0;
             const totalCount = result?.summary?.total || result?.data?.summary?.total || imported.length;
             
+            // Update final stats
+            setBatchStats({
+              total: totalCount,
+              rcsCapable: rcsCount,
+              notCapable: totalCount - rcsCount
+            });
+            setFinalStatsSet(true);
+            
             message.success({
               content: (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -411,16 +425,13 @@ export default function CreateCampaignNew() {
         setCampaignId(currentCampaignId);
       }
 
-      const batchContacts = validNumbers.map(phone => ({
-        phoneNumber: phone,
-        variables: {}
-      }));
+      const batchContacts = validNumbers;
 
       // Upload batch
       await dispatch(uploadContactBatch({
         campaignId: currentCampaignId,
         batchNumber: Date.now(),
-        contacts: batchContacts
+        phoneNumbers: batchContacts
       })).unwrap();
 
       // Initialize stats
@@ -436,8 +447,15 @@ export default function CreateCampaignNew() {
           const data = await response.json();
           
           if (data.progress && data.progress.chunk > 0) {
-            const { chunk, totalChunks, rcsCapable } = data.progress;
+            const { chunk, totalChunks, rcsCapable, processed, total } = data.progress;
             const percent = Math.round((chunk / totalChunks) * 100);
+            
+            // Update stat card with real-time data
+            setBatchStats(prev => ({
+              ...prev,
+              rcsCapable: rcsCapable || 0,
+              notCapable: (total || prev.total) - (rcsCapable || 0)
+            }));
             
             message.loading({ 
               content: (
@@ -562,12 +580,43 @@ export default function CreateCampaignNew() {
       onOk: () => {
         dispatch(clearContactBatches());
         setBatchStats({ total: 0, rcsCapable: 0, notCapable: 0 });
+        setFinalStatsSet(false);
         setCampaignId(null);
         setShowContacts(false);
         message.success('All contacts cleared');
       }
     });
   };
+
+  // const handleVerifySync = async () => {
+  //   if (!campaignId) {
+  //     message.error('No campaign found');
+  //     return;
+  //   }
+
+  //   setVerifyingSync(true);
+  //   try {
+  //     const contactsRes = await dispatch(getAllContactsFromBatches({ 
+  //       campaignId, 
+  //       limit: 50000 
+  //     })).unwrap();
+
+  //     const rcsContacts = contactsRes.data.filter(c => c.isRcsCapable);
+      
+  //     console.log('📊 Stats RCS Capable:', batchStats.rcsCapable);
+  //     console.log('🔍 Actual RCS Contacts:', rcsContacts.length);
+      
+  //     if (rcsContacts.length === batchStats.rcsCapable) {
+  //       message.success(`✅ Perfect sync! Stats: ${batchStats.rcsCapable} = Database: ${rcsContacts.length}`);
+  //     } else {
+  //       message.warning(`⚠️ Sync mismatch! Stats: ${batchStats.rcsCapable} ≠ Database: ${rcsContacts.length}`);
+  //     }
+  //   } catch (error) {
+  //     message.error('Failed to verify sync: ' + error.message);
+  //   } finally {
+  //     setVerifyingSync(false);
+  //   }
+  // };
 
   const handleSendCampaign = () => {
     if (!selectedTemplate) {
@@ -665,6 +714,16 @@ export default function CreateCampaignNew() {
               variables: {}
             }));
 
+          // Verify sync between stats and actual RCS contacts
+          console.log('Stats RCS Capable:', batchStats.rcsCapable);
+          console.log('Actual RCS Contacts:', rcsContacts.length);
+          
+          if (rcsContacts.length !== batchStats.rcsCapable) {
+            hideLoading();
+            message.error(`Sync error: Stats show ${batchStats.rcsCapable} but found ${rcsContacts.length} RCS contacts. Please refresh and try again.`);
+            return;
+          }
+
           if (rcsContacts.length === 0) {
             hideLoading();
             message.error('No RCS capable contacts found');
@@ -679,7 +738,7 @@ export default function CreateCampaignNew() {
           })).unwrap();
 
           hideLoading();
-          message.success('Campaign started successfully!');
+          message.success(`Campaign started successfully! Sending to ${rcsContacts.length} RCS contacts.`);
           navigate('/reports');
         } catch (error) {
           hideLoading();
@@ -791,18 +850,27 @@ export default function CreateCampaignNew() {
                     </Button>
                   </Col>
                 </Row>
-                {batchStats.total > 0 && (
-                  <div style={{ marginTop: '12px' }}>
+                {/* {batchStats.total > 0 && (
+                  <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
                     <Button 
                       danger 
                       icon={<DeleteOutlined />} 
                       onClick={handleClearContacts}
-                      style={{ width: '100%' }}
+                      style={{ flex: 1 }}
                     >
                       Clear All Contacts
                     </Button>
+                    <Button 
+                      type="primary"
+                      ghost
+                      loading={verifyingSync}
+                      onClick={handleVerifySync}
+                      style={{ flex: 1 }}
+                    >
+                      Verify Sync ({batchStats.rcsCapable})
+                    </Button>
                   </div>
-                )}
+                )} */}
                 {(uploading || processingManual) && (
                   <div style={{
                     background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,

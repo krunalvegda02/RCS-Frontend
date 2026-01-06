@@ -117,6 +117,19 @@ export const deleteContactFromBatch = createAsyncThunkHandler(
   (payload) => `campaigns/batches/${payload.campaignId}/contacts/${payload.phoneNumber}`
 );
 
+// Accurate count thunks
+export const getAccurateCounts = createAsyncThunkHandler(
+  'campaigns/getAccurateCounts',
+  _get,
+  (payload) => `campaigns/${payload.id}/accurate-counts`
+);
+
+export const syncContactBatches = createAsyncThunkHandler(
+  'campaigns/syncBatches',
+  _post,
+  (payload) => `campaigns/${payload.id}/sync-batches`
+);
+
 const initialState = {
   campaigns: [],
   adminCampaigns: [],
