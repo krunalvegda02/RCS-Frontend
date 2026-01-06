@@ -92,11 +92,43 @@ export default function Orders() {
   const [dateRange, setDateRange] = useState([null, null]);
   const [sortOrder, setSortOrder] = useState('newest');
 
+  // Reset to page 1 when filters change
+  const handleSearchChange = (value) => {
+    setSearchText(value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleTypeChange = (value) => {
+    setTypeFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleCampaignChange = (value) => {
+    setCampaignFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleDateRangeChange = (dates) => {
+    setDateRange(dates);
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = () => {
+    setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest');
+    setCurrentPage(1);
+  };
+
   const [modalSearchText, setModalSearchText] = useState('');
   const [modalStatusFilter, setModalStatusFilter] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
   const [allCampaignMessages, setAllCampaignMessages] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [allCampaignsForFilters, setAllCampaignsForFilters] = useState([]);
 
   // Manual refresh handler
   const handleRefresh = async () => {
@@ -113,12 +145,37 @@ export default function Orders() {
     }
   };
 
-  // Fetch orders on component mount and page change
+  // Fetch orders with filters whenever filters or page changes
   useEffect(() => {
-    if (user?._id) {
-      dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }));
+    if (!user?._id) return;
+    
+    const params = {
+      userId: user._id,
+      page: currentPage,
+      limit: 10,
+      sort: sortOrder
+    };
+    
+    if (searchText && searchText.trim()) params.search = searchText.trim();
+    if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+    if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
+    if (campaignFilter && campaignFilter !== 'all') params.campaign = campaignFilter;
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      params.startDate = dateRange[0].toISOString();
+      params.endDate = dateRange[1].toISOString();
     }
-  }, [dispatch, user?._id, currentPage]);
+    
+    console.log('Fetching orders with params:', params);
+    dispatch(fetchOrders(params));
+  }, [dispatch, user?._id, currentPage, searchText, statusFilter, typeFilter, campaignFilter, sortOrder, dateRange]);
+
+  // Fetch all campaigns once for filter dropdowns
+  useEffect(() => {
+    if (user?._id && allCampaignsForFilters.length === 0) {
+      dispatch(fetchAllCampaigns(user._id)).unwrap()
+        .then(result => setAllCampaignsForFilters(result.data || []));
+    }
+  }, [user?._id, dispatch]);
 
   // // Auto-refresh orders every 3 seconds to update campaign status (faster refresh)
   // useEffect(() => {
@@ -142,13 +199,19 @@ export default function Orders() {
   };
 
   const getUniqueTypes = () => {
-    if (!Array.isArray(orders)) return [];
-    return [...new Set(orders.map((order) => order.type).filter(Boolean))];
+    if (!Array.isArray(allCampaignsForFilters)) return [];
+    const types = allCampaignsForFilters
+      .map((order) => order.type)
+      .filter((type) => type && type !== 'null' && type !== null);
+    return [...new Set(types)];
   };
 
   const getUniqueCampaigns = () => {
-    if (!Array.isArray(orders)) return [];
-    return [...new Set(orders.map((order) => order.CampaignName).filter(Boolean))];
+    if (!Array.isArray(allCampaignsForFilters)) return [];
+    const campaigns = allCampaignsForFilters
+      .map((order) => order.CampaignName)
+      .filter((name) => name && name !== 'null' && name !== null);
+    return [...new Set(campaigns)];
   };
 
   const getStatusBadge = (order) => {
@@ -358,73 +421,8 @@ export default function Orders() {
     }
   };
 
-  // Filter and sort orders based on current filters
-  const getFilteredOrders = () => {
-    if (!Array.isArray(orders)) return [];
-    
-    let filtered = [...orders];
-    
-    // Search filter
-    if (searchText) {
-      filtered = filtered.filter(order => 
-        order.CampaignName?.toLowerCase().includes(searchText.toLowerCase()) ||
-        order._id?.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
-    
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        const deliveredCount = order?.totalDelivered || 0;
-        const failedCount = order?.failedCount || 0;
-        const totalMessages = order?.cost || 0;
-        const successRate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
-        
-        switch (statusFilter) {
-          case 'completed':
-            return order?.status === 'completed';
-          case 'processing':
-            return order?.status === 'processing' || order?.status === 'running';
-          case 'failed':
-            return successRate === 0 && totalMessages > 0;
-          case 'pending':
-            return deliveredCount === 0 && order?.status !== 'completed';
-          default:
-            return true;
-        }
-      });
-    }
-    
-    // Type filter
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(order => order.type === typeFilter);
-    }
-    
-    // Campaign filter
-    if (campaignFilter !== 'all') {
-      filtered = filtered.filter(order => order.CampaignName === campaignFilter);
-    }
-    
-    // Date range filter
-    if (dateRange && dateRange[0] && dateRange[1]) {
-      filtered = filtered.filter(order => {
-        const orderDate = dayjs(order.createdAt);
-        return orderDate.isAfter(dateRange[0].startOf('day')) && 
-               orderDate.isBefore(dateRange[1].endOf('day'));
-      });
-    }
-    
-    // Sort
-    filtered.sort((a, b) => {
-      const dateA = new Date(a.createdAt);
-      const dateB = new Date(b.createdAt);
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
-    
-    return filtered;
-  };
-
-  const filteredOrders = getFilteredOrders();
+  // Use orders directly from backend (already filtered and sorted)
+  const filteredOrders = orders || [];
 
   const getFilteredMessages = () => {
     let filtered = [...allCampaignMessages];
@@ -882,7 +880,7 @@ export default function Orders() {
 
 
         {/* Summary Stats with Real-time Data */}
-        {Array.isArray(orders) && orders.length > 0 && (
+        {pagination.total > 0 && (
           <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
             <Col xs={24} sm={12} md={6}>
               <Card
@@ -895,7 +893,7 @@ export default function Orders() {
               >
                 <Statistic
                   title="Total Campaigns"
-                  value={orders?.length}
+                  value={pagination.total}
                   prefix={<BarChartOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
                   valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
                   titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
@@ -914,7 +912,7 @@ export default function Orders() {
               >
                 <Statistic
                   title="Total Delivered"
-                  value={orders?.reduce((acc, order) => acc + (order?.totalDelivered || 0), 0)}
+                  value={pagination.totalDelivered || 0}
                   prefix={<CheckCircleOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.success }} />}
                   valueStyle={{ color: THEME_CONSTANTS.colors.success, fontSize: '28px', fontWeight: 700 }}
                   titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
@@ -933,7 +931,7 @@ export default function Orders() {
               >
                 <Statistic
                   title="Total Failed"
-                  value={orders?.reduce((acc, order) => acc + (order?.failedCount || 0), 0)}
+                  value={pagination.totalFailed || 0}
                   prefix={<CloseCircleOutlined style={{ marginRight: '8px', color: '#ff4d4f' }} />}
                   valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 700 }}
                   titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
@@ -954,8 +952,8 @@ export default function Orders() {
                   title="Success Rate"
                   value={
                     (() => {
-                      const totalDelivered = orders?.reduce((acc, order) => acc + (order?.totalDelivered || 0), 0);
-                      const totalSent = orders?.reduce((acc, order) => acc + ((order?.successCount || 0) + (order?.failedCount || 0)), 0);
+                      const totalDelivered = pagination.totalDelivered || 0;
+                      const totalSent = (pagination.totalDelivered || 0) + (pagination.totalFailed || 0);
                       return totalSent > 0 ? ((totalDelivered / totalSent) * 100).toFixed(2) : 0;
                     })()
                   }
@@ -1072,7 +1070,7 @@ export default function Orders() {
                   placeholder="Campaign name or ID..."
                   prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: '14px' }} />}
                   value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   allowClear
                   style={{
                     height: '42px',
@@ -1100,7 +1098,7 @@ export default function Orders() {
                 </div>
                 <Select
                   value={statusFilter}
-                  onChange={setStatusFilter}
+                  onChange={handleStatusChange}
                   style={{ width: '100%' }}
                   size="large"
                   options={[
@@ -1127,7 +1125,7 @@ export default function Orders() {
                 </div>
                 <Select
                   value={typeFilter}
-                  onChange={setTypeFilter}
+                  onChange={handleTypeChange}
                   style={{ width: '100%' }}
                   size="large"
                   options={[
@@ -1152,7 +1150,7 @@ export default function Orders() {
                 </div>
                 <Select
                   value={campaignFilter}
-                  onChange={setCampaignFilter}
+                  onChange={handleCampaignChange}
                   style={{ width: '100%' }}
                   size="large"
                   showSearch
@@ -1183,7 +1181,7 @@ export default function Orders() {
                 </div>
                 <RangePicker
                   value={dateRange}
-                  onChange={setDateRange}
+                  onChange={handleDateRangeChange}
                   style={{ 
                     width: '100%', 
                     height: '42px', 
@@ -1211,7 +1209,7 @@ export default function Orders() {
                 </div>
                 <Button
                   icon={sortOrder === 'newest' ? <span style={{ fontSize: '14px' }}>↓</span> : <span style={{ fontSize: '14px' }}>↑</span>}
-                  onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
+                  onClick={handleSortChange}
                   style={{ 
                     width: '100%', 
                     height: '42px',

@@ -99,10 +99,22 @@ export const processContactBatch = createAsyncThunkHandler(
   (payload) => `campaigns/batches/${payload.batchId}/process`
 );
 
+export const getContactBatchesWithData = createAsyncThunkHandler(
+  'campaigns/getBatchesWithData',
+  _get,
+  (payload) => buildUrlWithParams(`campaigns/batches/${payload.campaignId}/with-data`, { page: payload.page || 1, limit: payload.limit || 10 })
+);
+
 export const getContactBatches = createAsyncThunkHandler(
   'campaigns/getBatches',
   _get,
   (payload) => buildUrlWithParams(`campaigns/batches/${payload.campaignId}`, { limit: payload.limit || 1000 })
+);
+
+export const getReachableUsers = createAsyncThunkHandler(
+  'campaigns/getReachableUsers',
+  _get,
+  (payload) => buildUrlWithParams(`campaigns/batches/${payload.campaignId}/reachable-users`, { page: payload.page || 1, limit: payload.limit || 50, batchNumber: payload.batchNumber })
 );
 
 export const getAllContactsFromBatches = createAsyncThunkHandler(
@@ -159,8 +171,8 @@ const initialState = {
   },
   contactBatches: [],
   batchStats: { total: 0, rcsCapable: 0, notCapable: 0 },
-  allContacts: [],
-  contactsPagination: { page: 1, limit: 50, total: 0, pages: 0 },
+  reachableUsers: [],
+  reachableUsersPagination: { page: 1, limit: 50, total: 0, pages: 0 },
 };
 
 const campaignSlice = createSlice({
@@ -192,6 +204,9 @@ const campaignSlice = createSlice({
     },
     clearAllContacts: (state) => {
       state.allContacts = [];
+    },
+    clearReachableUsers: (state) => {
+      state.reachableUsers = [];
     },
   },
   extraReducers: (builder) => {
@@ -359,6 +374,36 @@ const campaignSlice = createSlice({
         }
       })
 
+    // Get Contact Batches With Data
+    builder
+      .addCase(getContactBatchesWithData.fulfilled, (state, action) => {
+        const newBatches = action.payload.data || [];
+        state.contactBatches = newBatches;
+        
+        if (newBatches.length > 0) {
+          const total = newBatches.reduce((sum, batch) => sum + batch.totalContacts, 0);
+          const rcsCapable = newBatches.reduce((sum, batch) => {
+            // Count from apiResponse if available (batch API)
+            if (batch.apiResponse && batch.apiResponse.length > 0) {
+              const totalReachable = batch.apiResponse.reduce((acc, chunk) => {
+                return acc + (chunk.reachableUsers ? chunk.reachableUsers.length : 0);
+              }, 0);
+              return sum + totalReachable;
+            }
+            // Count from capabilityResults if available (sequential API)
+            if (batch.capabilityResults && batch.capabilityResults.length > 0) {
+              const capableCount = batch.capabilityResults.filter(r => r.isCapable).length;
+              return sum + capableCount;
+            }
+            return sum + (batch.rcsCapableCount || 0);
+          }, 0);
+          const checkedCount = newBatches.reduce((sum, batch) => sum + (batch.processedContacts || batch.totalContacts), 0);
+          const notCapable = checkedCount - rcsCapable;
+          
+          state.batchStats = { total, rcsCapable, notCapable };
+        }
+      })
+
     // Get Contact Batches
     builder
       .addCase(getContactBatches.fulfilled, (state, action) => {
@@ -373,6 +418,13 @@ const campaignSlice = createSlice({
           
           state.batchStats = { total, rcsCapable, notCapable };
         }
+      })
+
+    // Get Reachable Users
+    builder
+      .addCase(getReachableUsers.fulfilled, (state, action) => {
+        state.reachableUsers = action.payload.data || [];
+        state.reachableUsersPagination = action.payload.pagination || state.reachableUsersPagination;
       })
 
     // Get All Contacts From Batches
@@ -392,6 +444,7 @@ export const {
   clearCampaignMessages,
   setBatchStats,
   clearContactBatches,
-  clearAllContacts
+  clearAllContacts,
+  clearReachableUsers
 } = campaignSlice.actions;
 export default campaignSlice.reducer;

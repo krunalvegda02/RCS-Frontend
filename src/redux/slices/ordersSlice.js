@@ -15,7 +15,10 @@ import {
 export const fetchOrders = createAsyncThunkHandler(
   'orders/fetchOrders',
   _get,
-  (payload) => `v1/campaign-reports/user/${payload.userId}?page=${payload.page || 1}&limit=${payload.limit || 10}`
+  (payload) => {
+    const { userId } = payload;
+    return `v1/campaign-reports/user/${userId}`;
+  }
 );
 
 export const deleteOrder = createAsyncThunkHandler(
