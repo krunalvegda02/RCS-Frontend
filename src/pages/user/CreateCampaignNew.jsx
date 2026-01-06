@@ -249,6 +249,7 @@ export default function CreateCampaignNew() {
   const [updateTrigger, setUpdateTrigger] = useState(0);
   const [processingManual, setProcessingManual] = useState(false);
   const [finalStatsSet, setFinalStatsSet] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   // const [verifyingSync, setVerifyingSync] = useState(false);
 
   useEffect(() => {
@@ -369,6 +370,8 @@ export default function CreateCampaignNew() {
             const { chunk, totalChunks, rcsCapable, total } = data.progress;
             const percent = Math.round((chunk / totalChunks) * 100);
             
+            setUploadProgress(percent);
+            
             setBatchStats(prev => ({
               ...prev,
               rcsCapable: rcsCapable || 0,
@@ -423,6 +426,7 @@ export default function CreateCampaignNew() {
         setTimeout(async () => {
           clearInterval(progressInterval);
           message.destroy('capability');
+          setUploadProgress(0);
           
           const rcsCount = result?.summary?.rcsCapable || result?.data?.summary?.rcsCapable || 0;
           const totalCount = result?.summary?.total || result?.data?.summary?.total || phoneNumbers.length;
@@ -560,10 +564,13 @@ export default function CreateCampaignNew() {
       cancelText: 'Cancel',
       onOk: () => {
         dispatch(clearContactBatches());
+        dispatch(clearCapabilityResults());
         setBatchStats({ total: 0, rcsCapable: 0, notCapable: 0 });
         setFinalStatsSet(false);
         setCampaignId(null);
         setShowContacts(false);
+        setShowReachableUsers(false);
+        setUploadProgress(0);
         message.success('All contacts cleared');
       }
     });
@@ -700,12 +707,48 @@ export default function CreateCampaignNew() {
     });
   };
 
-  const downloadDemo = () => {
-    const data = [['Index', 'Number'], ['1', '7201000140'], ['2', '7201000141']];
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
-    XLSX.writeFile(wb, 'demo_contacts.xlsx');
+  const downloadDemo = async () => {
+    // If contacts are uploaded, download them
+    if (campaignId && batchStats.total > 0) {
+      try {
+        const response = await dispatch(getAllContactsFromBatches({ 
+          campaignId, 
+          page: 1, 
+          limit: 100000 
+        })).unwrap();
+        
+        const contacts = response.data || [];
+        
+        if (contacts.length === 0) {
+          message.warning('No contacts found to download');
+          return;
+        }
+
+        // Create Excel with uploaded contacts
+        const data = [['Index', 'Phone Number', 'Status']];
+        contacts.forEach((contact, index) => {
+          const status = contact.isRcsCapable === true ? 'RCS Ready' : 
+                        contact.isRcsCapable === false ? 'Not Capable' : 'Checking...';
+          data.push([index + 1, contact.phoneNumber, status]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        ws['!cols'] = [{ wch: 8 }, { wch: 15 }, { wch: 15 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
+        XLSX.writeFile(wb, `uploaded_contacts_${Date.now()}.xlsx`);
+        message.success(`Downloaded ${contacts.length} contacts`);
+      } catch (error) {
+        message.error('Failed to download contacts');
+      }
+    } else {
+      // Download demo template
+      const data = [['Index', 'Number'], ['1', '7201000140'], ['2', '7201000141']];
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
+      XLSX.writeFile(wb, 'demo_contacts.xlsx');
+    }
   };
 
   return (
@@ -777,9 +820,17 @@ export default function CreateCampaignNew() {
                     <Button icon={<PlusOutlined />} onClick={() => setManualContactModal(true)} disabled={campaignId !== null} style={{ width: '100%', height: '44px' }}>Add Manually</Button>
                   </Col>
                   <Col span={8}>
-                    <Button icon={<DownloadOutlined />} onClick={downloadDemo} style={{ width: '100%', height: '44px' }}>Download Demo</Button>
+                    <Button 
+                      icon={<DownloadOutlined />} 
+                      onClick={downloadDemo} 
+                      style={{ width: '100%', height: '44px' }}
+                    >
+                      {batchStats.total > 0 ? `Download (${batchStats.total})` : 'Download Demo'}
+                    </Button>
                   </Col>
-                  <Col span={12}>
+                </Row>
+                <Row gutter={[12, 12]} style={{ marginTop: '12px' }}>
+                  <Col span={8}>
                     <Button 
                       type="primary"
                       ghost
@@ -787,10 +838,10 @@ export default function CreateCampaignNew() {
                       disabled={batchStats.rcsCapable === 0}
                       style={{ width: '100%', height: '44px' }}
                     >
-                      {showReachableUsers ? 'Hide' : 'Show'} RCS Ready ({batchStats.rcsCapable})
+                      {showReachableUsers ? 'Hide' : 'Show'} RCS ({batchStats.rcsCapable})
                     </Button>
                   </Col>
-                  <Col span={12}>
+                  <Col span={8}>
                     <Button 
                       type="primary"
                       onClick={() => setShowContacts(!showContacts)}
@@ -798,6 +849,17 @@ export default function CreateCampaignNew() {
                       style={{ width: '100%', height: '44px' }}
                     >
                       {showContacts ? 'Hide' : 'Show'} All ({batchStats.total})
+                    </Button>
+                  </Col>
+                  <Col span={8}>
+                    <Button 
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={handleClearContacts}
+                      disabled={batchStats.total === 0}
+                      style={{ width: '100%', height: '44px' }}
+                    >
+                      Clear All
                     </Button>
                   </Col>
                 </Row>
@@ -824,27 +886,113 @@ export default function CreateCampaignNew() {
                 )} */}
                 {(uploading || processingManual) && (
                   <div style={{
-                    background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
-                    padding: '20px',
-                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    background: THEME_CONSTANTS.colors.surface,
+                    padding: '24px',
+                    borderRadius: THEME_CONSTANTS.radius.xl,
                     marginTop: '16px',
-                    color: 'white',
-                    boxShadow: THEME_CONSTANTS.shadow.md
+                    boxShadow: THEME_CONSTANTS.shadow.lg,
+                    border: `2px solid ${THEME_CONSTANTS.colors.primary}`
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '16px', 
+                      marginBottom: uploadProgress > 0 ? '20px' : '0',
+                      paddingBottom: uploadProgress > 0 ? '20px' : '0',
+                      borderBottom: uploadProgress > 0 ? `1px solid ${THEME_CONSTANTS.colors.border}` : 'none'
+                    }}>
                       <div style={{ 
-                        width: '40px', 
-                        height: '40px',
-                        border: '3px solid white',
-                        borderTopColor: 'transparent',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }} />
+                        width: '48px', 
+                        height: '48px',
+                        background: THEME_CONSTANTS.colors.primaryLight,
+                        borderRadius: THEME_CONSTANTS.radius.lg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: `2px solid ${THEME_CONSTANTS.colors.primary}`
+                      }}>
+                        <div style={{ 
+                          width: '24px', 
+                          height: '24px',
+                          border: `3px solid ${THEME_CONSTANTS.colors.primary}`,
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite'
+                        }} />
+                      </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>Verifying RCS Capability</div>
-                        <div style={{ fontSize: '13px', opacity: 0.9 }}>Checking RCS capability for contacts...</div>
+                        <div style={{ 
+                          fontSize: '16px', 
+                          fontWeight: 700, 
+                          color: THEME_CONSTANTS.colors.text,
+                          marginBottom: '4px',
+                          letterSpacing: '-0.01em'
+                        }}>
+                          Verifying RCS Capability
+                        </div>
+                        <div style={{ 
+                          fontSize: '13px', 
+                          color: THEME_CONSTANTS.colors.textSecondary,
+                          fontWeight: 500
+                        }}>
+                          Checking RCS capability for your contacts...
+                        </div>
                       </div>
                     </div>
+                    {uploadProgress > 0 && (
+                      <div>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          marginBottom: '12px'
+                        }}>
+                          <span style={{ 
+                            fontSize: '13px', 
+                            fontWeight: 600, 
+                            color: THEME_CONSTANTS.colors.text,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }}>
+                            Processing
+                          </span>
+                          <span style={{ 
+                            fontSize: '20px', 
+                            fontWeight: 700, 
+                            color: THEME_CONSTANTS.colors.primary
+                          }}>
+                            {uploadProgress}%
+                          </span>
+                        </div>
+                        <div style={{
+                          width: '100%',
+                          height: '12px',
+                          background: THEME_CONSTANTS.colors.background,
+                          borderRadius: THEME_CONSTANTS.radius.full,
+                          overflow: 'hidden',
+                          position: 'relative',
+                          border: `1px solid ${THEME_CONSTANTS.colors.border}`
+                        }}>
+                          <div style={{
+                            width: `${uploadProgress}%`,
+                            height: '100%',
+                            background: `linear-gradient(90deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
+                            borderRadius: THEME_CONSTANTS.radius.full,
+                            transition: 'width 0.3s ease',
+                            boxShadow: `0 0 10px ${THEME_CONSTANTS.colors.primary}40`
+                          }} />
+                        </div>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: THEME_CONSTANTS.colors.textSecondary, 
+                          marginTop: '12px',
+                          textAlign: 'center',
+                          fontWeight: 500
+                        }}>
+                          {uploadProgress < 100 ? 'Please wait while we verify your contacts...' : 'Almost done!'}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', marginTop: '16px' }} key={updateTrigger}>
