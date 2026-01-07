@@ -126,7 +126,6 @@ export default function Orders() {
   const [modalSearchText, setModalSearchText] = useState('');
   const [modalStatusFilter, setModalStatusFilter] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
-  const [allCampaignMessages, setAllCampaignMessages] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [allCampaignsForFilters, setAllCampaignsForFilters] = useState([]);
 
@@ -135,7 +134,7 @@ export default function Orders() {
     if (user?._id) {
       setIsRefreshing(true);
       try {
-        await dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 })).unwrap();
+        await dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 5 })).unwrap();
         toast.success('Campaigns refreshed successfully');
       } catch (error) {
         toast.error('Failed to refresh campaigns');
@@ -152,7 +151,7 @@ export default function Orders() {
     const params = {
       userId: user._id,
       page: currentPage,
-      limit: 10,
+      limit: 5,
       sort: sortOrder
     };
     
@@ -316,37 +315,49 @@ export default function Orders() {
     setModalStatusFilter('all');
     setShowModal(true);
     
-    // Fetch all messages for this campaign
+    // Fetch first page of messages
     if (order._id) {
-      try {
-        const result = await dispatch(fetchAllCampaignMessages(order._id)).unwrap();
-        setAllCampaignMessages(result.data || []);
-      } catch (error) {
-        console.error('Error fetching campaign messages:', error);
-        setAllCampaignMessages([]);
-      }
+      dispatch(fetchCampaignMessages({ campaignId: order._id, page: 1, limit: 10 }));
     }
   };
 
   const handleModalSearch = (searchValue) => {
     setModalSearchText(searchValue);
     setModalCurrentPage(1);
+    if (selectedOrder?._id) {
+      dispatch(fetchCampaignMessages({ 
+        campaignId: selectedOrder._id, 
+        page: 1, 
+        limit: 10,
+        search: searchValue || undefined
+      }));
+    }
   };
 
   const handleModalStatusFilter = (status) => {
     setModalStatusFilter(status);
     setModalCurrentPage(1);
+    if (selectedOrder?._id) {
+      dispatch(fetchCampaignMessages({ 
+        campaignId: selectedOrder._id, 
+        page: 1, 
+        limit: 10,
+        status: status !== 'all' ? status : undefined
+      }));
+    }
   };
 
   const handleModalPageChange = (page) => {
     setModalCurrentPage(page);
+    if (selectedOrder?._id) {
+      dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page, limit: 10 }));
+    }
   };
 
   const closeModal = () => {
     setShowModal(false);
     setModalSearchText('');
     setModalStatusFilter('all');
-    setAllCampaignMessages([]);
     dispatch(clearSelectedOrder());
   };
 
@@ -424,31 +435,8 @@ export default function Orders() {
   // Use orders directly from backend (already filtered and sorted)
   const filteredOrders = orders || [];
 
-  const getFilteredMessages = () => {
-    let filtered = [...allCampaignMessages];
-    
-    // Apply search filter
-    if (modalSearchText) {
-      filtered = filtered.filter(msg => 
-        msg.phoneNumber?.toLowerCase().includes(modalSearchText.toLowerCase())
-      );
-    }
-    
-    // Apply status filter
-    if (modalStatusFilter !== 'all') {
-      filtered = filtered.filter(msg => msg.status === modalStatusFilter);
-    }
-    
-    return filtered;
-  };
-
-  const filteredMessages = getFilteredMessages();
-  
-  // Paginate filtered messages
-  const paginatedMessages = filteredMessages.slice(
-    (modalCurrentPage - 1) * 10,
-    modalCurrentPage * 10
-  );
+  // Use messages from Redux (already paginated by backend)
+  const paginatedMessages = campaignMessages || [];
 
   const deleteOrderHandler = async (orderId) => {
     Modal.confirm({
@@ -1714,7 +1702,7 @@ export default function Orders() {
                       <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
                         <div style={{ flex: 1 }}>
                           <span style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
-                            {filteredMessages.length} total messages
+                            {messagesPagination?.total || 0} total messages
                           </span>
                         </div>
                         <Button
@@ -1722,7 +1710,9 @@ export default function Orders() {
                             setModalSearchText('');
                             setModalStatusFilter('all');
                             setModalCurrentPage(1);
-                            dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page: 1, limit: 20 }));
+                            if (selectedOrder?._id) {
+                              dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page: 1, limit: 10 }));
+                            }
                           }}
                           style={{ height: '40px' }}
                           disabled={!modalSearchText && modalStatusFilter === 'all'}
@@ -1732,9 +1722,9 @@ export default function Orders() {
                         <Button
                           icon={<ReloadOutlined />}
                           onClick={() => {
-                            setModalSearchText('');
-                            setModalStatusFilter('all');
-                            dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page: 1, limit: 20 }));
+                            if (selectedOrder?._id) {
+                              dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page: modalCurrentPage, limit: 10 }));
+                            }
                           }}
                           loading={loading.messages}
                           style={{ height: '40px' }}
@@ -1754,7 +1744,7 @@ export default function Orders() {
                   pagination={{
                     current: modalCurrentPage,
                     pageSize: 10,
-                    total: filteredMessages.length,
+                    total: messagesPagination?.total || 0,
                     onChange: handleModalPageChange,
                     showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
                     size: 'default',

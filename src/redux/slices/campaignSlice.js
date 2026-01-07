@@ -22,16 +22,16 @@ export const createCampaign = createAsyncThunkHandler(
   'campaigns'
 );
 
-export const sendBulkMessage = createAsyncThunkHandler(
-  'campaigns/sendBulk',
-  _post,
-  'campaigns/send-bulk'
-);
-
 export const checkCapability = createAsyncThunkHandler(
   'campaigns/checkCapability',
   _post,
   'campaigns/check-capability'
+);
+
+export const createCampaignEntries = createAsyncThunkHandler(
+  'campaigns/createEntries',
+  _post,
+  'campaigns/create-entries'
 );
 
 export const getCampaignStats = createAsyncThunkHandler(
@@ -286,21 +286,6 @@ const campaignSlice = createSlice({
       .addCase(createCampaign.rejected, (state, action) => {
         state.loading.campaigns = false;
         state.error = action.payload;
-      })
-
-    // Send Bulk Message
-    builder
-      .addCase(sendBulkMessage.pending, (state) => {
-        state.loading.sending = true;
-        state.messageError = null;
-      })
-      .addCase(sendBulkMessage.fulfilled, (state, action) => {
-        state.loading.sending = false;
-        state.campaigns.unshift(action.payload.data);
-      })
-      .addCase(sendBulkMessage.rejected, (state, action) => {
-        state.loading.sending = false;
-        state.messageError = action.payload;
       })
 
     // Check Capability

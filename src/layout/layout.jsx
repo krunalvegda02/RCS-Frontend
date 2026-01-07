@@ -142,6 +142,12 @@ export default function UserLayout() {
       label: 'Wallet',
       onClick: () => navigate('/wallet'),
     },
+     {
+      key: '/wallet',
+      icon: <WalletOutlined className="text-xl" />,
+      label: 'Wallet',
+      onClick: () => navigate('/test'),
+    },
   ];
 
   const userMenuItems = [

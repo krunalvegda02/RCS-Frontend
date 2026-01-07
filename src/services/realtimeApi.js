@@ -44,12 +44,12 @@ export const getCampaignMessages = createAsyncThunkHandler(
 export const getAllCampaignMessages = createAsyncThunkHandler(
     'campaigns/getAllMessages',
     _get,
-    (campaignId) => `v1/campaign-reports/campaign/${campaignId}/messages?page=1&limit=100000`
+    (campaignId) => `v1/campaign-reports/campaign/${campaignId}/messages?page=1&limit=10`
 );
 
 // Export all campaigns (for Excel export)
 export const getAllCampaigns = createAsyncThunkHandler(
     'campaigns/getAllCampaigns',
     _get,
-    (userId) => `v1/campaign-reports/user/${userId}?page=1&limit=100000`
+    (userId) => `v1/campaign-reports/user/${userId}?page=1&limit=10`
 );

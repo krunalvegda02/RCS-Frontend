@@ -41,8 +41,6 @@ import { THEME_CONSTANTS } from '../../theme';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import * as XLSX from 'xlsx';
-import dayjs from 'dayjs';
-import { io } from 'socket.io-client';
 import { 
   getAllCampaignsForAdmin, 
   getCampaignMessages, 
@@ -302,9 +300,6 @@ export default function AllCampaigns() {
     setShowModal(true);
     if (campaign._id) {
       fetchCampaignMessagesHandler(campaign._id, 1, '', 'all');
-      if (socket) {
-        socket.emit('join_campaign', campaign._id);
-      }
     }
   };
 
@@ -313,9 +308,6 @@ export default function AllCampaigns() {
     setModalSearchText('');
     setModalStatusFilter('all');
     setModalCurrentPage(1);
-    if (socket && selectedCampaign?._id) {
-      socket.emit('leave_campaign', selectedCampaign._id);
-    }
     dispatch(clearCurrentCampaign());
     dispatch(clearCampaignMessages());
   };

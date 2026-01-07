@@ -77,7 +77,7 @@ import RCSMessagePreview from '../../components/RCSMesagePreview';
 import ContactUpload from '../../components/ContactUpload';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { sendBulkMessage, checkCapability } from '../../redux/slices/campaignSlice';
+// import { sendBulkMessage, checkCapability } from '../../redux/slices/campaignSlice';
 import { _get, _post } from '../../helper/apiClient.jsx';
 import { useContactUpload } from '../../hooks/useContactUpload';
 
@@ -388,10 +388,10 @@ function CreateCampaign() {
         message.loading(`Checking RCS capability for ${numbers.length} contacts...`, 0);
       }
       
-      const result = await dispatch(checkCapability({
-        phoneNumbers: numbers,
-        userId: user._id
-      })).unwrap();
+      // const result = await dispatch(checkCapability({
+      //   phoneNumbers: numbers,
+      //   userId: user._id
+      // })).unwrap();
       
       // Hide loading message
       message.destroy();
@@ -573,11 +573,11 @@ function CreateCampaign() {
             let loadingMessage = message.loading(`Checking RCS capability for ${imported.length} contacts...`, 0);
             
             try {
-              const dispatchResult = dispatch(checkCapability({
-                phoneNumbers: imported,
-                userId: user._id,
-                countOnly: true
-              }));
+              // const dispatchResult = dispatch(checkCapability({
+              //   phoneNumbers: imported,
+              //   userId: user._id,
+              //   countOnly: true
+              // }));
               
               const result = await dispatchResult;
               const unwrapped = result.payload;
@@ -720,11 +720,11 @@ function CreateCampaign() {
     try {
       const phoneNumbers = recipients.map(r => r.number.replace('+91', ''));
       
-      const dispatchResult = dispatch(checkCapability({
-        phoneNumbers: phoneNumbers,
-        userId: user._id,
-        countOnly: false // Get full contact details
-      }));
+      // const dispatchResult = dispatch(checkCapability({
+      //   phoneNumbers: phoneNumbers,
+      //   userId: user._id,
+      //   countOnly: false // Get full contact details
+      // }));
       
       const result = await dispatchResult;
       const unwrapped = result.payload;

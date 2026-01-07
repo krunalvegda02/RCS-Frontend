@@ -18,6 +18,8 @@ const AdminReports = lazy(() => import('../pages/admin/AdminReports.jsx'))
 const Login = lazy(() => import('../pages/Login.jsx'))
 const Register = lazy(() => import('../pages/Register.jsx'))
 
+const testCapability = lazy(() => import('../components/TestCapability.jsx'))
+
 // Layouts
 const Layout = lazy(() => import('../layout/layout.jsx'))
 const AdminLayout = lazy(() => import('../layout/AdminLayout.jsx'))
@@ -31,7 +33,7 @@ export const pageData = {
       requiresAuth: false
     },
     {
-      path: '/register', 
+      path: '/register',
       component: Register,
       requiresAuth: false
     }
@@ -76,6 +78,10 @@ export const pageData = {
         {
           path: 'profile',
           component: Profile
+        },
+        {
+          path: 'test',
+          component: testCapability
         },
       ]
     }

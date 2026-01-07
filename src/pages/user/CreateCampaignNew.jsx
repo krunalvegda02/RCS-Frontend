@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { checkCapability, createCampaign, uploadContactBatch, processContactBatch, getContactBatches, getContactBatchesWithData, getAllContactsFromBatches, getReachableUsers, sendBulkMessage, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
+import { checkCapability, createCampaign, createCampaignEntries, uploadContactBatch, processContactBatch, getContactBatches, getContactBatchesWithData, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 import RCSCampaignTimeWarning from '../../components/RCSCampaignTimeWarning';
 
@@ -245,70 +245,19 @@ export default function CreateCampaignNew() {
   const [showContacts, setShowContacts] = useState(false);
   const [showReachableUsers, setShowReachableUsers] = useState(false);
   const [batchStats, setBatchStats] = useState({ total: 0, rcsCapable: 0, notCapable: 0 });
-  const [batchProgress, setBatchProgress] = useState(null);
-  const [updateTrigger, setUpdateTrigger] = useState(0);
-  const [processingManual, setProcessingManual] = useState(false);
-  const [finalStatsSet, setFinalStatsSet] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  // const [verifyingSync, setVerifyingSync] = useState(false);
+  const [capabilityResponse, setCapabilityResponse] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     if (user?._id) {
-      dispatch(fetchUserTemplates({ userId: user._id, page: 1, limit: 1000 }));
+      dispatch(fetchUserTemplates({ userId: user._id, page: 1, limit: 10 }));
     }
   }, [user?._id, dispatch]);
 
-  useEffect(() => {
-    if (campaignId && !processingBatches && !uploading && !processingManual) {
-      const interval = setInterval(async () => {
-        try {
-          const response = await dispatch(getContactBatchesWithData({ campaignId, page: 1, limit: 1000 })).unwrap();
-          const batches = response.data || [];
-          
-          const freshTotal = batches.reduce((sum, batch) => sum + (batch.totalContacts || 0), 0);
-          const freshRcsCapable = batches.reduce((sum, batch) => sum + (batch.rcsCapableCount || 0), 0);
-          
-          setBatchStats({
-            total: freshTotal,
-            rcsCapable: freshRcsCapable,
-            notCapable: freshTotal - freshRcsCapable
-          });
-        } catch (err) {
-          console.error('Failed to fetch batch stats:', err);
-        }
-      }, 2000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [campaignId, processingBatches, uploading, processingManual, dispatch]);
 
-  useEffect(() => {
-    // Don't use Redux batch stats - we fetch fresh from backend
-    // This prevents stale/accumulated data
-  }, [reduxBatchStats, uploading, processingManual, finalStatsSet]);
-
-  const handleContactDeleted = async () => {
-    if (campaignId) {
-      setFinalStatsSet(false);
-      
-      // Fetch updated batch data which now has correct counts
-      const batchesResponse = await dispatch(getContactBatchesWithData({ campaignId, page: 1, limit: 1000 })).unwrap();
-      const batches = batchesResponse.data || [];
-      
-      // Calculate totals from batches
-      const total = batches.reduce((sum, batch) => sum + (batch.totalContacts || 0), 0);
-      const rcsCapable = batches.reduce((sum, batch) => sum + (batch.rcsCapableCount || 0), 0);
-      
-      setBatchStats({
-        total,
-        rcsCapable,
-        notCapable: total - rcsCapable
-      });
-    }
-  };
 
   // Unified contact processing function for both manual and Excel uploads
-  const processContacts = async (phoneNumbers, source = 'manual') => {
+  const processContacts = async (phoneNumbers) => {
     if (!selectedTemplate) {
       message.error('Please select a template first');
       return;
@@ -324,197 +273,86 @@ export default function CreateCampaignNew() {
       return;
     }
 
-    const isProcessing = source === 'excel' ? setUploading : setProcessingManual;
-    isProcessing(true);
+    setChecking(true);
 
     try {
-      // Create campaign if not exists
-      let currentCampaignId = campaignId;
-      if (!currentCampaignId) {
-        const campaignRes = await dispatch(createCampaign({
-          name: campaignName || `Campaign ${Date.now()}`,
-          templateId: selectedTemplate?._id,
-          userId: user._id,
-          status: 'draft',
-          isArchived: true,
-          totalRecipients: phoneNumbers.length
-        })).unwrap();
-        currentCampaignId = campaignRes.data._id;
-        setCampaignId(currentCampaignId);
+      message.success(`${phoneNumbers.length} contacts uploaded!`);
+      
+      // Call checkCapability API directly
+      const response = await dispatch(checkCapability({ phoneNumbers })).unwrap();
+      
+      console.log('✅ Capability Check Response:', response);
+      console.log('📊 Summary:', response.summary);
+      console.log('📋 Data:', response.data);
+      console.log('🔄 API Used:', response.summary?.apiUsed);
+      
+      // Store response in variable
+      setCapabilityResponse(response);
+      
+      // Update batch stats from response
+      if (response.success && response.summary) {
+        setBatchStats({
+          total: response.summary.total,
+          rcsCapable: response.summary.rcsCapable,
+          notCapable: response.summary.notCapable
+        });
+        message.success(`Capability check complete! ${response.summary.rcsCapable} RCS-capable out of ${response.summary.total}`);
       }
-
-      // Upload contacts in batch
-      await dispatch(uploadContactBatch({
-        campaignId: currentCampaignId,
-        batchNumber: Date.now(),
-        phoneNumbers: phoneNumbers
-      })).unwrap();
-
-      // Initialize stats with current batch only
-      setBatchStats({ 
-        total: phoneNumbers.length, 
-        rcsCapable: 0, 
-        notCapable: 0 
-      });
-
-      // Start progress polling
-      const progressInterval = setInterval(async () => {
-        try {
-          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-          const response = await fetch(`${apiUrl}/v1/campaigns/check-capability/progress?campaignId=${currentCampaignId}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-          });
-          const data = await response.json();
-          
-          if (data.progress && data.progress.chunk > 0) {
-            const { chunk, totalChunks, rcsCapable, total } = data.progress;
-            const percent = Math.round((chunk / totalChunks) * 100);
-            
-            setUploadProgress(percent);
-            
-            setBatchStats(prev => ({
-              ...prev,
-              rcsCapable: rcsCapable || 0,
-              notCapable: (total || prev.total) - (rcsCapable || 0)
-            }));
-            
-            message.loading({ 
-              content: (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '4px 0' }}>
-                  <div style={{ 
-                    width: '40px', height: '40px', borderRadius: THEME_CONSTANTS.radius.md,
-                    background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                  }}>
-                    <div style={{ 
-                      width: '20px', height: '20px', border: `3px solid white`, 
-                      borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' 
-                    }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '15px', fontWeight: 600, color: THEME_CONSTANTS.colors.text, marginBottom: '6px', lineHeight: 1.3 }}>
-                      Verifying RCS Capability
-                    </div>
-                    <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginBottom: '4px', lineHeight: 1.4 }}>
-                      Processing batch {chunk} of {totalChunks} • {percent}% complete
-                    </div>
-                    <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.success, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ fontSize: '16px' }}>✓</span>
-                      {(rcsCapable || 0).toLocaleString()} contacts ready
-                    </div>
-                  </div>
-                </div>
-              ), 
-              key: 'capability', 
-              duration: 0 
-            });
-          }
-        } catch (e) {
-          console.error('[Progress] Poll error:', e);
-        }
-      }, 2000);
-
-      // Check capability
-      try {
-        const result = await dispatch(checkCapability({
-          phoneNumbers: phoneNumbers,
-          campaignId: currentCampaignId,
-          countOnly: true
-        })).unwrap();
-
-        // Stop progress polling and show completion
-        setTimeout(async () => {
-          clearInterval(progressInterval);
-          message.destroy('capability');
-          setUploadProgress(0);
-          
-          const rcsCount = result?.summary?.rcsCapable || result?.data?.summary?.rcsCapable || 0;
-          const totalCount = result?.summary?.total || result?.data?.summary?.total || phoneNumbers.length;
-          
-          // Fetch fresh stats from backend after processing
-          try {
-            const batchesResponse = await dispatch(getContactBatchesWithData({ campaignId: currentCampaignId, page: 1, limit: 1000 })).unwrap();
-            const batches = batchesResponse.data || [];
-            
-            const freshTotal = batches.reduce((sum, batch) => sum + (batch.totalContacts || 0), 0);
-            const freshRcsCapable = batches.reduce((sum, batch) => sum + (batch.rcsCapableCount || 0), 0);
-            
-            setBatchStats({
-              total: freshTotal,
-              rcsCapable: freshRcsCapable,
-              notCapable: freshTotal - freshRcsCapable
-            });
-          } catch (err) {
-            console.error('Failed to fetch fresh stats:', err);
-          }
-          
-          setFinalStatsSet(true);
-          
-          message.success({
-            content: (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px', color: THEME_CONSTANTS.colors.success }}>✓</span>
-                <span>{totalCount.toLocaleString()} contacts {source === 'excel' ? 'uploaded' : 'added'}! {rcsCount.toLocaleString()} are RCS capable.</span>
-              </div>
-            ),
-            duration: 3
-          });
-          isProcessing(false);
-        }, 2000);
-      } catch (error) {
-        clearInterval(progressInterval);
-        message.destroy('capability');
-        
-        const errorMsg = error?.message || error?.data?.message || error?.error || 'Failed to verify contacts';
-        message.error(`Capability check failed: ${errorMsg}`);
-        isProcessing(false);
-      }
+      
+      setChecking(false);
     } catch (error) {
       const errorMsg = error?.message || error?.data?.message || String(error);
-      message.error(`Error ${source === 'excel' ? 'uploading' : 'adding'} contacts: ${errorMsg}`);
-      isProcessing(false);
+      message.error(`Error processing contacts: ${errorMsg}`);
+      setChecking(false);
     }
   };
 
   const handleExcelUpload = async (file) => {
-    // COMPLETE RESET - Clear everything for new Excel upload
-    dispatch(clearContactBatches());
-    dispatch(clearCapabilityResults());
-    setBatchStats({ total: 0, rcsCapable: 0, notCapable: 0 });
-    setFinalStatsSet(false);
-    setCampaignId(null); // Force new campaign creation
-    setShowContacts(false);
-    setShowReachableUsers(false);
-    
+    if (!selectedTemplate) {
+      message.error('Please select a template first');
+      return false;
+    }
+    if (!campaignName.trim()) {
+      message.error('Please enter campaign name first');
+      return false;
+    }
+
     const reader = new FileReader();
     reader.onload = async (evt) => {
-      const wb = XLSX.read(evt.target.result, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      try {
+        const wb = XLSX.read(evt.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        const seen = new Set();
 
-      const imported = [];
-      const seen = new Set();
+        for (let row of data) {
+          if (!row || row.length === 0) continue;
+          row.forEach((cell) => {
+            if (!cell) return;
+            let num = String(cell).trim().replace(/[\s\-()\.]/, '').replace(/[^\d+]/g, '');
+            if (num.startsWith('+91')) num = num.substring(3);
+            else if (num.startsWith('91') && num.length > 10) num = num.substring(2);
+            else if (num.startsWith('0')) num = num.substring(1);
+            if (/^\d{10}$/.test(num)) seen.add('+91' + num);
+          });
+        }
 
-      for (let row of data) {
-        if (!row || row.length === 0) continue;
-        row.forEach((cell) => {
-          if (!cell) return;
-          let num = String(cell).trim().replace(/[\s\-()\.]/g, '').replace(/[^\d+]/g, '');
-          if (num.startsWith('+91')) num = num.substring(3);
-          else if (num.startsWith('91') && num.length > 10) num = num.substring(2);
-          else if (num.startsWith('0')) num = num.substring(1);
-          if (/^\d{10}$/.test(num) && !seen.has(num)) {
-            seen.add(num);
-            imported.push(num);
-          }
-        });
+        const imported = Array.from(seen);
+        if (imported.length === 0) {
+          message.error('No valid phone numbers found');
+          return;
+        }
+
+        await processContacts(imported);
+      } catch (error) {
+        message.error('Upload failed: ' + error.message);
       }
-
-      await processContacts(imported, 'excel');
     };
     reader.readAsArrayBuffer(file);
     return false;
   };
+
+
 
   const handleAddContact = async (values) => {
     let phoneNumbers = values.phone.trim();
@@ -529,7 +367,7 @@ export default function CreateCampaignNew() {
       return;
     }
 
-    const validNumbers = [];
+    const seen = new Set();
     for (let phone of numbers) {
       if (!phone.startsWith('+91')) {
         if (phone.startsWith('91') && phone.length === 12) phone = '+' + phone;
@@ -537,9 +375,11 @@ export default function CreateCampaignNew() {
         else continue;
       }
       if (/^\+91\d{10}$/.test(phone)) {
-        validNumbers.push(phone.replace('+91', ''));
+        seen.add(phone);
       }
     }
+
+    const validNumbers = Array.from(seen);
 
     if (validNumbers.length === 0) {
       message.warning('No valid numbers found');
@@ -549,10 +389,7 @@ export default function CreateCampaignNew() {
     setManualContactModal(false);
     manualContactForm.resetFields();
     
-    // Don't clear state for manual additions - let backend accumulate
-    setFinalStatsSet(false);
-    
-    await processContacts(validNumbers, 'manual');
+    await processContacts(validNumbers);
   };
 
   const handleClearContacts = () => {
@@ -566,11 +403,10 @@ export default function CreateCampaignNew() {
         dispatch(clearContactBatches());
         dispatch(clearCapabilityResults());
         setBatchStats({ total: 0, rcsCapable: 0, notCapable: 0 });
-        setFinalStatsSet(false);
+        setCapabilityResponse(null);
         setCampaignId(null);
         setShowContacts(false);
         setShowReachableUsers(false);
-        setUploadProgress(0);
         message.success('All contacts cleared');
       }
     });
@@ -686,22 +522,42 @@ export default function CreateCampaignNew() {
         style: { height: '48px', borderRadius: THEME_CONSTANTS.radius.md }
       },
       onOk: async () => {
-        const hideLoading = message.loading('Starting campaign...', 0);
+        const hideLoading = message.loading('Creating campaign...', 0);
         try {
-          await dispatch(sendBulkMessage({
-            name: campaignName.trim(),
+          // Get RCS-capable phone numbers from capabilityResponse
+          const rcsNumbers = capabilityResponse?.data
+            ?.filter(contact => contact.isCapable)
+            ?.map(contact => contact.phoneNumber) || [];
+
+          if (rcsNumbers.length === 0) {
+            hideLoading();
+            message.error('No RCS-capable contacts found');
+            return;
+          }
+
+          // Create campaign first
+          const campaignRes = await dispatch(createCampaign({
+            name: campaignName,
             templateId: selectedTemplate._id,
-            campaignId: campaignId,
-            isArchived: false,
-            autoStart: true
+            userId: user._id,
+            status: 'pending'
+          })).unwrap();
+          
+          const newCampaignId = campaignRes.data._id;
+
+          // Create campaign entries using the new campaign ID
+          await dispatch(createCampaignEntries({
+            campaignId: newCampaignId,
+            templateId: selectedTemplate._id,
+            phoneNumbers: rcsNumbers
           })).unwrap();
 
           hideLoading();
-          message.success(`Campaign started successfully! Sending to ${batchStats.rcsCapable} RCS contacts.`);
+          message.success(`Campaign created with ${rcsNumbers.length} RCS contacts!`);
           navigate('/reports');
         } catch (error) {
           hideLoading();
-          message.error('Failed to start campaign: ' + (error.message || error));
+          message.error('Failed to create campaign: ' + (error.message || error));
         }
       }
     });
@@ -714,7 +570,7 @@ export default function CreateCampaignNew() {
         const response = await dispatch(getAllContactsFromBatches({ 
           campaignId, 
           page: 1, 
-          limit: 100000 
+          limit: 10 
         })).unwrap();
         
         const contacts = response.data || [];
@@ -812,12 +668,12 @@ export default function CreateCampaignNew() {
                 <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>3. Upload Contacts</h3>
                 <Row gutter={[12, 12]}>
                   <Col span={8}>
-                    <Upload beforeUpload={handleExcelUpload} showUploadList={false} accept=".xlsx,.xls,.csv" disabled={campaignId !== null}>
-                      <Button icon={<UploadOutlined />} loading={uploading} disabled={campaignId !== null} style={{ width: '100%', height: '44px' }}>Upload Excel</Button>
+                    <Upload beforeUpload={handleExcelUpload} showUploadList={false} accept=".xlsx,.xls,.csv">
+                      <Button icon={<UploadOutlined />} loading={checking} style={{ width: '100%', height: '44px' }}>Upload Excel</Button>
                     </Upload>
                   </Col>
                   <Col span={8}>
-                    <Button icon={<PlusOutlined />} onClick={() => setManualContactModal(true)} disabled={campaignId !== null} style={{ width: '100%', height: '44px' }}>Add Manually</Button>
+                    <Button icon={<PlusOutlined />} onClick={() => setManualContactModal(true)} loading={checking} style={{ width: '100%', height: '44px' }}>Add Manual</Button>
                   </Col>
                   <Col span={8}>
                     <Button 
@@ -825,7 +681,7 @@ export default function CreateCampaignNew() {
                       onClick={downloadDemo} 
                       style={{ width: '100%', height: '44px' }}
                     >
-                      {batchStats.total > 0 ? `Download (${batchStats.total})` : 'Download Demo'}
+                      Demo
                     </Button>
                   </Col>
                 </Row>
@@ -863,28 +719,7 @@ export default function CreateCampaignNew() {
                     </Button>
                   </Col>
                 </Row>
-                {/* {batchStats.total > 0 && (
-                  <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                    <Button 
-                      danger 
-                      icon={<DeleteOutlined />} 
-                      onClick={handleClearContacts}
-                      style={{ flex: 1 }}
-                    >
-                      Clear All Contacts
-                    </Button>
-                    <Button 
-                      type="primary"
-                      ghost
-                      loading={verifyingSync}
-                      onClick={handleVerifySync}
-                      style={{ flex: 1 }}
-                    >
-                      Verify Sync ({batchStats.rcsCapable})
-                    </Button>
-                  </div>
-                )} */}
-                {(uploading || processingManual) && (
+                {checking && (
                   <div style={{
                     background: THEME_CONSTANTS.colors.surface,
                     padding: '24px',
@@ -896,10 +731,7 @@ export default function CreateCampaignNew() {
                     <div style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: '16px', 
-                      marginBottom: uploadProgress > 0 ? '20px' : '0',
-                      paddingBottom: uploadProgress > 0 ? '20px' : '0',
-                      borderBottom: uploadProgress > 0 ? `1px solid ${THEME_CONSTANTS.colors.border}` : 'none'
+                      gap: '16px'
                     }}>
                       <div style={{ 
                         width: '48px', 
@@ -928,74 +760,20 @@ export default function CreateCampaignNew() {
                           marginBottom: '4px',
                           letterSpacing: '-0.01em'
                         }}>
-                          Verifying RCS Capability
+                          Checking RCS Capability
                         </div>
                         <div style={{ 
                           fontSize: '13px', 
                           color: THEME_CONSTANTS.colors.textSecondary,
                           fontWeight: 500
                         }}>
-                          Checking RCS capability for your contacts...
+                          Please wait while we verify your contacts...
                         </div>
                       </div>
                     </div>
-                    {uploadProgress > 0 && (
-                      <div>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center',
-                          marginBottom: '12px'
-                        }}>
-                          <span style={{ 
-                            fontSize: '13px', 
-                            fontWeight: 600, 
-                            color: THEME_CONSTANTS.colors.text,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                          }}>
-                            Processing
-                          </span>
-                          <span style={{ 
-                            fontSize: '20px', 
-                            fontWeight: 700, 
-                            color: THEME_CONSTANTS.colors.primary
-                          }}>
-                            {uploadProgress}%
-                          </span>
-                        </div>
-                        <div style={{
-                          width: '100%',
-                          height: '12px',
-                          background: THEME_CONSTANTS.colors.background,
-                          borderRadius: THEME_CONSTANTS.radius.full,
-                          overflow: 'hidden',
-                          position: 'relative',
-                          border: `1px solid ${THEME_CONSTANTS.colors.border}`
-                        }}>
-                          <div style={{
-                            width: `${uploadProgress}%`,
-                            height: '100%',
-                            background: `linear-gradient(90deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
-                            borderRadius: THEME_CONSTANTS.radius.full,
-                            transition: 'width 0.3s ease',
-                            boxShadow: `0 0 10px ${THEME_CONSTANTS.colors.primary}40`
-                          }} />
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: THEME_CONSTANTS.colors.textSecondary, 
-                          marginTop: '12px',
-                          textAlign: 'center',
-                          fontWeight: 500
-                        }}>
-                          {uploadProgress < 100 ? 'Please wait while we verify your contacts...' : 'Almost done!'}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
-                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', marginTop: '16px' }} key={updateTrigger}>
+                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', marginTop: '16px' }}>
                   <Row gutter={[16, 16]}>
                     <Col span={8}>
                       <div style={{ textAlign: 'center' }}>
