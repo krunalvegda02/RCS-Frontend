@@ -215,13 +215,10 @@ export default function Orders() {
   };
 
   const getStatusBadge = (order) => {
-    // Use order data directly (no live stats)
-    const deliveredCount = order?.totalDelivered || 0;
-    const failedCount = order?.failedCount || 0;
     const sentCount = order?.successCount || 0;
+    const failedCount = order?.failedCount || 0;
     const totalMessages = order?.cost || 0;
 
-    // Check campaign status first
     const isCompleted = order?.status === 'completed';
     const isProcessing = order?.status === 'processing' || order?.status === 'running';
     
@@ -272,7 +269,7 @@ export default function Orders() {
     }
 
     // Show status for active campaigns
-    const successRate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
+    const successRate = totalMessages > 0 ? (sentCount / totalMessages) * 100 : 0;
     
     const getStatusText = () => {
       if (successRate >= 80) return 'Success';
@@ -646,13 +643,13 @@ export default function Orders() {
       align: 'center',
     },
     {
-      title: 'Delivered',
-      key: 'success',
+      title: 'Sent',
+      key: 'sent',
       render: (text, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
           <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '15px' }}>
-            {record?.totalDelivered || 0}
+            {record?.successCount || 0}
           </span>
         </div>
       ),
@@ -677,9 +674,9 @@ export default function Orders() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        const deliveredCount = record?.totalDelivered || 0;
+        const sentCount = record?.successCount || 0;
         const totalMessages = record?.cost || 0;
-        const rate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
+        const rate = totalMessages > 0 ? (sentCount / totalMessages) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         
         return (
