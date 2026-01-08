@@ -27,7 +27,6 @@ import {
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
-import { getMessageTypeLabel } from '../../utils/messageTypes';
 import toast from 'react-hot-toast';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 import ImageCropper from '../../components/ImageCropper';
