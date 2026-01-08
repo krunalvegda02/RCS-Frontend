@@ -8,7 +8,6 @@ import {
   Select,
   Button,
   Input,
-  Progress,
   Tag,
   Modal,
   Tooltip,
@@ -17,10 +16,8 @@ import {
   Empty,
   Statistic,
   DatePicker,
-  Badge,
-  Timeline,
-  Avatar,
   Spin,
+  Grid,
 } from 'antd';
 import {
   DownloadOutlined,
@@ -31,11 +28,9 @@ import {
   BarChartOutlined,
   EyeOutlined,
   ReloadOutlined,
-  UserOutlined,
-  SendOutlined,
-  MessageOutlined,
+  HomeOutlined,
+  DeleteOutlined,
   TeamOutlined,
-  PhoneOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import toast from 'react-hot-toast';
@@ -52,25 +47,13 @@ import {
 } from '../../redux/slices/campaignSlice';
 
 const { RangePicker } = DatePicker;
-
-// Professional message type mapping
-const MESSAGE_TYPE_MAPPING = {
-  'plainText': 'Text Message',
-  'carousel': 'Interactive Carousel',
-  'richCard': 'Rich Media Card',
-  'textWithAction': 'Action-Based Message'
-};
-
-// Get professional type name
-const getProfessionalTypeName = (type) => {
-  return MESSAGE_TYPE_MAPPING[type] || type || 'Standard Message';
-};
+const { useBreakpoint } = Grid;
 
 export default function AllCampaigns() {
   const { user, token } = useAuth();
   const dispatch = useDispatch();
+  const screens = useBreakpoint();
   
-  // Redux state
   const { 
     adminCampaigns: campaigns, 
     campaignMessages, 
@@ -81,242 +64,164 @@ export default function AllCampaigns() {
     error 
   } = useSelector(state => state.campaigns);
   
-  // Local state
-  const [realTimeStats, setRealTimeStats] = useState({});
-  const [liveEvents, setLiveEvents] = useState([]);
-  const [socketConnected, setSocketConnected] = useState(false);
-  const [socket, setSocket] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [modalCurrentPage, setModalCurrentPage] = useState(1);
+  const pageSize = 10;
   const [showModal, setShowModal] = useState(false);
-  const [modalSearchText, setModalSearchText] = useState('');
-  const [modalStatusFilter, setModalStatusFilter] = useState('all');
-  const [allUsers, setAllUsers] = useState([]); // Store all users for filter
-
-  // Filter states
+  const [modalCurrentPage, setModalCurrentPage] = useState(1);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [userFilter, setUserFilter] = useState('all');
   const [dateRange, setDateRange] = useState([null, null]);
   const [sortOrder, setSortOrder] = useState('newest');
+  const [modalSearchText, setModalSearchText] = useState('');
+  const [modalStatusFilter, setModalStatusFilter] = useState('all');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [allCampaignsForFilters, setAllCampaignsForFilters] = useState([]);
 
-  // Fetch all campaigns with pagination
-  const fetchAllCampaigns = (page = 1, filters = {}) => {
-    const params = { page, limit: 10, sort: sortOrder, ...filters };
-    dispatch(getAllCampaignsForAdmin(params));
-  };
-
-  const fetchCampaignMessagesHandler = (campaignId, page = 1, search = '', status = 'all') => {
-    const params = { campaignId, page, limit: 10 };
-    if (search) params.search = search;
-    if (status !== 'all') params.status = status;
-    dispatch(getCampaignMessages(params));
-  };
-
-  useEffect(() => {
-    const filters = {};
-    if (searchText) filters.search = searchText;
-    if (statusFilter !== 'all') filters.status = statusFilter;
-    if (typeFilter !== 'all') {
-      filters.type = typeFilter;
-      console.log('[AllCampaigns] Filtering by type:', typeFilter);
-    }
-    if (userFilter !== 'all') filters.user = userFilter;
-    
+  const handleSearchChange = (value) => {
+    setSearchText(value);
     setCurrentPage(1);
-    fetchAllCampaigns(1, filters);
-  }, [dispatch, searchText, statusFilter, typeFilter, userFilter, sortOrder]);
+  };
 
-  // Fetch all users once on mount for the filter dropdown
-  useEffect(() => {
-    const fetchAllUsers = async () => {
-      try {
-        const result = await dispatch(getAllCampaignsForExport({ sort: 'newest' })).unwrap();
-        const uniqueUsers = [...new Set(result.data.map(c => c.userId?.name).filter(Boolean))];
-        setAllUsers(uniqueUsers);
-      } catch (error) {
-        console.error('Error fetching users:', error);
+  const handleStatusChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleTypeChange = (value) => {
+    setTypeFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleUserChange = (value) => {
+    setUserFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleDateRangeChange = (dates) => {
+    setDateRange(dates);
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = () => {
+    setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest');
+    setCurrentPage(1);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const params = { page: currentPage, limit: pageSize, sort: sortOrder };
+      if (searchText && searchText.trim()) params.search = searchText.trim();
+      if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+      if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
+      if (userFilter && userFilter !== 'all') params.user = userFilter;
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        params.startDate = dateRange[0].toISOString();
+        params.endDate = dateRange[1].toISOString();
       }
-    };
-    fetchAllUsers();
+      await dispatch(getAllCampaignsForAdmin(params)).unwrap();
+      toast.success('Campaigns refreshed successfully');
+    } catch (error) {
+      toast.error('Failed to refresh campaigns');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    const params = { page: currentPage, limit: pageSize, sort: sortOrder };
+    if (searchText && searchText.trim()) params.search = searchText.trim();
+    if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+    if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
+    if (userFilter && userFilter !== 'all') params.user = userFilter;
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      params.startDate = dateRange[0].toISOString();
+      params.endDate = dateRange[1].toISOString();
+    }
+    dispatch(getAllCampaignsForAdmin(params));
+  }, [dispatch, currentPage, searchText, statusFilter, typeFilter, userFilter, sortOrder, dateRange]);
+
+  useEffect(() => {
+    if (allCampaignsForFilters.length === 0) {
+      dispatch(getAllCampaignsForExport({ sort: 'newest' })).unwrap()
+        .then(result => setAllCampaignsForFilters(result.data || []));
+    }
   }, [dispatch]);
 
-  useEffect(() => {
-    const filters = {};
-    if (searchText) filters.search = searchText;
-    if (statusFilter !== 'all') filters.status = statusFilter;
-    if (typeFilter !== 'all') filters.type = typeFilter;
-    if (userFilter !== 'all') filters.user = userFilter;
-    
-    fetchAllCampaigns(currentPage, filters);
-  }, [dispatch, currentPage]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
-
   const getUniqueTypes = () => {
-    const types = [...new Set(campaigns.map((campaign) => campaign.type).filter(Boolean))];
-    console.log('[AllCampaigns] Available types in campaigns:', types);
-    return types;
+    if (!Array.isArray(allCampaignsForFilters)) return [];
+    const types = allCampaignsForFilters
+      .map((c) => c.type)
+      .filter((type) => type && type !== 'null' && type !== null);
+    return [...new Set(types)];
   };
 
   const getUniqueUsers = () => {
-    return [...new Set(campaigns.map((campaign) => campaign.userId?.name).filter(Boolean))];
+    if (!Array.isArray(allCampaignsForFilters)) return [];
+    const users = allCampaignsForFilters
+      .map((c) => c.userId?.name)
+      .filter((name) => name && name !== 'null' && name !== null);
+    return [...new Set(users)];
   };
 
-  const getStatusBadge = (campaign) => {
-    const campaignId = campaign._id;
-    const liveStats = realTimeStats[campaignId];
+  const getStatusBadge = (order) => {
+    const status = order?.status;
     
-    const successCount = liveStats?.delivered || campaign?.successCount || 0;
-    const failedCount = liveStats?.failed || campaign?.failedCount || 0;
-    const sentCount = liveStats?.sent || campaign?.successCount || 0;
-    const totalMessages = liveStats?.total || campaign?.cost || 0;
-    const pendingCount = liveStats?.pending || 0;
-    const processingCount = liveStats?.processing || 0;
-
-    const isCompleted = campaign?.status === 'completed';
-    const isProcessing = campaign?.status === 'processing' || campaign?.status === 'running';
-    const isFailed = campaign?.status === 'failed';
-    
-    if (isCompleted) {
-      return (
-        <Tag
-          color={THEME_CONSTANTS.colors.successLight}
-          style={{
-            color: THEME_CONSTANTS.colors.success,
-            border: `1px solid ${THEME_CONSTANTS.colors.success}`,
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          ✅ Completed
-        </Tag>
-      );
-    }
-
-    if (isFailed) {
-      return (
-        <Tag
-          color={THEME_CONSTANTS.colors.dangerLight}
-          style={{
-            color: THEME_CONSTANTS.colors.danger,
-            border: `1px solid ${THEME_CONSTANTS.colors.danger}`,
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          ❌ Failed
-        </Tag>
-      );
-    }
-
-    if (isProcessing || pendingCount > 0 || processingCount > 0) {
-      return (
-        <Tag
-          color={THEME_CONSTANTS.colors.warningLight}
-          style={{
-            color: THEME_CONSTANTS.colors.warning,
-            border: `1px solid ${THEME_CONSTANTS.colors.warning}`,
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          🔄 {isProcessing ? 'Processing' : 'Pending'}
-        </Tag>
-      );
-    }
-
-    if (sentCount === 0 && !isCompleted) {
-      return (
-        <Tag
-          color={THEME_CONSTANTS.colors.warningLight}
-          style={{
-            color: THEME_CONSTANTS.colors.warning,
-            border: `1px solid ${THEME_CONSTANTS.colors.warning}`,
-            fontWeight: 600,
-            padding: '4px 8px',
-            borderRadius: THEME_CONSTANTS.radius.sm,
-            fontSize: '11px'
-          }}
-        >
-          ⏳ Pending
-        </Tag>
-      );
-    }
-
-    const successRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
-    
-    const getStatusText = () => {
-      if (successRate >= 80) return '✅ Success';
-      if (successRate > 0) return '⚠️ Partial';
-      return '❌ Failed';
+    const statusConfig = {
+      'completed': { color: '#f6ffed', textColor: THEME_CONSTANTS.colors.success, border: THEME_CONSTANTS.colors.success },
+      'running': { color: '#e6f7ff', textColor: '#1890ff', border: '#1890ff' },
+      'processing': { color: '#e6f7ff', textColor: '#1890ff', border: '#1890ff' },
+      'pending': { color: '#fffbe6', textColor: '#faad14', border: '#faad14' },
+      'draft': { color: '#f5f5f5', textColor: '#8c8c8c', border: '#d9d9d9' },
+      'paused': { color: '#fff7e6', textColor: '#fa8c16', border: '#fa8c16' },
+      'failed': { color: '#fff1f0', textColor: '#ff4d4f', border: '#ff4d4f' },
     };
 
-    const getStatusColor = () => {
-      if (successRate >= 80) return THEME_CONSTANTS.colors.success;
-      if (successRate > 0) return THEME_CONSTANTS.colors.warning;
-      return THEME_CONSTANTS.colors.danger;
-    };
-
-    const getStatusBg = () => {
-      if (successRate >= 80) return THEME_CONSTANTS.colors.successLight;
-      if (successRate > 0) return THEME_CONSTANTS.colors.warningLight;
-      return THEME_CONSTANTS.colors.dangerLight;
-    };
+    const config = statusConfig[status] || { color: '#f5f5f5', textColor: '#8c8c8c', border: '#d9d9d9' };
 
     return (
       <Tag
-        color={getStatusBg()}
+        color={config.color}
         style={{
-          color: getStatusColor(),
-          border: `1px solid ${getStatusColor()}`,
+          color: config.textColor,
+          border: `1px solid ${config.border}`,
           fontWeight: 600,
           padding: '4px 8px',
           borderRadius: THEME_CONSTANTS.radius.sm,
-          fontSize: '11px'
+          fontSize: '11px',
+          textTransform: 'capitalize'
         }}
       >
-        {getStatusText()}
+        {status || 'Unknown'}
       </Tag>
     );
   };
 
-  const viewCampaignDetails = (campaign) => {
+  const viewCampaignDetails = async (campaign) => {
     dispatch(setCurrentCampaign(campaign));
     setModalCurrentPage(1);
     setModalSearchText('');
     setModalStatusFilter('all');
     setShowModal(true);
+    
     if (campaign._id) {
-      fetchCampaignMessagesHandler(campaign._id, 1, '', 'all');
+      dispatch(getCampaignMessages({ campaignId: campaign._id, page: 1, limit: 10 }));
     }
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setModalSearchText('');
-    setModalStatusFilter('all');
-    setModalCurrentPage(1);
-    dispatch(clearCurrentCampaign());
-    dispatch(clearCampaignMessages());
   };
 
   const handleModalSearch = (searchValue) => {
     setModalSearchText(searchValue);
     setModalCurrentPage(1);
     if (selectedCampaign?._id) {
-      fetchCampaignMessagesHandler(selectedCampaign._id, 1, searchValue, modalStatusFilter);
+      dispatch(getCampaignMessages({ 
+        campaignId: selectedCampaign._id, 
+        page: 1, 
+        limit: 10,
+        search: searchValue || undefined
+      }));
     }
   };
 
@@ -324,15 +229,30 @@ export default function AllCampaigns() {
     setModalStatusFilter(status);
     setModalCurrentPage(1);
     if (selectedCampaign?._id) {
-      fetchCampaignMessagesHandler(selectedCampaign._id, 1, modalSearchText, status);
+      dispatch(getCampaignMessages({ 
+        campaignId: selectedCampaign._id, 
+        page: 1, 
+        limit: 10,
+        status: status !== 'all' ? status : undefined
+      }));
     }
   };
 
   const handleModalPageChange = (page) => {
     setModalCurrentPage(page);
     if (selectedCampaign?._id) {
-      fetchCampaignMessagesHandler(selectedCampaign._id, page, modalSearchText, modalStatusFilter);
+      const params = { campaignId: selectedCampaign._id, page, limit: 10 };
+      if (modalSearchText) params.search = modalSearchText;
+      if (modalStatusFilter !== 'all') params.status = modalStatusFilter;
+      dispatch(getCampaignMessages(params));
     }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setModalSearchText('');
+    setModalStatusFilter('all');
+    dispatch(clearCurrentCampaign());
   };
 
   const exportCampaignDetails = async () => {
@@ -343,7 +263,6 @@ export default function AllCampaigns() {
         return;
       }
 
-      // Start dismissing toasts immediately
       toastInterval = setInterval(() => {
         toast.dismiss();
       }, 10);
@@ -385,14 +304,12 @@ export default function AllCampaigns() {
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Messages');
 
-      // Stop dismissing toasts before file write
       if (toastInterval) clearInterval(toastInterval);
       await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
 
       XLSX.writeFile(workbook, `campaign-${selectedCampaign?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`);
       
-      // Show success toast after file download
       await new Promise(resolve => setTimeout(resolve, 200));
       toast.success(`Exported ${exportData.length} messages successfully`);
     } catch (error) {
@@ -406,67 +323,132 @@ export default function AllCampaigns() {
     }
   };
 
-  // Remove client-side filtering - use server data directly
-  const filteredCampaigns = campaigns;
+  const filteredCampaigns = campaigns || [];
+  const paginatedMessages = campaignMessages || [];
 
   const exportToExcel = async () => {
+    if (isExporting) return;
+    
+    let toastInterval;
     try {
-      toast.loading('Fetching all campaigns for export...');
+      setIsExporting(true);
       
+      toastInterval = setInterval(() => {
+        toast.dismiss();
+      }, 10);
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       const filters = { sort: sortOrder };
       if (searchText) filters.search = searchText;
       if (statusFilter !== 'all') filters.status = statusFilter;
       if (typeFilter !== 'all') filters.type = typeFilter;
       if (userFilter !== 'all') filters.user = userFilter;
 
-      const result = await dispatch(getAllCampaignsForExport(filters)).unwrap();
-      const allCampaigns = result.data || [];
+      const campaignsResult = await dispatch(getAllCampaignsForExport(filters)).unwrap();
+      const allCampaigns = campaignsResult.data || [];
 
       if (allCampaigns.length === 0) {
+        clearInterval(toastInterval);
+        await new Promise(resolve => setTimeout(resolve, 100));
         toast.dismiss();
         toast.error('No campaigns to export');
+        setIsExporting(false);
         return;
       }
 
-      const exportData = allCampaigns.map((campaign, idx) => {
-        const successCount = campaign?.successCount || 0;
-        const failedCount = campaign?.failedCount || 0;
-        const totalRecipients = campaign?.cost || 0;
+      const messagesResults = await Promise.all(
+        allCampaigns.map(campaign => 
+          dispatch(getAllCampaignMessagesForExport({ campaignId: campaign._id }))
+            .unwrap()
+            .then(result => result)
+            .catch(() => ({ data: [] }))
+        )
+      );
+
+      const campaignsData = allCampaigns.map((order, idx) => {
+        const deliveredCount = order?.totalDelivered || 0;
+        const failedCount = order?.failedCount || 0;
+        const totalRecipients = order?.cost || 0;
+        const successRate = totalRecipients > 0 ? ((deliveredCount / totalRecipients) * 100).toFixed(2) : 0;
 
         return {
-          'ID': `#${idx + 1}`,
-          'Campaign Name': campaign?.CampaignName || 'N/A',
-          'User': campaign?.userId?.name || 'N/A',
-          'User Email': campaign?.userId?.email || 'N/A',
-          'Message Type': campaign?.type || 'N/A',
+          'S.No': idx + 1,
+          'Campaign ID': order?._id || 'N/A',
+          'Campaign Name': order?.CampaignName || 'N/A',
+          'User': order?.userId?.name || 'N/A',
+          'User Email': order?.userId?.email || 'N/A',
+          'Message Type': order?.type || 'N/A',
+          'Status': order?.status || 'N/A',
           'Total Recipients': totalRecipients,
-          'Successful': successCount,
+          'Successfully Delivered': deliveredCount,
           'Failed': failedCount,
-          'Success Rate': totalRecipients > 0 ? `${((successCount / totalRecipients) * 100).toFixed(2)}%` : '0%',
-          'Status': campaign?.status || 'N/A',
-          'Date': new Date(campaign.createdAt).toLocaleDateString(),
-          'Time': new Date(campaign.createdAt).toLocaleTimeString(),
+          'Success Rate (%)': successRate,
+          'Created Date': new Date(order.createdAt).toLocaleDateString(),
+          'Created Time': new Date(order.createdAt).toLocaleTimeString(),
         };
       });
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      worksheet['!cols'] = [
-        { wch: 8 }, { wch: 25 }, { wch: 20 }, { wch: 30 },
-        { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
-        { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }
-      ];
+      const allMessagesData = [];
+      allCampaigns.forEach((campaign, campaignIdx) => {
+        const messages = messagesResults[campaignIdx]?.data || [];
+        messages.forEach((msg) => {
+          allMessagesData.push({
+            'S.No': allMessagesData.length + 1,
+            'Campaign Name': campaign.CampaignName,
+            'Campaign ID': campaign._id,
+            'User': campaign.userId?.name || 'N/A',
+            'Phone Number': msg.phoneNumber || 'N/A',
+            'Status': msg.status?.toUpperCase() || 'N/A',
+            'Template Type': msg.templateType || 'N/A',
+            'Sent At': msg.sentAt ? new Date(msg.sentAt).toLocaleString() : 'N/A',
+            'Delivered At': msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString() : 'N/A',
+            'Read At': msg.readAt ? new Date(msg.readAt).toLocaleString() : 'N/A',
+            'Interactions': msg.interactions || 0,
+            'Replies': msg.replies || 0,
+            'User Response': msg.userText || msg.clickedAction || msg.suggestionResponse?.plainText || 'N/A',
+            'Error': msg.status === 'failed' ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A',
+          });
+        });
+      });
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'All Campaign Reports');
 
-      XLSX.writeFile(workbook, `all-campaign-reports-${new Date().toISOString().split('T')[0]}.xlsx`);
-      
+      const campaignsSheet = XLSX.utils.json_to_sheet(campaignsData);
+      campaignsSheet['!cols'] = [
+        { wch: 8 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 30 },
+        { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 20 },
+        { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, campaignsSheet, 'Campaigns Overview');
+
+      if (allMessagesData.length > 0) {
+        const messagesSheet = XLSX.utils.json_to_sheet(allMessagesData);
+        messagesSheet['!cols'] = [
+          { wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
+          { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 20 },
+          { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 30 }, { wch: 30 }
+        ];
+        XLSX.utils.book_append_sheet(workbook, messagesSheet, 'All Messages');
+      }
+
+      if (toastInterval) clearInterval(toastInterval);
+      await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
-      toast.success(`Exported ${exportData.length} campaigns successfully`);
+      
+      XLSX.writeFile(workbook, `complete-campaign-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      toast.success(`Exported ${allCampaigns.length} campaigns with ${allMessagesData.length} messages`);
     } catch (error) {
       console.error('Export error:', error);
+      if (toastInterval) clearInterval(toastInterval);
+      await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
-      toast.error(error.message || 'Failed to export campaigns');
+      toast.error('Failed to export report');
+    } finally {
+      if (toastInterval) clearInterval(toastInterval);
+      setIsExporting(false);
     }
   };
 
@@ -506,39 +488,27 @@ export default function AllCampaigns() {
       title: 'Type',
       dataIndex: 'type',
       key: 'type',
-      render: (type) => {
-        const typeConfig = {
-          'plainText': { label: 'Text Message', color: '#1890ff', bg: '#e6f7ff', icon: '📝' },
-          'richCard': { label: 'Rich Card', color: '#722ed1', bg: '#f9f0ff', icon: '🎴' },
-          'carousel': { label: 'Carousel', color: '#eb2f96', bg: '#fff0f6', icon: '🎠' },
-          'textWithAction': { label: 'Action Message', color: '#13c2c2', bg: '#e6fffb', icon: '⚡' }
-        };
-        
-        const config = typeConfig[type] || { label: type || 'Unknown', color: '#666', bg: '#f5f5f5', icon: '📄' };
-        
-        return (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <Tag
-              style={{
-                background: config.bg,
-                color: config.color,
-                border: `1px solid ${config.color}30`,
-                fontWeight: 600,
-                padding: '6px 12px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                fontSize: '12px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>{config.icon}</span>
-              <span>{config.label}</span>
-            </Tag>
-          </div>
-        );
-      },
-      width: 160,
+      render: (type) => (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <Tag
+            style={{
+              background: type === 'SMS' ? '#e6f7ff' : '#f6f8fb',
+              color: type === 'SMS' ? THEME_CONSTANTS.colors.primary : '#667085',
+              border: 'none',
+              fontWeight: 600,
+              padding: '6px 0',
+              borderRadius: THEME_CONSTANTS.radius.sm,
+              fontSize: '13px',
+              width: '90px',
+              textAlign: 'center',
+              display: 'inline-block'
+            }}
+          >
+            {type}
+          </Tag>
+        </div>
+      ),
+      width: 120,
       align: 'center',
     },
     {
@@ -554,8 +524,8 @@ export default function AllCampaigns() {
       align: 'center',
     },
     {
-      title: 'Delivered',
-      key: 'success',
+      title: 'Sent',
+      key: 'sent',
       render: (text, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
@@ -585,9 +555,9 @@ export default function AllCampaigns() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        const successCount = record?.successCount || 0;
+        const sentCount = record?.successCount || 0;
         const totalMessages = record?.cost || 0;
-        const rate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0;
+        const rate = totalMessages > 0 ? (sentCount / totalMessages) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         
         return (

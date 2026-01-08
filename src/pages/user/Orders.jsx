@@ -215,89 +215,36 @@ export default function Orders() {
   };
 
   const getStatusBadge = (order) => {
-    const sentCount = order?.successCount || 0;
-    const failedCount = order?.failedCount || 0;
-    const totalMessages = order?.cost || 0;
-
-    const isCompleted = order?.status === 'completed';
-    const isProcessing = order?.status === 'processing' || order?.status === 'running';
+    const status = order?.status;
     
-    // If campaign is completed, show completed status
-    if (isCompleted) {
-      return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
-          <div>
-            <Tag
-              color="#f6ffed"
-              style={{
-                color: THEME_CONSTANTS.colors.success,
-                border: `1px solid ${THEME_CONSTANTS.colors.success}`,
-                fontWeight: 600,
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                fontSize: '11px'
-              }}
-            >
-              Completed
-            </Tag>
-          </div>
-        </div>
-      );
-    }
-
-    // If no messages sent yet and campaign is not completed, show pending
-    if (sentCount === 0 && !isCompleted) {
-      return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
-          <div>
-            <Tag
-              color="#fffbe6"
-              style={{
-                color: '#faad14',
-                border: '1px solid #faad14',
-                fontWeight: 600,
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                fontSize: '11px'
-              }}
-            >
-              {isProcessing ? 'Processing' : 'Pending'}
-            </Tag>
-          </div>
-        </div>
-      );
-    }
-
-    // Show status for active campaigns
-    const successRate = totalMessages > 0 ? (sentCount / totalMessages) * 100 : 0;
-    
-    const getStatusText = () => {
-      if (successRate >= 80) return 'Success';
-      if (successRate > 0) return 'Partial';
-      return 'Failed';
+    const statusConfig = {
+      'completed': { color: '#f6ffed', textColor: THEME_CONSTANTS.colors.success, border: THEME_CONSTANTS.colors.success },
+      'running': { color: '#e6f7ff', textColor: '#1890ff', border: '#1890ff' },
+      'processing': { color: '#e6f7ff', textColor: '#1890ff', border: '#1890ff' },
+      'pending': { color: '#fffbe6', textColor: '#faad14', border: '#faad14' },
+      'draft': { color: '#f5f5f5', textColor: '#8c8c8c', border: '#d9d9d9' },
+      'paused': { color: '#fff7e6', textColor: '#fa8c16', border: '#fa8c16' },
+      'failed': { color: '#fff1f0', textColor: '#ff4d4f', border: '#ff4d4f' },
     };
 
-    const getStatusColor = () => {
-      if (successRate >= 80) return THEME_CONSTANTS.colors.success;
-      if (successRate > 0) return '#fa8c16';
-      return '#ff4d4f';
-    };
+    const config = statusConfig[status] || { color: '#f5f5f5', textColor: '#8c8c8c', border: '#d9d9d9' };
 
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
         <div>
           <Tag
-            color={successRate >= 80 ? "#f6ffed" : successRate > 0 ? "#fff7e6" : "#fff1f0"}
+            color={config.color}
             style={{
-              color: getStatusColor(),
-              border: `1px solid ${getStatusColor()}`,
+              color: config.textColor,
+              border: `1px solid ${config.border}`,
               fontWeight: 600,
               padding: '4px 8px',
               borderRadius: THEME_CONSTANTS.radius.sm,
-              fontSize: '11px'
+              fontSize: '11px',
+              textTransform: 'capitalize'
             }}
           >
-            {getStatusText()}
+            {status || 'Unknown'}
           </Tag>
         </div>
       </div>

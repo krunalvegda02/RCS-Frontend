@@ -522,7 +522,6 @@ export default function CreateCampaignNew() {
       onOk: async () => {
         const hideLoading = message.loading('Creating campaign...', 0);
         try {
-          // Get RCS-capable phone numbers from capabilityResponse
           const rcsNumbers = capabilityResponse?.data
             ?.filter(contact => contact.isCapable)
             ?.map(contact => contact.phoneNumber) || [];
@@ -533,7 +532,6 @@ export default function CreateCampaignNew() {
             return;
           }
 
-          // Create campaign first
           const campaignRes = await dispatch(createCampaign({
             name: campaignName,
             templateId: selectedTemplate._id,
@@ -543,7 +541,6 @@ export default function CreateCampaignNew() {
           
           const newCampaignId = campaignRes.data._id;
 
-          // Create campaign entries using the new campaign ID
           await dispatch(createCampaignEntries({
             campaignId: newCampaignId,
             templateId: selectedTemplate._id,
@@ -551,7 +548,7 @@ export default function CreateCampaignNew() {
           })).unwrap();
 
           hideLoading();
-          message.success(`Campaign created with ${rcsNumbers.length} RCS contacts!`);
+          message.success('Campaign started successfully! Entries are being created in background.');
           navigate('/reports');
         } catch (error) {
           hideLoading();
