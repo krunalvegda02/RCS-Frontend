@@ -79,10 +79,7 @@ export const pageData = {
           path: 'profile',
           component: Profile
         },
-        {
-          path: 'test',
-          component: testCapability
-        },
+       
       ]
     }
   ],

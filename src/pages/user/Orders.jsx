@@ -81,6 +81,7 @@ export default function Orders() {
   } = useSelector(state => state.orders);
   
   const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [showModal, setShowModal] = useState(false);
   const [modalCurrentPage, setModalCurrentPage] = useState(1);
 
@@ -134,7 +135,7 @@ export default function Orders() {
     if (user?._id) {
       setIsRefreshing(true);
       try {
-        await dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 5 })).unwrap();
+        await dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: pageSize })).unwrap();
         toast.success('Campaigns refreshed successfully');
       } catch (error) {
         toast.error('Failed to refresh campaigns');
@@ -151,7 +152,7 @@ export default function Orders() {
     const params = {
       userId: user._id,
       page: currentPage,
-      limit: 5,
+      limit: pageSize,
       sort: sortOrder
     };
     
@@ -350,7 +351,10 @@ export default function Orders() {
   const handleModalPageChange = (page) => {
     setModalCurrentPage(page);
     if (selectedOrder?._id) {
-      dispatch(fetchCampaignMessages({ campaignId: selectedOrder._id, page, limit: 10 }));
+      const params = { campaignId: selectedOrder._id, page, limit: 10 };
+      if (modalSearchText) params.search = modalSearchText;
+      if (modalStatusFilter !== 'all') params.status = modalStatusFilter;
+      dispatch(fetchCampaignMessages(params));
     }
   };
 

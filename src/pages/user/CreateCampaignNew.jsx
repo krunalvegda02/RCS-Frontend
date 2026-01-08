@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { checkCapability, createCampaign, createCampaignEntries, uploadContactBatch, processContactBatch, getContactBatches, getContactBatchesWithData, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
+import { checkCapability, createCampaign, createCampaignEntries, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 import RCSCampaignTimeWarning from '../../components/RCSCampaignTimeWarning';
 
@@ -52,7 +52,7 @@ const ReachableUsersList = ({ campaignId, totalRcsCapable, onContactDeleted }) =
         batchNumber 
       })).unwrap();
       setUsers(response.data);
-    } catch (error) {
+    } catch {
       message.error('Failed to load reachable users');
     } finally {
       setLoading(false);
@@ -65,7 +65,7 @@ const ReachableUsersList = ({ campaignId, totalRcsCapable, onContactDeleted }) =
       message.success('Contact deleted');
       loadReachableUsers();
       if (onContactDeleted) onContactDeleted();
-    } catch (error) {
+    } catch {
       message.error('Failed to delete contact');
     }
   };
@@ -150,7 +150,7 @@ const PaginatedContactList = ({ campaignId, totalContacts, onContactDeleted }) =
       if (response.pagination?.pages && currentPage > response.pagination.pages && response.pagination.pages > 0) {
         setCurrentPage(response.pagination.pages);
       }
-    } catch (error) {
+    } catch {
       message.error('Failed to load contacts');
     } finally {
       setLoading(false);
@@ -163,7 +163,7 @@ const PaginatedContactList = ({ campaignId, totalContacts, onContactDeleted }) =
       message.success('Contact deleted');
       loadContacts();
       if (onContactDeleted) onContactDeleted();
-    } catch (error) {
+    } catch {
       message.error('Failed to delete contact');
     }
   };
@@ -233,15 +233,13 @@ export default function CreateCampaignNew() {
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   const { userTemplates, loading: templatesLoading } = useSelector(state => state.templates);
-  const { batchStats: reduxBatchStats, contactBatches } = useSelector(state => state.campaigns);
+  const { contactBatches } = useSelector(state => state.campaigns);
 
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [campaignName, setCampaignName] = useState('');
-  const [uploading, setUploading] = useState(false);
   const [manualContactModal, setManualContactModal] = useState(false);
   const [manualContactForm] = Form.useForm();
   const [campaignId, setCampaignId] = useState(null);
-  const [processingBatches, setProcessingBatches] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
   const [showReachableUsers, setShowReachableUsers] = useState(false);
   const [batchStats, setBatchStats] = useState({ total: 0, rcsCapable: 0, notCapable: 0 });
@@ -329,7 +327,7 @@ export default function CreateCampaignNew() {
           if (!row || row.length === 0) continue;
           row.forEach((cell) => {
             if (!cell) return;
-            let num = String(cell).trim().replace(/[\s\-()\.]/, '').replace(/[^\d+]/g, '');
+            let num = String(cell).trim().replace(/[\s\-().]/g, '').replace(/[^\d+]/g, '');
             if (num.startsWith('+91')) num = num.substring(3);
             else if (num.startsWith('91') && num.length > 10) num = num.substring(2);
             else if (num.startsWith('0')) num = num.substring(1);
@@ -594,7 +592,7 @@ export default function CreateCampaignNew() {
         XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
         XLSX.writeFile(wb, `uploaded_contacts_${Date.now()}.xlsx`);
         message.success(`Downloaded ${contacts.length} contacts`);
-      } catch (error) {
+      } catch {
         message.error('Failed to download contacts');
       }
     } else {
@@ -803,7 +801,6 @@ export default function CreateCampaignNew() {
                     <PaginatedContactList 
                       campaignId={campaignId} 
                       totalContacts={batchStats.total}
-                      onContactDeleted={handleContactDeleted}
                     />
                   </div>
                 )}
@@ -815,7 +812,6 @@ export default function CreateCampaignNew() {
                     <ReachableUsersList 
                       campaignId={campaignId} 
                       totalRcsCapable={batchStats.rcsCapable}
-                      onContactDeleted={handleContactDeleted}
                     />
                   </div>
                 )}
