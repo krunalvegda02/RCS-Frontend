@@ -1511,7 +1511,7 @@ export default function Orders() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedOrder?.totalDelivered || 0}
+                          {selectedOrder?.totalDelivered || selectedOrder?.successCount || 0}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Delivered</div>
                       </div>
@@ -1540,7 +1540,7 @@ export default function Orders() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedOrder?.totalRead || 0}
+                          {selectedOrder?.totalRead || selectedOrder?.totalReplied || 0}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Read</div>
                       </div>
