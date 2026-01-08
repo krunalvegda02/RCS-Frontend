@@ -18,8 +18,6 @@ const AdminReports = lazy(() => import('../pages/admin/AdminReports.jsx'))
 const Login = lazy(() => import('../pages/Login.jsx'))
 const Register = lazy(() => import('../pages/Register.jsx'))
 
-const testCapability = lazy(() => import('../components/TestCapability.jsx'))
-
 // Layouts
 const Layout = lazy(() => import('../layout/layout.jsx'))
 const AdminLayout = lazy(() => import('../layout/AdminLayout.jsx'))
