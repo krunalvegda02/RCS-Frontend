@@ -538,7 +538,7 @@ export default function AllCampaigns() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
           <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '15px' }}>
-            {record?.totalDelivered || 0}
+            {record.totalDelivered || 0}
           </span>
         </div>
       ),
@@ -552,7 +552,7 @@ export default function AllCampaigns() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <CloseCircleOutlined style={{ color: THEME_CONSTANTS.colors.danger, fontSize: '16px' }} />
           <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.danger, fontSize: '15px' }}>
-            {record?.failedCount || 0}
+            {record.failedCount || 0}
           </span>
         </div>
       ),
@@ -563,8 +563,8 @@ export default function AllCampaigns() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        const deliveredCount = record?.totalDelivered || 0;
-        const totalMessages = record?.cost || 0;
+        const deliveredCount = record.totalDelivered || 0;
+        const totalMessages = record.cost || 0;
         const rate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         const displayRate = rate < 1 && rate > 0 ? rate.toFixed(2) : Math.round(rate);
@@ -717,8 +717,8 @@ export default function AllCampaigns() {
                 </Button>
                 <Button
                   icon={<ReloadOutlined />}
-                  onClick={fetchAllCampaigns}
-                  loading={loading.adminCampaigns}
+                  onClick={handleRefresh}
+                  loading={isRefreshing}
                   style={{
                     borderRadius: THEME_CONSTANTS.radius.md,
                     height: '44px'
@@ -731,7 +731,7 @@ export default function AllCampaigns() {
           </div>
 
           {/* Live Events Feed */}
-          {liveEvents.length > 0 && (
+          {false && (
             <Card
               style={{
                 borderRadius: THEME_CONSTANTS.radius.lg,
@@ -785,7 +785,7 @@ export default function AllCampaigns() {
           {/* Summary Stats - Universal Data */}
           {campaignsPagination?.totalCampaigns > 0 && (
             <Row gutter={[20, 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
-              <Col xs={24} sm={12} md={6}>
+              <Col xs={24} sm={12} lg={8}>
                 <Card
                   style={{
                     borderRadius: THEME_CONSTANTS.radius.lg,
@@ -804,7 +804,7 @@ export default function AllCampaigns() {
                 </Card>
               </Col>
 
-              <Col xs={24} sm={12} md={6}>
+              <Col xs={24} sm={12} lg={8}>
                 <Card
                   style={{
                     borderRadius: THEME_CONSTANTS.radius.lg,
@@ -823,7 +823,7 @@ export default function AllCampaigns() {
                 </Card>
               </Col>
 
-              <Col xs={24} sm={12} md={6}>
+              <Col xs={24} sm={12} lg={8}>
                 <Card
                   style={{
                     borderRadius: THEME_CONSTANTS.radius.lg,
@@ -842,7 +842,7 @@ export default function AllCampaigns() {
                 </Card>
               </Col>
 
-              <Col xs={24} sm={12} md={6}>
+              <Col xs={24} sm={12} lg={8}>
                 <Card
                   style={{
                     borderRadius: THEME_CONSTANTS.radius.lg,
@@ -861,7 +861,7 @@ export default function AllCampaigns() {
                 </Card>
               </Col>
 
-              <Col xs={24} sm={12} md={6}>
+              <Col xs={24} sm={12} lg={8}>
                 <Card
                   style={{
                     borderRadius: THEME_CONSTANTS.radius.lg,
@@ -976,7 +976,7 @@ export default function AllCampaigns() {
                   optionFilterProp="label"
                   options={[
                     { label: 'All Users', value: 'all' },
-                    ...allUsers.map((user) => ({
+                    ...getUniqueUsers().map((user) => ({
                       label: user,
                       value: user,
                     })),
@@ -1137,7 +1137,7 @@ export default function AllCampaigns() {
                       fontSize: THEME_CONSTANTS.typography.body.size,
                       borderRadius: THEME_CONSTANTS.radius.md
                     }}>
-                      {getProfessionalTypeName(selectedCampaign?.type)}
+                      {selectedCampaign?.type || 'RCS'}
                     </Tag>
                     <Button
                       type="primary"
@@ -1387,7 +1387,7 @@ export default function AllCampaigns() {
                             setModalStatusFilter('all');
                             setModalCurrentPage(1);
                             if (selectedCampaign?._id) {
-                              fetchCampaignMessagesHandler(selectedCampaign._id, 1, '', 'all');
+                              dispatch(getCampaignMessages({ campaignId: selectedCampaign._id, page: 1, limit: 10 }));
                             }
                           }}
                           style={{ height: '40px' }}
@@ -1399,7 +1399,7 @@ export default function AllCampaigns() {
                           icon={<ReloadOutlined />}
                           onClick={() => {
                             if (selectedCampaign?._id) {
-                              fetchCampaignMessagesHandler(selectedCampaign._id, modalCurrentPage, modalSearchText, modalStatusFilter);
+                              dispatch(getCampaignMessages({ campaignId: selectedCampaign._id, page: modalCurrentPage, limit: 10 }));
                             }
                           }}
                           loading={loading.messages}
