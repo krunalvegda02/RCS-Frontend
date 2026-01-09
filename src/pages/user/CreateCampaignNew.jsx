@@ -560,7 +560,9 @@ export default function CreateCampaignNew() {
           await dispatch(createCampaignEntries({
             campaignId: newCampaignId,
             templateId: selectedTemplate._id,
-            phoneNumbers: rcsNumbers
+            phoneNumbers: rcsNumbers,
+            createSubCampaigns: rcsNumbers.length > 1000, // Auto-create 30 sub-campaigns for >1000 contacts
+            subCampaignSize: 200 // Ignored - always creates 30 sub-campaigns
           })).unwrap();
 
           clearInterval(progressInterval);
