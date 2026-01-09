@@ -31,6 +31,8 @@ import {
   HomeOutlined,
   DeleteOutlined,
   TeamOutlined,
+  SendOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import toast from 'react-hot-toast';
@@ -77,6 +79,7 @@ export default function AllCampaigns() {
   const [modalSearchText, setModalSearchText] = useState('');
   const [modalStatusFilter, setModalStatusFilter] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingCampaign, setIsExportingCampaign] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [allCampaignsForFilters, setAllCampaignsForFilters] = useState([]);
 
@@ -256,6 +259,8 @@ export default function AllCampaigns() {
   };
 
   const exportCampaignDetails = async () => {
+    if (isExportingCampaign) return;
+    
     let toastInterval;
     try {
       if (!selectedCampaign?._id) {
@@ -263,6 +268,8 @@ export default function AllCampaigns() {
         return;
       }
 
+      setIsExportingCampaign(true);
+      
       toastInterval = setInterval(() => {
         toast.dismiss();
       }, 10);
@@ -320,6 +327,7 @@ export default function AllCampaigns() {
       toast.error(error.message || 'Failed to export campaign details');
     } finally {
       if (toastInterval) clearInterval(toastInterval);
+      setIsExportingCampaign(false);
     }
   };
 
@@ -524,13 +532,13 @@ export default function AllCampaigns() {
       align: 'center',
     },
     {
-      title: 'Sent',
-      key: 'sent',
+      title: 'Delivered',
+      key: 'delivered',
       render: (text, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
           <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '15px' }}>
-            {record?.successCount || 0}
+            {record?.totalDelivered || 0}
           </span>
         </div>
       ),
@@ -555,10 +563,11 @@ export default function AllCampaigns() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        const sentCount = record?.successCount || 0;
+        const deliveredCount = record?.totalDelivered || 0;
         const totalMessages = record?.cost || 0;
-        const rate = totalMessages > 0 ? (sentCount / totalMessages) * 100 : 0;
+        const rate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
+        const displayRate = rate < 1 && rate > 0 ? rate.toFixed(2) : Math.round(rate);
         
         return (
           <div style={{ textAlign: 'center' }}>
@@ -573,11 +582,11 @@ export default function AllCampaigns() {
               justifyContent: 'center'
             }}>
               <span style={{ 
-                fontSize: '13px', 
+                fontSize: rate < 1 ? '11px' : '13px', 
                 fontWeight: 700, 
                 color
               }}>
-                {Math.round(rate)}%
+                {displayRate}%
               </span>
             </div>
           </div>
@@ -694,6 +703,8 @@ export default function AllCampaigns() {
                   type="primary"
                   icon={<DownloadOutlined />}
                   onClick={exportToExcel}
+                  loading={isExporting}
+                  disabled={isExporting}
                   style={{
                     borderRadius: THEME_CONSTANTS.radius.md,
                     fontWeight: 600,
@@ -702,7 +713,7 @@ export default function AllCampaigns() {
                     boxShadow: `0 4px 12px ${THEME_CONSTANTS.colors.primary}30`
                   }}
                 >
-                  Export
+                  {isExporting ? 'Exporting...' : 'Export'}
                 </Button>
                 <Button
                   icon={<ReloadOutlined />}
@@ -803,6 +814,25 @@ export default function AllCampaigns() {
                   bodyStyle={{ padding: '24px' }}
                 >
                   <Statistic
+                    title="Total Sent"
+                    value={campaignsPagination?.totalSent || (campaignsPagination?.totalDelivered || 0) + (campaignsPagination?.totalFailed || 0)}
+                    prefix={<SendOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
+                    valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
+                    titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
+                  />
+                </Card>
+              </Col>
+
+              <Col xs={24} sm={12} md={6}>
+                <Card
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                  }}
+                  bodyStyle={{ padding: '24px' }}
+                >
+                  <Statistic
                     title="Total Delivered"
                     value={campaignsPagination?.totalDelivered || 0}
                     prefix={<CheckCircleOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.success }} />}
@@ -845,8 +875,8 @@ export default function AllCampaigns() {
                     value={
                       (() => {
                         const totalDelivered = campaignsPagination?.totalDelivered || 0;
-                        const totalMessages = (campaignsPagination?.totalDelivered || 0) + (campaignsPagination?.totalFailed || 0);
-                        return totalMessages > 0 ? ((totalDelivered / totalMessages) * 100).toFixed(2) : 0;
+                        const totalSent = campaignsPagination?.totalSent || (campaignsPagination?.totalDelivered || 0) + (campaignsPagination?.totalFailed || 0);
+                        return totalSent > 0 ? ((totalDelivered / totalSent) * 100).toFixed(2) : 0;
                       })()
                     }
                     suffix="%"
@@ -1113,6 +1143,8 @@ export default function AllCampaigns() {
                       type="primary"
                       icon={<DownloadOutlined />}
                       onClick={exportCampaignDetails}
+                      loading={isExportingCampaign}
+                      disabled={isExportingCampaign}
                       style={{
                         background: THEME_CONSTANTS.colors.primary,
                         borderColor: THEME_CONSTANTS.colors.primary,
@@ -1122,7 +1154,7 @@ export default function AllCampaigns() {
                         borderRadius: THEME_CONSTANTS.radius.md
                       }}
                     >
-                      Export Messages
+                      {isExportingCampaign ? 'Exporting...' : 'Export Messages'}
                     </Button>
                   </Space>
                 </Col>
@@ -1183,7 +1215,7 @@ export default function AllCampaigns() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedCampaign?.successCount || 0}
+                          {(selectedCampaign?.totalDelivered || 0) + (selectedCampaign?.failedCount || 0)}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Sent</div>
                       </div>
@@ -1212,7 +1244,7 @@ export default function AllCampaigns() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {campaignMessages?.filter(msg => msg.status === 'delivered' || msg.status === 'read' || msg.status === 'replied').length || 0}
+                          {selectedCampaign?.totalDelivered || 0}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Delivered</div>
                       </div>

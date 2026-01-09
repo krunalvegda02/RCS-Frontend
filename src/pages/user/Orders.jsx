@@ -56,10 +56,27 @@ import {
 } from '../../redux/slices/ordersSlice';
 import * as XLSX from 'xlsx';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
+
+const formatISTTime = (date) => {
+  if (!date) return "-";
+  // Parse as UTC and convert to IST
+  const utcDate = new Date(date);
+  return utcDate.toLocaleString('en-IN', { 
+    timeZone: 'Asia/Kolkata', 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    hour12: true 
+  });
+};
 
 export default function Orders() {
   const { user, token } = useAuth();
@@ -127,6 +144,7 @@ export default function Orders() {
   const [modalSearchText, setModalSearchText] = useState('');
   const [modalStatusFilter, setModalStatusFilter] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingCampaign, setIsExportingCampaign] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [allCampaignsForFilters, setAllCampaignsForFilters] = useState([]);
 
@@ -310,6 +328,8 @@ export default function Orders() {
   };
 
   const exportCampaignDetails = async () => {
+    if (isExportingCampaign) return;
+    
     let toastInterval;
     try {
       if (!selectedOrder?._id) {
@@ -317,6 +337,8 @@ export default function Orders() {
         return;
       }
 
+      setIsExportingCampaign(true);
+      
       // Start dismissing toasts immediately
       toastInterval = setInterval(() => {
         toast.dismiss();
@@ -377,6 +399,7 @@ export default function Orders() {
       toast.error(error.message || 'Failed to export campaign details');
     } finally {
       if (toastInterval) clearInterval(toastInterval);
+      setIsExportingCampaign(false);
     }
   };
 
@@ -590,13 +613,13 @@ export default function Orders() {
       align: 'center',
     },
     {
-      title: 'Sent',
-      key: 'sent',
+      title: 'Delivered',
+      key: 'delivered',
       render: (text, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
           <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '15px' }}>
-            {record?.successCount || 0}
+            {record?.totalDelivered || 0}
           </span>
         </div>
       ),
@@ -621,10 +644,11 @@ export default function Orders() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        const sentCount = record?.successCount || 0;
+        const deliveredCount = record?.totalDelivered || 0;
         const totalMessages = record?.cost || 0;
-        const rate = totalMessages > 0 ? (sentCount / totalMessages) * 100 : 0;
+        const rate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
+        const displayRate = rate < 1 && rate > 0 ? rate.toFixed(2) : Math.round(rate);
         
         return (
           <div style={{ textAlign: 'center' }}>
@@ -639,11 +663,11 @@ export default function Orders() {
               justifyContent: 'center'
             }}>
               <span style={{ 
-                fontSize: '13px', 
+                fontSize: rate < 1 ? '11px' : '13px', 
                 fontWeight: 700, 
                 color
               }}>
-                {Math.round(rate)}%
+                {displayRate}%
               </span>
             </div>
           </div>
@@ -847,6 +871,25 @@ export default function Orders() {
                 bodyStyle={{ padding: '24px' }}
               >
                 <Statistic
+                  title="Total Sent"
+                  value={pagination.totalSent || (pagination.totalDelivered || 0) + (pagination.totalFailed || 0)}
+                  prefix={<SendOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
+                  valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
+                  titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
+                />
+              </Card>
+            </Col>
+
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: THEME_CONSTANTS.radius.lg,
+                  border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+                  boxShadow: THEME_CONSTANTS.shadow.sm,
+                }}
+                bodyStyle={{ padding: '24px' }}
+              >
+                <Statistic
                   title="Total Delivered"
                   value={pagination.totalDelivered || 0}
                   prefix={<CheckCircleOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.success }} />}
@@ -870,31 +913,6 @@ export default function Orders() {
                   value={pagination.totalFailed || 0}
                   prefix={<CloseCircleOutlined style={{ marginRight: '8px', color: '#ff4d4f' }} />}
                   valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 700 }}
-                  titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
-                />
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: THEME_CONSTANTS.radius.lg,
-                  border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                  boxShadow: THEME_CONSTANTS.shadow.sm,
-                }}
-                bodyStyle={{ padding: '24px' }}
-              >
-                <Statistic
-                  title="Success Rate"
-                  value={
-                    (() => {
-                      const totalDelivered = pagination.totalDelivered || 0;
-                      const totalSent = (pagination.totalDelivered || 0) + (pagination.totalFailed || 0);
-                      return totalSent > 0 ? ((totalDelivered / totalSent) * 100).toFixed(2) : 0;
-                    })()
-                  }
-                  suffix="%"
-                  valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
                   titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
                 />
               </Card>
@@ -1412,6 +1430,8 @@ export default function Orders() {
                       type="primary"
                       icon={<DownloadOutlined />}
                       onClick={exportCampaignDetails}
+                      loading={isExportingCampaign}
+                      disabled={isExportingCampaign}
                       style={{
                         background: THEME_CONSTANTS.colors.primary,
                         borderColor: THEME_CONSTANTS.colors.primary,
@@ -1421,7 +1441,7 @@ export default function Orders() {
                         borderRadius: THEME_CONSTANTS.radius.md
                       }}
                     >
-                      Export Messages
+                      {isExportingCampaign ? 'Exporting...' : 'Export Messages'}
                     </Button>
                   </Space>
                 </Col>
@@ -1482,7 +1502,7 @@ export default function Orders() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedOrder?.successCount || 0}
+                          {(selectedOrder?.totalDelivered || 0) + (selectedOrder?.failedCount || 0)}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Sent</div>
                       </div>
@@ -1511,7 +1531,7 @@ export default function Orders() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedOrder?.totalDelivered || selectedOrder?.successCount || 0}
+                          {selectedOrder?.totalDelivered || 0}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Delivered</div>
                       </div>
@@ -1639,6 +1659,7 @@ export default function Orders() {
                         size="large"
                         options={[
                           { label: 'All Status', value: 'all' },
+                          { label: 'Draft', value: 'draft' },
                           { label: 'Sent', value: 'sent' },
                           { label: 'Delivered', value: 'delivered' },
                           { label: 'Read', value: 'read' },
@@ -1751,7 +1772,7 @@ export default function Orders() {
                       width: 100,
                       render: (date) => date ? (
                         <span style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text }}>
-                          {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatISTTime(date)}
                         </span>
                       ) : <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>
                     },
@@ -1762,7 +1783,7 @@ export default function Orders() {
                       width: 110,
                       render: (date) => date ? (
                         <span style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.success, fontWeight: 600 }}>
-                          {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatISTTime(date)}
                         </span>
                       ) : <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>
                     },
@@ -1773,7 +1794,7 @@ export default function Orders() {
                       width: 100,
                       render: (date) => date ? (
                         <span style={{ fontSize: '13px', color: '#8b5cf6', fontWeight: 600 }}>
-                          {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatISTTime(date)}
                         </span>
                       ) : <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>-</span>
                     },
