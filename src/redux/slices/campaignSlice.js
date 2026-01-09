@@ -77,7 +77,7 @@ export const getCampaignMessages = createAsyncThunkHandler(
 export const getAllCampaignMessagesForExport = createAsyncThunkHandler(
   'campaigns/getAllMessagesForExport',
   _get,
-  (payload) => `admin/campaigns/${payload.campaignId}/messages/all`
+  (payload) => `campaign-reports/campaign/${payload}/messages/export`
 );
 
 export const getAllCampaignsForExport = createAsyncThunkHandler(

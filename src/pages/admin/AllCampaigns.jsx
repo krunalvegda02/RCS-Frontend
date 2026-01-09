@@ -262,6 +262,7 @@ export default function AllCampaigns() {
     if (isExportingCampaign) return;
     
     let toastInterval;
+    let progressToast;
     try {
       if (!selectedCampaign?._id) {
         toast.error('No campaign selected');
@@ -276,16 +277,23 @@ export default function AllCampaigns() {
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      const result = await dispatch(getAllCampaignMessagesForExport({ campaignId: selectedCampaign._id })).unwrap();
+      // Show progress toast
+      progressToast = toast.loading('Fetching campaign messages...');
+
+      const result = await dispatch(getAllCampaignMessagesForExport(selectedCampaign._id)).unwrap();
       const allMessages = result.data || [];
 
       if (allMessages.length === 0) {
         if (toastInterval) clearInterval(toastInterval);
+        toast.dismiss(progressToast);
         await new Promise(resolve => setTimeout(resolve, 100));
         toast.dismiss();
         toast.error('No messages to export');
         return;
       }
+
+      toast.dismiss(progressToast);
+      progressToast = toast.loading('Generating Excel file...');
 
       const exportData = allMessages.map((msg, idx) => ({
         'S.No': idx + 1,
@@ -312,6 +320,7 @@ export default function AllCampaigns() {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Messages');
 
       if (toastInterval) clearInterval(toastInterval);
+      toast.dismiss(progressToast);
       await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
 
@@ -322,6 +331,7 @@ export default function AllCampaigns() {
     } catch (error) {
       console.error('Export error:', error);
       if (toastInterval) clearInterval(toastInterval);
+      if (progressToast) toast.dismiss(progressToast);
       await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
       toast.error(error.message || 'Failed to export campaign details');
@@ -338,6 +348,7 @@ export default function AllCampaigns() {
     if (isExporting) return;
     
     let toastInterval;
+    let progressToast;
     try {
       setIsExporting(true);
       
@@ -347,17 +358,14 @@ export default function AllCampaigns() {
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      const filters = { sort: sortOrder };
-      if (searchText) filters.search = searchText;
-      if (statusFilter !== 'all') filters.status = statusFilter;
-      if (typeFilter !== 'all') filters.type = typeFilter;
-      if (userFilter !== 'all') filters.user = userFilter;
+      progressToast = toast.loading('Fetching all campaigns...');
 
-      const campaignsResult = await dispatch(getAllCampaignsForExport(filters)).unwrap();
-      const allCampaigns = campaignsResult.data || [];
-
+      const allCampaignsResult = await dispatch(getAllCampaignsForExport({ sort: 'newest' })).unwrap();
+      const allCampaigns = allCampaignsResult.data || [];
+      
       if (allCampaigns.length === 0) {
         clearInterval(toastInterval);
+        toast.dismiss(progressToast);
         await new Promise(resolve => setTimeout(resolve, 100));
         toast.dismiss();
         toast.error('No campaigns to export');
@@ -365,35 +373,41 @@ export default function AllCampaigns() {
         return;
       }
 
+      toast.dismiss(progressToast);
+      progressToast = toast.loading(`Fetching messages for ${allCampaigns.length} campaigns...`);
+
       const messagesResults = await Promise.all(
         allCampaigns.map(campaign => 
-          dispatch(getAllCampaignMessagesForExport({ campaignId: campaign._id }))
+          dispatch(getAllCampaignMessagesForExport(campaign._id))
             .unwrap()
             .then(result => result)
             .catch(() => ({ data: [] }))
         )
       );
 
-      const campaignsData = allCampaigns.map((order, idx) => {
-        const deliveredCount = order?.totalDelivered || 0;
-        const failedCount = order?.failedCount || 0;
-        const totalRecipients = order?.cost || 0;
+      toast.dismiss(progressToast);
+      progressToast = toast.loading('Generating Excel file...');
+
+      const campaignsData = allCampaigns.map((campaign, idx) => {
+        const deliveredCount = campaign.totalDelivered || 0;
+        const failedCount = campaign.failedCount || 0;
+        const totalRecipients = campaign.cost || 0;
         const successRate = totalRecipients > 0 ? ((deliveredCount / totalRecipients) * 100).toFixed(2) : 0;
 
         return {
           'S.No': idx + 1,
-          'Campaign ID': order?._id || 'N/A',
-          'Campaign Name': order?.CampaignName || 'N/A',
-          'User': order?.userId?.name || 'N/A',
-          'User Email': order?.userId?.email || 'N/A',
-          'Message Type': order?.type || 'N/A',
-          'Status': order?.status || 'N/A',
+          'Campaign ID': campaign._id || 'N/A',
+          'Campaign Name': campaign.CampaignName || 'N/A',
+          'User': campaign.userId?.name || 'N/A',
+          'User Email': campaign.userId?.email || 'N/A',
+          'Message Type': campaign.type || 'N/A',
+          'Status': campaign.status || 'N/A',
           'Total Recipients': totalRecipients,
           'Successfully Delivered': deliveredCount,
           'Failed': failedCount,
           'Success Rate (%)': successRate,
-          'Created Date': new Date(order.createdAt).toLocaleDateString(),
-          'Created Time': new Date(order.createdAt).toLocaleTimeString(),
+          'Created Date': new Date(campaign.createdAt).toLocaleDateString(),
+          'Created Time': new Date(campaign.createdAt).toLocaleTimeString(),
         };
       });
 
@@ -441,6 +455,7 @@ export default function AllCampaigns() {
       }
 
       if (toastInterval) clearInterval(toastInterval);
+      toast.dismiss(progressToast);
       await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
       
@@ -451,6 +466,7 @@ export default function AllCampaigns() {
     } catch (error) {
       console.error('Export error:', error);
       if (toastInterval) clearInterval(toastInterval);
+      if (progressToast) toast.dismiss(progressToast);
       await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
       toast.error('Failed to export report');

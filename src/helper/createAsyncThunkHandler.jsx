@@ -14,8 +14,8 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
       let requestData = {};
       
       if (typeof payload === 'object' && payload !== null) {
-        // Extract userId and other params
-        const { userId, ...rest } = payload;
+        // Extract params that are already in the URL path
+        const { userId, campaignId, id, batchId, phoneNumber, ...rest } = payload;
         requestData = rest; // This will be used as query params for GET or body for POST/PUT/PATCH
       }
       
