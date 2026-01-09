@@ -15,8 +15,26 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
       
       if (typeof payload === 'object' && payload !== null) {
         // Extract params that are already in the URL path
+        // Only extract if they're actually used in the URL
+        const urlString = String(url);
+        const paramsInUrl = {};
+        
+        if (urlString.includes(payload.userId)) paramsInUrl.userId = true;
+        if (urlString.includes(payload.campaignId)) paramsInUrl.campaignId = true;
+        if (urlString.includes(payload.id)) paramsInUrl.id = true;
+        if (urlString.includes(payload.batchId)) paramsInUrl.batchId = true;
+        if (urlString.includes(payload.phoneNumber)) paramsInUrl.phoneNumber = true;
+        
+        // Only exclude params that are actually in the URL
         const { userId, campaignId, id, batchId, phoneNumber, ...rest } = payload;
-        requestData = rest; // This will be used as query params for GET or body for POST/PUT/PATCH
+        requestData = {
+          ...rest,
+          ...(paramsInUrl.userId ? {} : { userId }),
+          ...(paramsInUrl.campaignId ? {} : { campaignId }),
+          ...(paramsInUrl.id ? {} : { id }),
+          ...(paramsInUrl.batchId ? {} : { batchId }),
+          ...(paramsInUrl.phoneNumber ? {} : { phoneNumber })
+        };
       }
       
       // Detect FormData automatically or use isMultipart flag
