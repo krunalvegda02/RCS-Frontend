@@ -524,13 +524,18 @@ export default function CreateCampaignNew() {
         updateModalContent(0);
         
         const startTime = Date.now();
-        const progressInterval = setInterval(() => {
+        let progressInterval = null;
+        let apiCompleted = false;
+        
+        progressInterval = setInterval(() => {
+          if (apiCompleted) return;
+          
           const elapsed = Date.now() - startTime;
-          const progress = Math.min((elapsed / 60000) * 90, 90);
+          const progress = Math.min((elapsed / 60000) * 85, 85);
           setSendingProgress(progress);
           updateModalContent(progress);
           
-          if (progress >= 90) {
+          if (progress >= 85) {
             clearInterval(progressInterval);
           }
         }, 100);
@@ -561,31 +566,40 @@ export default function CreateCampaignNew() {
             campaignId: newCampaignId,
             templateId: selectedTemplate._id,
             phoneNumbers: rcsNumbers,
-            createSubCampaigns: rcsNumbers.length > 1000, // Auto-create 30 sub-campaigns for >1000 contacts
-            subCampaignSize: 200 // Ignored - always creates 30 sub-campaigns
+            createSubCampaigns: rcsNumbers.length > 1000,
+            subCampaignSize: 200
           })).unwrap();
 
+          // API completed - stop background progress and complete to 100%
+          apiCompleted = true;
           clearInterval(progressInterval);
           
           let currentProgress = sendingProgress;
           const completeInterval = setInterval(() => {
-            currentProgress += 5;
+            currentProgress += 8;
             if (currentProgress >= 100) {
               currentProgress = 100;
               clearInterval(completeInterval);
+              
+              // Smooth navigation after progress completes
+              setTimeout(() => {
+                setShowProgress(false);
+                setSendingProgress(0);
+                modalInstance.destroy();
+                message.success(`Campaign created with ${rcsContacts.length} RCS contacts!`);
+                
+                // Smooth fade navigation
+                setTimeout(() => {
+                  navigate('/reports');
+                }, 300);
+              }, 800);
             }
             setSendingProgress(currentProgress);
             updateModalContent(currentProgress);
-          }, 50);
+          }, 30);
           
-          setTimeout(() => {
-            setShowProgress(false);
-            setSendingProgress(0);
-            modalInstance.destroy();
-            message.success(`Campaign created with ${rcsContacts.length} RCS contacts!`);
-            navigate('/reports');
-          }, 1500);
         } catch (error) {
+          apiCompleted = true;
           clearInterval(progressInterval);
           setShowProgress(false);
           setSendingProgress(0);
