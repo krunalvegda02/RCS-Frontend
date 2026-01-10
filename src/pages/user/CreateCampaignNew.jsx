@@ -100,6 +100,7 @@ export default function CreateCampaignNew() {
   const [batchStats, setBatchStats] = useState({ total: 0, rcsCapable: 0, notCapable: 0 });
   const [capabilityResponse, setCapabilityResponse] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [checkingProgress, setCheckingProgress] = useState(0);
   const [sendingProgress, setSendingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
 
@@ -129,6 +130,23 @@ export default function CreateCampaignNew() {
     }
 
     setChecking(true);
+    setCheckingProgress(0);
+
+    const startTime = Date.now();
+    let progressInterval = null;
+    let apiCompleted = false;
+    
+    progressInterval = setInterval(() => {
+      if (apiCompleted) return;
+      
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / 30000) * 85, 85);
+      setCheckingProgress(progress);
+      
+      if (progress >= 85) {
+        clearInterval(progressInterval);
+      }
+    }, 100);
 
     try {
       message.success(`${phoneNumbers.length} contacts uploaded!`);
@@ -140,6 +158,26 @@ export default function CreateCampaignNew() {
       console.log('📊 Summary:', response.summary);
       console.log('📋 Data:', response.data);
       console.log('🔄 API Used:', response.summary?.apiUsed);
+      
+      // API completed - complete progress to 100%
+      apiCompleted = true;
+      clearInterval(progressInterval);
+      
+      let currentProgress = checkingProgress;
+      const completeInterval = setInterval(() => {
+        currentProgress += 8;
+        if (currentProgress >= 100) {
+          currentProgress = 100;
+          clearInterval(completeInterval);
+          
+          // Show 100% for 1 second before hiding
+          setTimeout(() => {
+            setChecking(false);
+            setCheckingProgress(0);
+          }, 1000);
+        }
+        setCheckingProgress(currentProgress);
+      }, 30);
       
       // Store response in variable
       setCapabilityResponse(response);
@@ -154,11 +192,13 @@ export default function CreateCampaignNew() {
         message.success(`Capability check complete! ${response.summary.rcsCapable} RCS-capable out of ${response.summary.total}`);
       }
       
-      setChecking(false);
     } catch (error) {
+      apiCompleted = true;
+      clearInterval(progressInterval);
+      setChecking(false);
+      setCheckingProgress(0);
       const errorMsg = error?.message || error?.data?.message || String(error);
       message.error(`Error processing contacts: ${errorMsg}`);
-      setChecking(false);
     }
   };
 
@@ -581,7 +621,7 @@ export default function CreateCampaignNew() {
               currentProgress = 100;
               clearInterval(completeInterval);
               
-              // Smooth navigation after progress completes
+              // Show 100% for 1.5 seconds before navigation
               setTimeout(() => {
                 setShowProgress(false);
                 setSendingProgress(0);
@@ -592,7 +632,7 @@ export default function CreateCampaignNew() {
                 setTimeout(() => {
                   navigate('/reports');
                 }, 300);
-              }, 800);
+              }, 1500);
             }
             setSendingProgress(currentProgress);
             updateModalContent(currentProgress);
@@ -778,7 +818,8 @@ export default function CreateCampaignNew() {
                     <div style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: '16px'
+                      gap: '16px',
+                      marginBottom: '16px'
                     }}>
                       <div style={{ 
                         width: '48px', 
@@ -807,17 +848,34 @@ export default function CreateCampaignNew() {
                           marginBottom: '4px',
                           letterSpacing: '-0.01em'
                         }}>
-                          Checking RCS Capability
+                          {checkingProgress === 100 ? '✓ Capability Check Complete!' : 'Checking RCS Capability'}
                         </div>
                         <div style={{ 
                           fontSize: '13px', 
                           color: THEME_CONSTANTS.colors.textSecondary,
                           fontWeight: 500
                         }}>
-                          Please wait while we verify your contacts...
+                          {checkingProgress < 85 ? 'Verifying contacts...' : checkingProgress === 100 ? 'All contacts verified' : 'Finalizing...'}
                         </div>
                       </div>
+                      <div style={{ 
+                        fontSize: '24px', 
+                        fontWeight: 700, 
+                        color: checkingProgress === 100 ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary 
+                      }}>
+                        {Math.round(checkingProgress)}%
+                      </div>
                     </div>
+                    <Progress 
+                      percent={checkingProgress} 
+                      status={checkingProgress === 100 ? 'success' : 'active'}
+                      strokeColor={{
+                        '0%': THEME_CONSTANTS.colors.primary,
+                        '100%': THEME_CONSTANTS.colors.success,
+                      }}
+                      strokeWidth={10}
+                      showInfo={false}
+                    />
                   </div>
                 )}
                 <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', marginTop: '16px' }}>
