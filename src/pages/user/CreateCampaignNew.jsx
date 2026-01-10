@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { checkCapability, createCampaign, createCampaignEntries, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
+import { checkCapability, createCampaign, createCampaignEntries, sendCampaign, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 
 
@@ -609,6 +609,9 @@ export default function CreateCampaignNew() {
             createSubCampaigns: rcsNumbers.length > 1000,
             subCampaignSize: 200
           })).unwrap();
+
+          // Trigger message sending to Kafka
+          await dispatch(sendCampaign({ campaignId: newCampaignId })).unwrap();
 
           // API completed - stop background progress and complete to 100%
           apiCompleted = true;

@@ -34,6 +34,12 @@ export const createCampaignEntries = createAsyncThunkHandler(
   'campaigns/create-entries'
 );
 
+export const sendCampaign = createAsyncThunkHandler(
+  'campaigns/send',
+  _post,
+  'campaigns/send'
+);
+
 export const getCampaignStats = createAsyncThunkHandler(
   'campaigns/getStats',
   _get,
