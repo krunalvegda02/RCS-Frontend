@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { checkCapability, createCampaign, createCampaignEntries, sendCampaign, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
+import { checkCapability, createMasterCampaign, createCampaignEntries, sendCampaign, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 
 
@@ -592,26 +592,17 @@ export default function CreateCampaignNew() {
             return;
           }
 
-          const campaignRes = await dispatch(createCampaign({
-            name: campaignName,
-            templateId: selectedTemplate._id,
-            userId: user._id,
-            status: 'processing'
-          })).unwrap();
-          
-          const newCampaignId = campaignRes.data._id;
           const rcsNumbers = rcsContacts.map(contact => contact.phoneNumber);
 
-          await dispatch(createCampaignEntries({
-            campaignId: newCampaignId,
+          // Create master campaign with 30 sub-campaigns
+          const campaignRes = await dispatch(createMasterCampaign({
+            name: campaignName,
             templateId: selectedTemplate._id,
-            phoneNumbers: rcsNumbers,
-            createSubCampaigns: rcsNumbers.length > 1000,
-            subCampaignSize: 200
+            phoneNumbers: rcsNumbers
           })).unwrap();
 
-          // Trigger message sending to Kafka
-          await dispatch(sendCampaign({ campaignId: newCampaignId })).unwrap();
+          const masterCampaignId = campaignRes.data.masterCampaign._id;
+          const subCampaignsCount = campaignRes.data.subCampaignsCount;
 
           // API completed - stop background progress and complete to 100%
           apiCompleted = true;
@@ -629,7 +620,7 @@ export default function CreateCampaignNew() {
                 setShowProgress(false);
                 setSendingProgress(0);
                 modalInstance.destroy();
-                message.success(`Campaign created with ${rcsContacts.length} RCS contacts!`);
+                message.success(`Master campaign created with ${subCampaignsCount} sub-campaigns (${rcsContacts.length} contacts)!`);
                 
                 // Smooth fade navigation
                 setTimeout(() => {

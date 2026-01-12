@@ -22,6 +22,12 @@ export const createCampaign = createAsyncThunkHandler(
   'campaigns'
 );
 
+export const createMasterCampaign = createAsyncThunkHandler(
+  'campaigns/createMaster',
+  _post,
+  'campaigns/master'
+);
+
 export const checkCapability = createAsyncThunkHandler(
   'campaigns/checkCapability',
   _post,
@@ -290,6 +296,21 @@ const campaignSlice = createSlice({
         state.campaigns.unshift(action.payload.data);
       })
       .addCase(createCampaign.rejected, (state, action) => {
+        state.loading.campaigns = false;
+        state.error = action.payload;
+      })
+
+    // Create Master Campaign
+    builder
+      .addCase(createMasterCampaign.pending, (state) => {
+        state.loading.campaigns = true;
+        state.error = null;
+      })
+      .addCase(createMasterCampaign.fulfilled, (state, action) => {
+        state.loading.campaigns = false;
+        state.campaigns.unshift(action.payload.data.masterCampaign);
+      })
+      .addCase(createMasterCampaign.rejected, (state, action) => {
         state.loading.campaigns = false;
         state.error = action.payload;
       })
