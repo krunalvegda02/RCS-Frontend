@@ -594,15 +594,15 @@ export default function CreateCampaignNew() {
 
           const rcsNumbers = rcsContacts.map(contact => contact.phoneNumber);
 
-          // Create master campaign with 30 sub-campaigns
+          // Create campaign with bot assignment
           const campaignRes = await dispatch(createMasterCampaign({
             name: campaignName,
             templateId: selectedTemplate._id,
             phoneNumbers: rcsNumbers
           })).unwrap();
 
-          const masterCampaignId = campaignRes.data.masterCampaign._id;
-          const subCampaignsCount = campaignRes.data.subCampaignsCount;
+          const campaignId = campaignRes.data.masterCampaign._id;
+          const botId = campaignRes.data.botId;
 
           // API completed - stop background progress and complete to 100%
           apiCompleted = true;
@@ -620,7 +620,7 @@ export default function CreateCampaignNew() {
                 setShowProgress(false);
                 setSendingProgress(0);
                 modalInstance.destroy();
-                message.success(`Master campaign created with ${subCampaignsCount} sub-campaigns (${rcsContacts.length} contacts)!`);
+                message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
                 
                 // Smooth fade navigation
                 setTimeout(() => {
