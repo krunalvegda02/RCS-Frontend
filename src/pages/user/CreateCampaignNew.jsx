@@ -604,9 +604,33 @@ export default function CreateCampaignNew() {
           const campaignId = campaignRes.data.masterCampaign._id;
           const botId = campaignRes.data.botId;
 
-          // Wait for Kafka to complete all entries, then update status
-          await dispatch(updateCampaignStatus({ campaignId })).unwrap();
-          console.log('✅ Campaign status updated to pending after bulk entries completed');
+          // Poll campaign status until it becomes 'pending' (Kafka completed)
+          const pollStatus = async () => {
+            const maxAttempts = 60; // 60 seconds max
+            for (let i = 0; i < maxAttempts; i++) {
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+              
+              try {
+                const statusRes = await fetch(`/api/campaigns/${campaignId}`, {
+                  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const statusData = await statusRes.json();
+                
+                if (statusData.data?.status === 'pending') {
+                  console.log('✅ Kafka completed all entries, status is now pending');
+                  return true;
+                }
+              } catch (err) {
+                console.error('Status check error:', err);
+              }
+            }
+            return false;
+          };
+          
+          const completed = await pollStatus();
+          if (!completed) {
+            console.warn('⚠️ Timeout waiting for Kafka completion');
+          }
 
           // API completed - stop background progress and complete to 100%
           apiCompleted = true;
