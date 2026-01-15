@@ -594,15 +594,23 @@ export default function CreateCampaignNew() {
 
           const rcsNumbers = rcsContacts.map(contact => contact.phoneNumber);
 
-          // Create campaign with bot assignment
+          // Create campaign in draft status first
           const campaignRes = await dispatch(createMasterCampaign({
             name: campaignName,
             templateId: selectedTemplate._id,
-            phoneNumbers: rcsNumbers
+            phoneNumbers: rcsNumbers,
+            status: 'draft' // Explicitly set as draft
           })).unwrap();
 
           const campaignId = campaignRes.data.masterCampaign._id;
           const botId = campaignRes.data.botId;
+
+          // Now create batch entries - this will change status to pending
+          await dispatch(createCampaignEntries({
+            campaignId,
+            templateId: selectedTemplate._id,
+            phoneNumbers: rcsNumbers
+          })).unwrap();
 
           // API completed - stop background progress and complete to 100%
           apiCompleted = true;
