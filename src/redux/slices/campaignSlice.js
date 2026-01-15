@@ -22,6 +22,12 @@ export const createCampaign = createAsyncThunkHandler(
   'campaigns'
 );
 
+export const updateCampaignStatus = createAsyncThunkHandler(
+  'campaigns/updateStatus',
+  _post,
+  'campaigns/update-status'
+);
+
 export const createMasterCampaign = createAsyncThunkHandler(
   'campaigns/createMaster',
   _post,

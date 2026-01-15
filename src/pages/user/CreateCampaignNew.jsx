@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { checkCapability, createMasterCampaign, createCampaignEntries, sendCampaign, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
+import { checkCapability, createMasterCampaign, updateCampaignStatus, createCampaignEntries, sendCampaign, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 
 
@@ -604,8 +604,9 @@ export default function CreateCampaignNew() {
           const campaignId = campaignRes.data.masterCampaign._id;
           const botId = campaignRes.data.botId;
 
-          // Campaign is now created and entries are processed
-          // Status will be 'pending' after successful entry creation
+          // Wait for Kafka to complete all entries, then update status
+          await dispatch(updateCampaignStatus({ campaignId })).unwrap();
+          console.log('✅ Campaign status updated to pending after bulk entries completed');
 
           // API completed - stop background progress and complete to 100%
           apiCompleted = true;
