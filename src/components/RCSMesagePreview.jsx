@@ -41,7 +41,7 @@ export default function RCSMessagePreview({ data }) {
 
   const screenStyle = {
     width: '100%',
-    height: '100%',
+    flex: 1, // Fill the phone container
     background: '#fff',
     borderRadius: '16px',
     display: 'flex',
