@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { checkCapability, createMasterCampaign, updateCampaignStatus, createCampaignEntries, sendCampaign, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
+import { checkCapability, createMasterCampaign, getCampaignById, updateCampaignStatus, createCampaignEntries, sendCampaign, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 
 
@@ -606,17 +606,14 @@ export default function CreateCampaignNew() {
 
           // Poll campaign status until it becomes 'pending' (Kafka completed)
           const pollStatus = async () => {
-            const maxAttempts = 60; // 60 seconds max
+            const maxAttempts = 60;
             for (let i = 0; i < maxAttempts; i++) {
-              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+              await new Promise(resolve => setTimeout(resolve, 1000));
               
               try {
-                const statusRes = await fetch(`/api/campaigns/${campaignId}`, {
-                  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
-                const statusData = await statusRes.json();
+                const statusRes = await dispatch(getCampaignById({ id: campaignId })).unwrap();
                 
-                if (statusData.data?.status === 'pending') {
+                if (statusRes.data?.status === 'pending') {
                   console.log('✅ Kafka completed all entries, status is now pending');
                   return true;
                 }
