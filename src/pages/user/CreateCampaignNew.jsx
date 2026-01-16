@@ -629,13 +629,14 @@ export default function CreateCampaignNew() {
             console.warn('⚠️ Timeout waiting for Kafka completion');
           }
 
-          // API completed - stop background progress and complete to 100%
+          // Kafka completed - animate progress from current to 100%
           apiCompleted = true;
           clearInterval(progressInterval);
           
-          let currentProgress = sendingProgress;
+          // Smoothly animate from current progress to 100%
+          let currentProgress = Math.max(sendingProgress, 85);
           const completeInterval = setInterval(() => {
-            currentProgress += 8;
+            currentProgress += 3;
             if (currentProgress >= 100) {
               currentProgress = 100;
               clearInterval(completeInterval);
@@ -647,15 +648,14 @@ export default function CreateCampaignNew() {
                 modalInstance.destroy();
                 message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
                 
-                // Smooth fade navigation
                 setTimeout(() => {
                   navigate('/reports');
-                }, 300);
+                }, 200);
               }, 1500);
             }
             setSendingProgress(currentProgress);
             updateModalContent(currentProgress);
-          }, 30);
+          }, 50);
           
         } catch (error) {
           apiCompleted = true;
