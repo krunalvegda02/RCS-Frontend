@@ -477,6 +477,9 @@ export default function CreateCampaignNew() {
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <SendOutlined /> Send Campaign Now
         </span>
+      ),lignItems: 'center', gap: '8px' }}>
+          <SendOutlined /> Send Campaign Now
+        </span>
       ),
       cancelText: 'Cancel',
       okButtonProps: {
@@ -487,9 +490,10 @@ export default function CreateCampaignNew() {
         size: 'large',
         style: { height: '48px', borderRadius: THEME_CONSTANTS.radius.md, display: showProgress ? 'none' : 'inline-flex' }
       },
-      onOk: async () => {
-        setShowProgress(true);
-        setSendingProgress(0);
+      onOk: () => {
+        return new Promise((resolve) => {
+          setShowProgress(true);
+          setSendingProgress(0);
         
         // Immediately show progress modal
         modalInstance.update({
@@ -738,8 +742,8 @@ export default function CreateCampaignNew() {
           modalInstance.destroy();
           message.error('Failed to create campaign: ' + (error.message || error));
         }
+      });
       }
-    });
   };
 
   const downloadDemo = async () => {
