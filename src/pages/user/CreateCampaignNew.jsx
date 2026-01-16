@@ -610,6 +610,11 @@ export default function CreateCampaignNew() {
             for (let i = 0; i < maxAttempts; i++) {
               await new Promise(resolve => setTimeout(resolve, 1000));
               
+              // Update progress during polling (85% to 95%)
+              const pollingProgress = 85 + (i / maxAttempts) * 10;
+              setSendingProgress(pollingProgress);
+              updateModalContent(pollingProgress);
+              
               try {
                 const statusRes = await dispatch(getCampaignById({ id: campaignId })).unwrap();
                 
@@ -633,10 +638,10 @@ export default function CreateCampaignNew() {
           apiCompleted = true;
           clearInterval(progressInterval);
           
-          // Smoothly animate from current progress to 100%
-          let currentProgress = Math.max(sendingProgress, 85);
+          // Smoothly animate from current progress (should be ~95%) to 100%
+          let currentProgress = Math.max(sendingProgress, 95);
           const completeInterval = setInterval(() => {
-            currentProgress += 3;
+            currentProgress += 1;
             if (currentProgress >= 100) {
               currentProgress = 100;
               clearInterval(completeInterval);
@@ -655,7 +660,7 @@ export default function CreateCampaignNew() {
             }
             setSendingProgress(currentProgress);
             updateModalContent(currentProgress);
-          }, 50);
+          }, 100);
           
         } catch (error) {
           apiCompleted = true;
