@@ -9,13 +9,16 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
 
       const url = typeof urlResolver === "function" ? urlResolver(payload) : urlResolver;
       
-      // For GET requests, pass query params in data object
-      // For other requests, determine request body based on payload structure
-      let requestData = {};
+      // Check if payload is FormData first
+      const isFormData = payload instanceof FormData;
       
-      if (typeof payload === 'object' && payload !== null) {
+      let requestData;
+      
+      if (isFormData) {
+        // Don't process FormData, pass it directly
+        requestData = payload;
+      } else if (typeof payload === 'object' && payload !== null) {
         // Extract params that are already in the URL path
-        // Only extract if they're actually used in the URL
         const urlString = String(url);
         const paramsInUrl = {};
         
@@ -35,11 +38,9 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
           ...(paramsInUrl.batchId ? {} : { batchId }),
           ...(paramsInUrl.phoneNumber ? {} : { phoneNumber })
         };
+      } else {
+        requestData = payload;
       }
-      
-      // Detect FormData automatically or use isMultipart flag
-      const isFormData = requestData instanceof FormData;
-      const shouldUseMultipart = isMultipart === true || isFormData;
       
       const config = {
         headers: {
