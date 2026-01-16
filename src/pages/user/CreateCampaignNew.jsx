@@ -491,6 +491,74 @@ export default function CreateCampaignNew() {
         setShowProgress(true);
         setSendingProgress(0);
         
+        // Immediately show progress modal
+        modalInstance.update({
+          content: (
+            <div style={{ padding: '24px 0' }}>
+              <div style={{ background: THEME_CONSTANTS.colors.background, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px', marginBottom: '20px', border: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ fontSize: '24px' }}>📋</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Campaign Name</div>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, marginTop: '4px' }}>{campaignName}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ background: THEME_CONSTANTS.colors.success, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
+                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
+                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
+                </div>
+                
+                <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
+                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
+                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per RCS message</div>
+                </div>
+              </div>
+
+              <div style={{ background: THEME_CONSTANTS.colors.primaryLight, border: `2px solid ${THEME_CONSTANTS.colors.primary}`, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                  <div style={{ 
+                    width: '48px', 
+                    height: '48px',
+                    background: THEME_CONSTANTS.colors.surface,
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `2px solid ${THEME_CONSTANTS.colors.primary}`
+                  }}>
+                    <SendOutlined style={{ fontSize: '24px', color: THEME_CONSTANTS.colors.primary }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>
+                      Creating Campaign...
+                    </div>
+                    <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>
+                      Processing bulk entries
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>
+                    0%
+                  </div>
+                </div>
+                <Progress 
+                  percent={0} 
+                  status="active"
+                  strokeColor={THEME_CONSTANTS.colors.primary}
+                  strokeWidth={10}
+                  showInfo={false}
+                />
+              </div>
+            </div>
+          ),
+          okButtonProps: { style: { display: 'none' } },
+          cancelButtonProps: { style: { display: 'none' } }
+        });
+        
         const updateModalContent = (progress) => {
           const isComplete = progress === 100;
           modalInstance.update({
