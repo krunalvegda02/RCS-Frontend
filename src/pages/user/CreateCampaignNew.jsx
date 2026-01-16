@@ -477,9 +477,6 @@ export default function CreateCampaignNew() {
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <SendOutlined /> Send Campaign Now
         </span>
-      ),lignItems: 'center', gap: '8px' }}>
-          <SendOutlined /> Send Campaign Now
-        </span>
       ),
       cancelText: 'Cancel',
       okButtonProps: {
@@ -490,8 +487,8 @@ export default function CreateCampaignNew() {
         size: 'large',
         style: { height: '48px', borderRadius: THEME_CONSTANTS.radius.md, display: showProgress ? 'none' : 'inline-flex' }
       },
-      onOk: () => {
-        return new Promise((resolve) => {
+      onOk: async () => {
+        return new Promise(async (resolve) => {
           setShowProgress(true);
           setSendingProgress(0);
         
@@ -744,6 +741,7 @@ export default function CreateCampaignNew() {
         }
       });
       }
+    });
   };
 
   const downloadDemo = async () => {
