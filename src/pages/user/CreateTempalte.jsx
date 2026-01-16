@@ -253,8 +253,8 @@ export default function CreateTemplatePage() {
           actions: item.actions.filter(action => action.title && action.title.trim())
         })).filter(item => item.title && item.title.trim() && item.actions.length > 0);
 
-        if (validCarouselItems.length === 0) {
-          toast.error('At least one carousel item with title and actions is required');
+        if (validCarouselItems.length < 2) {
+          toast.error('Carousel templates must have at least 2 cards');
           return;
         }
       }
@@ -1014,8 +1014,8 @@ export default function CreateTemplatePage() {
                   { label: 'Carousel', value: 'carousel' },
                 ]}
                 dropdownStyle={{ fontSize: '16px' }}
-               
-                style={{ width: '100%', height: '52px', fontSize: '15px' , }}
+
+                style={{ width: '100%', height: '52px', fontSize: '15px', }}
               />
             </Card>
 
