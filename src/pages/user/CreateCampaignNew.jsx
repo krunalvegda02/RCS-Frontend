@@ -679,18 +679,24 @@ export default function CreateCampaignNew() {
             for (let i = 0; i < maxAttempts; i++) {
               await new Promise(resolve => setTimeout(resolve, 1000));
               
-              // Update progress during polling (85% to 95%)
-              const pollingProgress = 85 + (i / maxAttempts) * 10;
-              setSendingProgress(pollingProgress);
-              updateModalContent(pollingProgress);
-              
               try {
                 const statusRes = await dispatch(getCampaignById({ id: campaignId })).unwrap();
+                const currentStatus = statusRes.data?.status;
                 
-                if (statusRes.data?.status === 'pending') {
+                if (currentStatus === 'pending' || "completed") {
                   console.log('✅ Kafka completed all entries, status is now pending');
+                  // Immediately jump to 100%
+                  apiCompleted = true;
+                  clearInterval(progressInterval);
+                  setSendingProgress(100);
+                  updateModalContent(100);
                   return true;
                 }
+                
+                // Update progress during polling (85% to 95%)
+                const pollingProgress = 85 + (i / maxAttempts) * 10;
+                setSendingProgress(pollingProgress);
+                updateModalContent(pollingProgress);
               } catch (err) {
                 console.error('Status check error:', err);
               }
@@ -699,37 +705,47 @@ export default function CreateCampaignNew() {
           };
           
           const completed = await pollStatus();
-          if (!completed) {
-            console.warn('⚠️ Timeout waiting for Kafka completion');
-          }
-
-          // Kafka completed - animate progress from current to 100%
-          apiCompleted = true;
-          clearInterval(progressInterval);
           
-          // Smoothly animate from current progress (should be ~95%) to 100%
-          let currentProgress = Math.max(sendingProgress, 95);
-          const completeInterval = setInterval(() => {
-            currentProgress += 1;
-            if (currentProgress >= 100) {
-              currentProgress = 100;
-              clearInterval(completeInterval);
+          if (completed) {
+            // Status is pending - show 100% for 1.5 seconds then navigate
+            setTimeout(() => {
+              setShowProgress(false);
+              setSendingProgress(0);
+              modalInstance.destroy();
+              message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
               
-              // Show 100% for 1.5 seconds before navigation
               setTimeout(() => {
-                setShowProgress(false);
-                setSendingProgress(0);
-                modalInstance.destroy();
-                message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
+                navigate('/reports');
+              }, 200);
+            }, 1500);
+          } else {
+            // Timeout - still complete the progress animation
+            console.warn('⚠️ Timeout waiting for Kafka completion');
+            apiCompleted = true;
+            clearInterval(progressInterval);
+            
+            let currentProgress = Math.max(sendingProgress, 95);
+            const completeInterval = setInterval(() => {
+              currentProgress += 1;
+              if (currentProgress >= 100) {
+                currentProgress = 100;
+                clearInterval(completeInterval);
                 
                 setTimeout(() => {
-                  navigate('/reports');
-                }, 200);
-              }, 1500);
-            }
-            setSendingProgress(currentProgress);
-            updateModalContent(currentProgress);
-          }, 100);
+                  setShowProgress(false);
+                  setSendingProgress(0);
+                  modalInstance.destroy();
+                  message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
+                  
+                  setTimeout(() => {
+                    navigate('/reports');
+                  }, 200);
+                }, 1500);
+              }
+              setSendingProgress(currentProgress);
+              updateModalContent(currentProgress);
+            }, 100);
+          }
           
         } catch (error) {
           apiCompleted = true;

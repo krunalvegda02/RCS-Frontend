@@ -77,8 +77,10 @@ export default function Dashboard() {
     if (user?._id) {
       dispatch(fetchDashboardStats(user._id));
       dispatch(fetchRecentOrders(user._id));
+      // Refresh user data to get latest wallet info
+      refreshUser();
     }
-  }, [user, dispatch]);
+  }, [user?._id, dispatch]);
 
   const handleAddMoney = async () => {
     if (addAmount && Number.parseFloat(addAmount) > 0) {
@@ -485,43 +487,35 @@ export default function Dashboard() {
                       color: THEME_CONSTANTS.colors.textMuted,
                     }}
                   >
-                    Credits Used This Month
+                    Blocked Balance
                   </p>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'flex-end',
                       gap: THEME_CONSTANTS.spacing.sm,
-                      marginBottom: THEME_CONSTANTS.spacing.sm,
-                      flexWrap: 'wrap'
                     }}
                   >
                     <span
                       style={{
                         fontSize: THEME_CONSTANTS.typography.h4.size,
                         fontWeight: THEME_CONSTANTS.typography.h4.weight,
-                        color: THEME_CONSTANTS.colors.text,
+                        color: THEME_CONSTANTS.colors.warning,
                       }}
                     >
-                      ₹{isLoading ? 0 : (stats?.totalCost || 0)}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: THEME_CONSTANTS.typography.bodySmall.size,
-                        color: THEME_CONSTANTS.colors.textMuted
-                      }}
-                    >
-                      of {formatCurrency(user?.wallet?.balance || user?.Wallet || 0)}
+                      {formatCurrency(Math.max(0, Math.abs(user?.wallet?.blockedBalance || 0)))}
                     </span>
                   </div>
-                  <Progress
-                    percent={(() => {
-                      const walletBalance = user?.wallet?.balance || user?.Wallet || 0;
-                      const totalCost = stats?.totalCost || 0;
-                      return walletBalance && totalCost ? Math.min(100, Math.round((totalCost / walletBalance) * 100)) : 0;
-                    })()}
-                    strokeColor={{ '0%': THEME_CONSTANTS.colors.primary, '100%': THEME_CONSTANTS.colors.primaryDark }}
-                  />
+                  <p
+                    style={{
+                      margin: 0,
+                      marginTop: THEME_CONSTANTS.spacing.sm,
+                      fontSize: THEME_CONSTANTS.typography.bodySmall.size,
+                      color: THEME_CONSTANTS.colors.textMuted
+                    }}
+                  >
+                    Reserved for active campaigns.
+                  </p>
                 </div>
               </Col>
               <Col xs={24} sm={12}>
@@ -536,14 +530,13 @@ export default function Dashboard() {
                       color: THEME_CONSTANTS.colors.textMuted,
                     }}
                   >
-                    Remaining Balance
+                    Available Balance
                   </p>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'flex-end',
                       gap: THEME_CONSTANTS.spacing.sm,
-                      marginBottom: THEME_CONSTANTS.spacing.sm,
                     }}
                   >
                     <span
@@ -553,17 +546,18 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency(Math.max(0, (user?.wallet?.balance || user?.Wallet || 0) - (stats?.totalCost || 0)))}
+                      {formatCurrency(user?.wallet?.balance || user?.Wallet || 0)}
                     </span>
                   </div>
                   <p
                     style={{
                       margin: 0,
+                      marginTop: THEME_CONSTANTS.spacing.sm,
                       fontSize: THEME_CONSTANTS.typography.bodySmall.size,
                       color: THEME_CONSTANTS.colors.textMuted
                     }}
                   >
-                    Available for campaigns.
+                    Ready for new campaigns.
                   </p>
                 </div>
               </Col>

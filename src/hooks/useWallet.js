@@ -7,8 +7,8 @@ export const useWallet = () => {
   const user = useSelector((state) => state.auth.user);
   
   const totalBalance = user?.wallet?.balance || 0;
-  const blockedBalance = user?.wallet?.blockedBalance || 0;
-  const availableBalance = totalBalance - blockedBalance;
+  const blockedBalance = Math.abs(user?.wallet?.blockedBalance || 0);
+  const availableBalance = totalBalance;
   const creditsUsed = user?.stats?.totalSpent || 0;
   const currency = user?.wallet?.currency || 'INR';
   
@@ -64,7 +64,7 @@ export const useWallet = () => {
     formattedTotalBalance: `₹${totalBalance.toLocaleString()}`,
     formattedAvailableBalance: `₹${availableBalance.toLocaleString()}`,
     formattedRemainingBalance: `₹${availableBalance.toLocaleString()}`,
-    formattedBlockedBalance: `₹${blockedBalance.toLocaleString()}`,
+    formattedBlockedBalance: `₹${Math.abs(blockedBalance).toLocaleString()}`,
     formattedCreditsUsed: `₹${creditsUsed.toLocaleString()}`,
     hasBlockedBalance: blockedBalance > 0,
   };
