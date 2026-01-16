@@ -26,8 +26,9 @@ export default function RCSMessagePreview({ data }) {
   const content = data?.content || {};
 
   const phoneStyle = {
-    width: 'min(280px, 90vw)',
-    height: 'clamp(350px, 60vh, 500px)',
+    width: 'min(320px, 90vw)',
+    minHeight: '500px',
+    height: 'auto',
     background: '#000',
     borderRadius: '20px',
     padding: '6px',
@@ -63,8 +64,10 @@ export default function RCSMessagePreview({ data }) {
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    overflowY: 'auto',
+    // overflowY: 'auto', // Removed for auto-height
     background: '#f5f5f5',
+    minHeight: 0,
+    paddingBottom: '40px',
   };
 
   const messageBubbleStyle = {
@@ -127,7 +130,7 @@ export default function RCSMessagePreview({ data }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {buttons
                 .filter((b) => b.label && b.label.trim())
-                .slice(0, 3)
+                .slice(0, 4)
                 .map((button, idx) => (
                   <button
                     key={idx}
@@ -209,7 +212,7 @@ export default function RCSMessagePreview({ data }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {actions
                 .filter((a) => a.label && a.label.trim())
-                .slice(0, 2)
+                .slice(0, 4)
                 .map((action, idx) => (
                   <button
                     key={idx}
@@ -316,7 +319,7 @@ export default function RCSMessagePreview({ data }) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {card.actions
                       .filter((a) => a.label && a.label.trim())
-                      .slice(0, 2)
+                      .slice(0, 4)
                       .map((action, actionIdx) => (
                         <button
                           key={actionIdx}
@@ -353,13 +356,13 @@ export default function RCSMessagePreview({ data }) {
   };
 
   return (
-    <div style={{ 
-      padding: 'clamp(8px, 2vw, 20px)', 
-      background: '#f5f7fa', 
+    <div style={{
+      padding: 'clamp(8px, 2vw, 20px)',
+      background: '#f5f7fa',
       borderRadius: '12px',
       width: '100%',
       maxWidth: '100%',
-      overflow: 'hidden',
+      overflow: 'visible',
       boxSizing: 'border-box'
     }}>
       <div style={phoneStyle}>
