@@ -34,10 +34,18 @@ export const getUserInteractionSummary = createAsyncThunkHandler(
 );
 
 // Campaign messages
+// Campaign messages
 export const getCampaignMessages = createAsyncThunkHandler(
     'campaigns/getMessages',
     _get,
-    ({ campaignId, page = 1, limit = 20 }) => `v1/campaign-reports/campaign/${campaignId}/messages?page=${page}&limit=${limit}`
+    (params) => {
+        const { campaignId, ...queryParams } = params;
+        return buildUrlWithParams(`v1/campaign-reports/campaign/${campaignId}/messages`, {
+            page: 1,
+            limit: 20,
+            ...queryParams
+        });
+    }
 );
 
 // Export all campaign messages (for Excel export)

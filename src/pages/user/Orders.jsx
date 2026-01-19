@@ -70,11 +70,11 @@ const formatISTTime = (date) => {
   if (!date) return "-";
   // Parse as UTC and convert to IST
   const utcDate = new Date(date);
-  return utcDate.toLocaleString('en-IN', { 
-    timeZone: 'Asia/Kolkata', 
-    hour: '2-digit', 
-    minute: '2-digit', 
-    hour12: true 
+  return utcDate.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
   });
 };
 
@@ -82,7 +82,7 @@ export default function Orders() {
   const { user, token } = useAuth();
   const dispatch = useDispatch();
   const screens = useBreakpoint();
-  
+
   // Redux state
   const {
     orders,
@@ -96,7 +96,7 @@ export default function Orders() {
     loading,
     error
   } = useSelector(state => state.orders);
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
   const [showModal, setShowModal] = useState(false);
@@ -166,14 +166,14 @@ export default function Orders() {
   // Fetch orders with filters whenever filters or page changes
   useEffect(() => {
     if (!user?._id) return;
-    
+
     const params = {
       userId: user._id,
       page: currentPage,
       limit: pageSize,
       sort: sortOrder
     };
-    
+
     if (searchText && searchText.trim()) params.search = searchText.trim();
     if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
     if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
@@ -182,7 +182,7 @@ export default function Orders() {
       params.startDate = dateRange[0].toISOString();
       params.endDate = dateRange[1].toISOString();
     }
-    
+
     console.log('Fetching orders with params:', params);
     dispatch(fetchOrders(params));
   }, [dispatch, user?._id, currentPage, searchText, statusFilter, typeFilter, campaignFilter, sortOrder, dateRange]);
@@ -201,7 +201,7 @@ export default function Orders() {
   //     const interval = setInterval(() => {
   //       dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }));
   //     }, 3000); // Refresh every 3 seconds (faster)
-      
+
   //     return () => clearInterval(interval);
   //   }
   // }, [dispatch, user?._id, currentPage]);
@@ -234,7 +234,7 @@ export default function Orders() {
 
   const getStatusBadge = (order) => {
     const status = order?.status;
-    
+
     const statusConfig = {
       'completed': { color: '#f6ffed', textColor: THEME_CONSTANTS.colors.success, border: THEME_CONSTANTS.colors.success },
       'running': { color: '#e6f7ff', textColor: '#1890ff', border: '#1890ff' },
@@ -277,7 +277,7 @@ export default function Orders() {
     setModalSearchText('');
     setModalStatusFilter('all');
     setShowModal(true);
-    
+
     // Fetch first page of messages
     if (order._id) {
       dispatch(fetchCampaignMessages({ campaignId: order._id, page: 1, limit: 10 }));
@@ -288,9 +288,9 @@ export default function Orders() {
     setModalSearchText(searchValue);
     setModalCurrentPage(1);
     if (selectedOrder?._id) {
-      dispatch(fetchCampaignMessages({ 
-        campaignId: selectedOrder._id, 
-        page: 1, 
+      dispatch(fetchCampaignMessages({
+        campaignId: selectedOrder._id,
+        page: 1,
         limit: 10,
         search: searchValue || undefined
       }));
@@ -301,9 +301,9 @@ export default function Orders() {
     setModalStatusFilter(status);
     setModalCurrentPage(1);
     if (selectedOrder?._id) {
-      dispatch(fetchCampaignMessages({ 
-        campaignId: selectedOrder._id, 
-        page: 1, 
+      dispatch(fetchCampaignMessages({
+        campaignId: selectedOrder._id,
+        page: 1,
         limit: 10,
         status: status !== 'all' ? status : undefined
       }));
@@ -329,7 +329,7 @@ export default function Orders() {
 
   const exportCampaignDetails = async () => {
     if (isExportingCampaign) return;
-    
+
     let toastInterval;
     try {
       if (!selectedOrder?._id) {
@@ -338,7 +338,7 @@ export default function Orders() {
       }
 
       setIsExportingCampaign(true);
-      
+
       // Start dismissing toasts immediately
       toastInterval = setInterval(() => {
         toast.dismiss();
@@ -387,7 +387,7 @@ export default function Orders() {
       toast.dismiss();
 
       XLSX.writeFile(workbook, `campaign-${selectedOrder?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`);
-      
+
       // Show success toast after file download
       await new Promise(resolve => setTimeout(resolve, 200));
       toast.success(`Exported ${exportData.length} messages successfully`);
@@ -430,11 +430,11 @@ export default function Orders() {
 
   const exportToExcel = async () => {
     if (isExporting) return;
-    
+
     let toastInterval;
     try {
       setIsExporting(true);
-      
+
       // Start dismissing toasts immediately before any API calls
       toastInterval = setInterval(() => {
         toast.dismiss();
@@ -458,7 +458,7 @@ export default function Orders() {
 
       // Fetch messages for all campaigns silently
       const messagesResults = await Promise.all(
-        allCampaigns.map(campaign => 
+        allCampaigns.map(campaign =>
           dispatch(fetchAllCampaignMessages(campaign._id))
             .unwrap()
             .then(result => result)
@@ -538,10 +538,10 @@ export default function Orders() {
       if (toastInterval) clearInterval(toastInterval);
       await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
-      
+
       // Write file after clearing toasts
       XLSX.writeFile(workbook, `complete-campaign-report-${new Date().toISOString().split('T')[0]}.xlsx`);
-      
+
       // Show success toast after file download
       await new Promise(resolve => setTimeout(resolve, 200));
       toast.success(`Exported ${allCampaigns.length} campaigns with ${allMessagesData.length} messages`);
@@ -649,7 +649,7 @@ export default function Orders() {
         const rate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         const displayRate = rate < 1 && rate > 0 ? rate.toFixed(2) : Math.round(rate);
-        
+
         return (
           <div style={{ textAlign: 'center' }}>
             <div style={{
@@ -662,9 +662,9 @@ export default function Orders() {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <span style={{ 
-                fontSize: rate < 1 ? '11px' : '13px', 
-                fontWeight: 700, 
+              <span style={{
+                fontSize: rate < 1 ? '11px' : '13px',
+                fontWeight: 700,
                 color
               }}>
                 {displayRate}%
@@ -736,8 +736,8 @@ export default function Orders() {
   return (
     <>
       <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh' }}>
-        <div style={{ 
-          maxWidth: THEME_CONSTANTS.layout.maxContentWidth, 
+        <div style={{
+          maxWidth: THEME_CONSTANTS.layout.maxContentWidth,
           margin: '0 auto',
           padding: THEME_CONSTANTS.spacing.xl
         }}>
@@ -756,7 +756,7 @@ export default function Orders() {
                 <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>Home</span>
               </Breadcrumb.Item>
               <Breadcrumb.Item>
-                <span style={{ 
+                <span style={{
                   color: THEME_CONSTANTS.colors.primary,
                   fontWeight: THEME_CONSTANTS.typography.h6.weight
                 }}>
@@ -839,351 +839,370 @@ export default function Orders() {
           </div>
 
 
-        {/* Summary Stats with Real-time Data */}
-        {pagination.total > 0 && (
-          <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: THEME_CONSTANTS.radius.lg,
-                  border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                  boxShadow: THEME_CONSTANTS.shadow.sm,
-                }}
-                bodyStyle={{ padding: '24px' }}
-              >
-                <Statistic
-                  title="Total Campaigns"
-                  value={pagination.total}
-                  prefix={<BarChartOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
-                  valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
-                  titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
-                />
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: THEME_CONSTANTS.radius.lg,
-                  border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                  boxShadow: THEME_CONSTANTS.shadow.sm,
-                }}
-                bodyStyle={{ padding: '24px' }}
-              >
-                <Statistic
-                  title="Total Sent"
-                  value={pagination.totalSent || (pagination.totalDelivered || 0) + (pagination.totalFailed || 0)}
-                  prefix={<SendOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
-                  valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
-                  titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
-                />
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: THEME_CONSTANTS.radius.lg,
-                  border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                  boxShadow: THEME_CONSTANTS.shadow.sm,
-                }}
-                bodyStyle={{ padding: '24px' }}
-              >
-                <Statistic
-                  title="Total Delivered"
-                  value={pagination.totalDelivered || 0}
-                  prefix={<CheckCircleOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.success }} />}
-                  valueStyle={{ color: THEME_CONSTANTS.colors.success, fontSize: '28px', fontWeight: 700 }}
-                  titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
-                />
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: THEME_CONSTANTS.radius.lg,
-                  border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                  boxShadow: THEME_CONSTANTS.shadow.sm,
-                }}
-                bodyStyle={{ padding: '24px' }}
-              >
-                <Statistic
-                  title="Total Failed"
-                  value={pagination.totalFailed || 0}
-                  prefix={<CloseCircleOutlined style={{ marginRight: '8px', color: '#ff4d4f' }} />}
-                  valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 700 }}
-                  titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
-                />
-              </Card>
-            </Col>
-          </Row>
-        )}
-
-        {/* Professional Filter Section */}
-        <Card
-          style={{
-            borderRadius: THEME_CONSTANTS.radius.xl,
-            border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-            background: 'white',
-            boxShadow: THEME_CONSTANTS.shadow.md,
-            marginBottom: THEME_CONSTANTS.spacing.xxxl,
-          }}
-          bodyStyle={{ padding: 0 }}
-        >
-          <div style={{ 
-            padding: '20px 28px',
-            borderBottom: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: THEME_CONSTANTS.radius.lg,
-                background: THEME_CONSTANTS.colors.primaryLight,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: `2px solid ${THEME_CONSTANTS.colors.primary}30`
-              }}>
-                <FilterOutlined style={{ fontSize: '18px', color: THEME_CONSTANTS.colors.primary }} />
-              </div>
-              <div>
-                <h3 style={{ 
-                  fontSize: '17px', 
-                  fontWeight: 700, 
-                  color: THEME_CONSTANTS.colors.text, 
-                  margin: 0,
-                  lineHeight: 1.2
-                }}>
-                  Filter & Search
-                </h3>
-                <p style={{ 
-                  fontSize: '12px', 
-                  color: THEME_CONSTANTS.colors.textSecondary, 
-                  margin: 0,
-                  marginTop: '2px'
-                }}>
-                  Refine your campaign results
-                </p>
-              </div>
-            </div>
-            
-            {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || campaignFilter !== 'all' || (dateRange && dateRange[0])) && (
-              <Button
-                danger
-                type="primary"
-                icon={<DeleteOutlined />}
-                onClick={() => {
-                  setSearchText('');
-                  setStatusFilter('all');
-                  setTypeFilter('all');
-                  setCampaignFilter('all');
-                  setDateRange([null, null]);
-                  toast.success('All filters cleared');
-                }}
-                style={{
-                  height: '40px',
-                  borderRadius: THEME_CONSTANTS.radius.md,
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  boxShadow: '0 2px 8px rgba(255, 77, 79, 0.2)'
-                }}
-              >
-                Clear All Filters
-              </Button>
-            )}
-          </div>
-
-          <div style={{ padding: '28px' }}>
-            <Row gutter={[16, 20]}>
-              {/* Search Input */}
-              <Col xs={24} md={12} lg={8}>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ 
-                    fontSize: '12px', 
-                    fontWeight: 600, 
-                    color: THEME_CONSTANTS.colors.text,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    <SearchOutlined style={{ fontSize: '11px' }} />
-                    Search
-                  </label>
-                </div>
-                <Input
-                  placeholder="Campaign name or ID..."
-                  prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: '14px' }} />}
-                  value={searchText}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  allowClear
+          {/* Summary Stats with Real-time Data */}
+          {pagination.total > 0 && (
+            <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
+              <Col xs={24} sm={12} md={6}>
+                <Card
                   style={{
-                    height: '42px',
-                    borderRadius: THEME_CONSTANTS.radius.md,
-                    border: `1.5px solid ${searchText ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.borderLight}`,
-                    fontSize: '13px',
-                    transition: 'all 0.3s ease',
-                    boxShadow: searchText ? `0 0 0 3px ${THEME_CONSTANTS.colors.primary}15` : 'none'
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
                   }}
-                />
-              </Col>
-
-              {/* Status Filter */}
-              <Col xs={24} sm={12} md={6} lg={4}>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ 
-                    fontSize: '12px', 
-                    fontWeight: 600, 
-                    color: THEME_CONSTANTS.colors.text,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Status
-                  </label>
-                </div>
-                <Select
-                  value={statusFilter}
-                  onChange={handleStatusChange}
-                  style={{ width: '100%' }}
-                  size="large"
-                  options={[
-                    { label: '📊 All', value: 'all' },
-                    { label: '✅ Completed', value: 'completed' },
-                    { label: '⚡ Processing', value: 'processing' },
-                    { label: '⏳ Pending', value: 'pending' },
-                  ]}
-                />
-              </Col>
-
-              {/* Type Filter */}
-              <Col xs={24} sm={12} md={6} lg={4}>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ 
-                    fontSize: '12px', 
-                    fontWeight: 600, 
-                    color: THEME_CONSTANTS.colors.text,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Type
-                  </label>
-                </div>
-                <Select
-                  value={typeFilter}
-                  onChange={handleTypeChange}
-                  style={{ width: '100%' }}
-                  size="large"
-                  options={[
-                    { label: '📱 All', value: 'all' },
-                    ...getUniqueTypes().map((type) => ({ label: type, value: type })),
-                  ]}
-                />
-              </Col>
-
-              {/* Campaign Filter */}
-              <Col xs={24} md={12} lg={8}>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ 
-                    fontSize: '12px', 
-                    fontWeight: 600, 
-                    color: THEME_CONSTANTS.colors.text,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Campaign
-                  </label>
-                </div>
-                <Select
-                  value={campaignFilter}
-                  onChange={handleCampaignChange}
-                  style={{ width: '100%' }}
-                  size="large"
-                  showSearch
-                  placeholder="Select campaign"
-                  optionFilterProp="label"
-                  options={[
-                    { label: '🎯 All Campaigns', value: 'all' },
-                    ...getUniqueCampaigns().map((campaign) => ({
-                      label: campaign,
-                      value: campaign,
-                    })),
-                  ]}
-                />
-              </Col>
-
-              {/* Date Range */}
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ 
-                    fontSize: '12px', 
-                    fontWeight: 600, 
-                    color: THEME_CONSTANTS.colors.text,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Date Range
-                  </label>
-                </div>
-                <RangePicker
-                  value={dateRange}
-                  onChange={handleDateRangeChange}
-                  style={{ 
-                    width: '100%', 
-                    height: '42px', 
-                    borderRadius: THEME_CONSTANTS.radius.md,
-                    border: `1.5px solid ${(dateRange && dateRange[0]) ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.borderLight}`,
-                    boxShadow: (dateRange && dateRange[0]) ? `0 0 0 3px ${THEME_CONSTANTS.colors.primary}15` : 'none'
-                  }}
-                  format="DD/MM/YYYY"
-                  placeholder={['Start', 'End']}
-                />
-              </Col>
-
-              {/* Sort Button */}
-              <Col xs={24} sm={12} md={4} lg={4}>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ 
-                    fontSize: '12px', 
-                    fontWeight: 600, 
-                    color: THEME_CONSTANTS.colors.text,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Sort
-                  </label>
-                </div>
-                <Button
-                  icon={sortOrder === 'newest' ? <span style={{ fontSize: '14px' }}>↓</span> : <span style={{ fontSize: '14px' }}>↑</span>}
-                  onClick={handleSortChange}
-                  style={{ 
-                    width: '100%', 
-                    height: '42px',
-                    borderRadius: THEME_CONSTANTS.radius.md,
-                    border: `1.5px solid ${THEME_CONSTANTS.colors.primary}`,
-                    background: sortOrder === 'newest' ? THEME_CONSTANTS.colors.primary : 'white',
-                    color: sortOrder === 'newest' ? 'white' : THEME_CONSTANTS.colors.primary,
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    transition: 'all 0.3s ease',
-                    boxShadow: sortOrder === 'newest' ? `0 2px 8px ${THEME_CONSTANTS.colors.primary}30` : 'none'
-                  }}
+                  bodyStyle={{ padding: '24px' }}
                 >
-                  {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
-                </Button>
+                  <Statistic
+                    title="Total Campaigns"
+                    value={pagination.total}
+                    prefix={<BarChartOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
+                    valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
+                    titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
+                  />
+                </Card>
+              </Col>
+
+              <Col xs={24} sm={12} md={6} lg={4}>
+                <Card
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                  }}
+                  bodyStyle={{ padding: '24px' }}
+                >
+                  <Statistic
+                    title="Total Sent"
+                    value={pagination.totalSent || 0}
+                    prefix={<SendOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
+                    valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
+                    titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
+                  />
+                </Card>
+              </Col>
+
+              <Col xs={24} sm={12} md={6} lg={4}>
+                <Card
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                  }}
+                  bodyStyle={{ padding: '24px' }}
+                >
+                  <Statistic
+                    title="Total Delivered"
+                    value={pagination.totalDelivered || 0}
+                    prefix={<CheckCircleOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.success }} />}
+                    valueStyle={{ color: THEME_CONSTANTS.colors.success, fontSize: '28px', fontWeight: 700 }}
+                    titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
+                  />
+                </Card>
+              </Col>
+
+              <Col xs={24} sm={12} md={6} lg={4}>
+                <Card
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                  }}
+                  bodyStyle={{ padding: '24px' }}
+                >
+                  <Statistic
+                    title="Total Failed"
+                    value={pagination.totalFailed || 0}
+                    prefix={<CloseCircleOutlined style={{ marginRight: '8px', color: '#ff4d4f' }} />}
+                    valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 700 }}
+                    titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
+                  />
+                </Card>
+              </Col>
+
+              <Col xs={24} sm={12} md={6} lg={4}>
+                <Card
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                  }}
+                  bodyStyle={{ padding: '24px' }}
+                >
+                  <Statistic
+                    title="Total Expired"
+                    value={pagination.totalExpired || 0}
+                    prefix={<ClockCircleOutlined style={{ marginRight: '8px', color: '#faad14' }} />}
+                    valueStyle={{ color: '#faad14', fontSize: '28px', fontWeight: 700 }}
+                    titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
+                  />
+                </Card>
               </Col>
             </Row>
+          )}
 
-            {/* Active Filters Summary */}
-            {/* {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || campaignFilter !== 'all' || (dateRange && dateRange[0])) && (
+          {/* Professional Filter Section */}
+          <Card
+            style={{
+              borderRadius: THEME_CONSTANTS.radius.xl,
+              border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+              background: 'white',
+              boxShadow: THEME_CONSTANTS.shadow.md,
+              marginBottom: THEME_CONSTANTS.spacing.xxxl,
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{
+              padding: '20px 28px',
+              borderBottom: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+              background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: THEME_CONSTANTS.radius.lg,
+                  background: THEME_CONSTANTS.colors.primaryLight,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `2px solid ${THEME_CONSTANTS.colors.primary}30`
+                }}>
+                  <FilterOutlined style={{ fontSize: '18px', color: THEME_CONSTANTS.colors.primary }} />
+                </div>
+                <div>
+                  <h3 style={{
+                    fontSize: '17px',
+                    fontWeight: 700,
+                    color: THEME_CONSTANTS.colors.text,
+                    margin: 0,
+                    lineHeight: 1.2
+                  }}>
+                    Filter & Search
+                  </h3>
+                  <p style={{
+                    fontSize: '12px',
+                    color: THEME_CONSTANTS.colors.textSecondary,
+                    margin: 0,
+                    marginTop: '2px'
+                  }}>
+                    Refine your campaign results
+                  </p>
+                </div>
+              </div>
+
+              {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || campaignFilter !== 'all' || (dateRange && dateRange[0])) && (
+                <Button
+                  danger
+                  type="primary"
+                  icon={<DeleteOutlined />}
+                  onClick={() => {
+                    setSearchText('');
+                    setStatusFilter('all');
+                    setTypeFilter('all');
+                    setCampaignFilter('all');
+                    setDateRange([null, null]);
+                    toast.success('All filters cleared');
+                  }}
+                  style={{
+                    height: '40px',
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    boxShadow: '0 2px 8px rgba(255, 77, 79, 0.2)'
+                  }}
+                >
+                  Clear All Filters
+                </Button>
+              )}
+            </div>
+
+            <div style={{ padding: '28px' }}>
+              <Row gutter={[16, 20]}>
+                {/* Search Input */}
+                <Col xs={24} md={12} lg={8}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: THEME_CONSTANTS.colors.text,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      <SearchOutlined style={{ fontSize: '11px' }} />
+                      Search
+                    </label>
+                  </div>
+                  <Input
+                    placeholder="Campaign name or ID..."
+                    prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: '14px' }} />}
+                    value={searchText}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    allowClear
+                    style={{
+                      height: '42px',
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      border: `1.5px solid ${searchText ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.borderLight}`,
+                      fontSize: '13px',
+                      transition: 'all 0.3s ease',
+                      boxShadow: searchText ? `0 0 0 3px ${THEME_CONSTANTS.colors.primary}15` : 'none'
+                    }}
+                  />
+                </Col>
+
+                {/* Status Filter */}
+                <Col xs={24} sm={12} md={6} lg={4}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: THEME_CONSTANTS.colors.text,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      Status
+                    </label>
+                  </div>
+                  <Select
+                    value={statusFilter}
+                    onChange={handleStatusChange}
+                    style={{ width: '100%' }}
+                    size="large"
+                    options={[
+                      { label: '📊 All', value: 'all' },
+                      { label: '✅ Completed', value: 'completed' },
+                      { label: '⚡ Processing', value: 'processing' },
+                      { label: '⏳ Pending', value: 'pending' },
+                    ]}
+                  />
+                </Col>
+
+                {/* Type Filter */}
+                <Col xs={24} sm={12} md={6} lg={4}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: THEME_CONSTANTS.colors.text,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      Type
+                    </label>
+                  </div>
+                  <Select
+                    value={typeFilter}
+                    onChange={handleTypeChange}
+                    style={{ width: '100%' }}
+                    size="large"
+                    options={[
+                      { label: '📱 All', value: 'all' },
+                      ...getUniqueTypes().map((type) => ({ label: type, value: type })),
+                    ]}
+                  />
+                </Col>
+
+                {/* Campaign Filter */}
+                <Col xs={24} md={12} lg={8}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: THEME_CONSTANTS.colors.text,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      Campaign
+                    </label>
+                  </div>
+                  <Select
+                    value={campaignFilter}
+                    onChange={handleCampaignChange}
+                    style={{ width: '100%' }}
+                    size="large"
+                    showSearch
+                    placeholder="Select campaign"
+                    optionFilterProp="label"
+                    options={[
+                      { label: '🎯 All Campaigns', value: 'all' },
+                      ...getUniqueCampaigns().map((campaign) => ({
+                        label: campaign,
+                        value: campaign,
+                      })),
+                    ]}
+                  />
+                </Col>
+
+                {/* Date Range */}
+                <Col xs={24} sm={12} md={8} lg={6}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: THEME_CONSTANTS.colors.text,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      Date Range
+                    </label>
+                  </div>
+                  <RangePicker
+                    value={dateRange}
+                    onChange={handleDateRangeChange}
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      border: `1.5px solid ${(dateRange && dateRange[0]) ? THEME_CONSTANTS.colors.primary : THEME_CONSTANTS.colors.borderLight}`,
+                      boxShadow: (dateRange && dateRange[0]) ? `0 0 0 3px ${THEME_CONSTANTS.colors.primary}15` : 'none'
+                    }}
+                    format="DD/MM/YYYY"
+                    placeholder={['Start', 'End']}
+                  />
+                </Col>
+
+                {/* Sort Button */}
+                <Col xs={24} sm={12} md={4} lg={4}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: THEME_CONSTANTS.colors.text,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      Sort
+                    </label>
+                  </div>
+                  <Button
+                    icon={sortOrder === 'newest' ? <span style={{ fontSize: '14px' }}>↓</span> : <span style={{ fontSize: '14px' }}>↑</span>}
+                    onClick={handleSortChange}
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      border: `1.5px solid ${THEME_CONSTANTS.colors.primary}`,
+                      background: sortOrder === 'newest' ? THEME_CONSTANTS.colors.primary : 'white',
+                      color: sortOrder === 'newest' ? 'white' : THEME_CONSTANTS.colors.primary,
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      transition: 'all 0.3s ease',
+                      boxShadow: sortOrder === 'newest' ? `0 2px 8px ${THEME_CONSTANTS.colors.primary}30` : 'none'
+                    }}
+                  >
+                    {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                  </Button>
+                </Col>
+              </Row>
+
+              {/* Active Filters Summary */}
+              {/* {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || campaignFilter !== 'all' || (dateRange && dateRange[0])) && (
               <div style={{ 
                 marginTop: '24px', 
                 padding: '14px 18px',
@@ -1254,106 +1273,106 @@ export default function Orders() {
                 </div>
               </div>
             )} */}
-          </div>
-        </Card>
+            </div>
+          </Card>
 
-        {/* Campaign Table */}
-        <Card
-          style={{
-            borderRadius: THEME_CONSTANTS.radius.lg,
-            border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-            background: 'white',
-            boxShadow: THEME_CONSTANTS.shadow.sm,
-          }}
-          bodyStyle={{ padding: 0 }}
-        >
-          <div style={{ padding: '20px 24px 16px 24px', borderBottom: `1px solid ${THEME_CONSTANTS.colors.borderLight}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, margin: 0, marginBottom: '2px' }}>
-                  Campaign Overview
-                </h3>
-                <p style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, margin: 0 }}>
-                  {filteredOrders.length} of {orders?.length || 0} campaigns
-                </p>
-              </div>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }))}
-                loading={loading.orders}
-                style={{
-                  height: '40px',
-                }}
-              >
-                Refresh
-              </Button>
-            </div>
-          </div>
-          {loading.orders ? (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '60px 20px',
-              }}
-            >
-              <div
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '50%',
-                  borderTop: `4px solid ${THEME_CONSTANTS.colors.primary}`,
-                  borderRight: `4px solid transparent`,
-                  animation: 'spin 1s linear infinite',
-                }}
-              />
-              <div
-                style={{
-                  marginTop: '16px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  color: THEME_CONSTANTS.colors.textSecondary,
-                }}
-              >
-                Loading campaigns...
+          {/* Campaign Table */}
+          <Card
+            style={{
+              borderRadius: THEME_CONSTANTS.radius.lg,
+              border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
+              background: 'white',
+              boxShadow: THEME_CONSTANTS.shadow.sm,
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ padding: '20px 24px 16px 24px', borderBottom: `1px solid ${THEME_CONSTANTS.colors.borderLight}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, margin: 0, marginBottom: '2px' }}>
+                    Campaign Overview
+                  </h3>
+                  <p style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, margin: 0 }}>
+                    {filteredOrders.length} of {orders?.length || 0} campaigns
+                  </p>
+                </div>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }))}
+                  loading={loading.orders}
+                  style={{
+                    height: '40px',
+                  }}
+                >
+                  Refresh
+                </Button>
               </div>
             </div>
-          ) : error?.orders ? (
-            <Empty
-              description={error?.orders || 'Failed to load campaigns'}
-              style={{ padding: '60px 20px' }}
-            />
-          ) : filteredOrders.length === 0 ? (
-            <Empty
-              description="No campaigns match your filters"
-              style={{ padding: '60px 20px' }}
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ) : (
-            <>
-              <Table
-                columns={columns}
-                dataSource={filteredOrders}
-                rowKey={(record) => record._id}
-                pagination={{
-                  current: currentPage,
-                  pageSize: 10,
-                  total: pagination?.total || filteredOrders.length,
-                  onChange: (page) => {
-                    setCurrentPage(page);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  },
-                  showSizeChanger: false,
-                  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
-                  style: { padding: '16px 24px' },
+            {loading.orders ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '60px 20px',
                 }}
-                size="middle"
+              >
+                <div
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '50%',
+                    borderTop: `4px solid ${THEME_CONSTANTS.colors.primary}`,
+                    borderRight: `4px solid transparent`,
+                    animation: 'spin 1s linear infinite',
+                  }}
+                />
+                <div
+                  style={{
+                    marginTop: '16px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: THEME_CONSTANTS.colors.textSecondary,
+                  }}
+                >
+                  Loading campaigns...
+                </div>
+              </div>
+            ) : error?.orders ? (
+              <Empty
+                description={error?.orders || 'Failed to load campaigns'}
+                style={{ padding: '60px 20px' }}
               />
-            </>
-          )}
-        </Card>
+            ) : filteredOrders.length === 0 ? (
+              <Empty
+                description="No campaigns match your filters"
+                style={{ padding: '60px 20px' }}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ) : (
+              <>
+                <Table
+                  columns={columns}
+                  dataSource={filteredOrders}
+                  rowKey={(record) => record._id}
+                  pagination={{
+                    current: currentPage,
+                    pageSize: 10,
+                    total: pagination?.total || filteredOrders.length,
+                    onChange: (page) => {
+                      setCurrentPage(page);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    },
+                    showSizeChanger: false,
+                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+                    style: { padding: '16px 24px' },
+                  }}
+                  size="middle"
+                />
+              </>
+            )}
+          </Card>
         </div>
       </div>
 
@@ -1459,10 +1478,10 @@ export default function Orders() {
                     background: THEME_CONSTANTS.colors.surface
                   }} bodyStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        background: THEME_CONSTANTS.colors.primaryLight, 
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: THEME_CONSTANTS.colors.primaryLight,
                         borderRadius: THEME_CONSTANTS.radius.md,
                         display: 'flex',
                         alignItems: 'center',
@@ -1488,10 +1507,10 @@ export default function Orders() {
                     background: THEME_CONSTANTS.colors.surface
                   }} bodyStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        background: THEME_CONSTANTS.colors.successLight, 
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: THEME_CONSTANTS.colors.successLight,
                         borderRadius: THEME_CONSTANTS.radius.md,
                         display: 'flex',
                         alignItems: 'center',
@@ -1517,10 +1536,10 @@ export default function Orders() {
                     background: THEME_CONSTANTS.colors.surface
                   }} bodyStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        background: THEME_CONSTANTS.colors.successLight, 
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: THEME_CONSTANTS.colors.successLight,
                         borderRadius: THEME_CONSTANTS.radius.md,
                         display: 'flex',
                         alignItems: 'center',
@@ -1546,10 +1565,10 @@ export default function Orders() {
                     background: THEME_CONSTANTS.colors.surface
                   }} bodyStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        background: '#ede9fe', 
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: '#ede9fe',
                         borderRadius: THEME_CONSTANTS.radius.md,
                         display: 'flex',
                         alignItems: 'center',
@@ -1575,10 +1594,10 @@ export default function Orders() {
                     background: THEME_CONSTANTS.colors.surface
                   }} bodyStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        background: THEME_CONSTANTS.colors.dangerLight, 
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: THEME_CONSTANTS.colors.dangerLight,
                         borderRadius: THEME_CONSTANTS.radius.md,
                         display: 'flex',
                         alignItems: 'center',
@@ -1604,10 +1623,10 @@ export default function Orders() {
                     background: THEME_CONSTANTS.colors.surface
                   }} bodyStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        background: THEME_CONSTANTS.colors.warningLight, 
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: THEME_CONSTANTS.colors.warningLight,
                         borderRadius: THEME_CONSTANTS.radius.md,
                         display: 'flex',
                         alignItems: 'center',
@@ -1621,6 +1640,35 @@ export default function Orders() {
                           {selectedOrder?.userClickCount || 0}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Interactions</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                  <Card style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                    background: THEME_CONSTANTS.colors.surface
+                  }} bodyStyle={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: '#fff2f0',
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <ClockCircleOutlined style={{ fontSize: '20px', color: '#ff4d4f' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                          {selectedOrder?.expiredCount || 0}
+                        </div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Expired</div>
                       </div>
                     </div>
                   </Card>
@@ -1664,6 +1712,7 @@ export default function Orders() {
                           { label: 'Delivered', value: 'delivered' },
                           { label: 'Read', value: 'read' },
                           { label: 'Failed', value: 'failed' },
+                          { label: 'Expired', value: 'expired' },
                         ]}
                       />
                     </Col>
@@ -1707,7 +1756,7 @@ export default function Orders() {
 
                 {/* Table */}
                 <Table
-                  dataSource={paginatedMessages}
+                  dataSource={campaignMessages}
                   rowKey={(record) => `msg-${record._id}-${record.phoneNumber}`}
                   loading={loading.messages}
                   pagination={{
@@ -1826,7 +1875,7 @@ export default function Orders() {
                         const response = record.userText || record.clickedAction || record.suggestionResponse?.plainText;
                         return response ? (
                           <Tooltip title={response}>
-                            <div style={{ 
+                            <div style={{
                               fontSize: '13px',
                               color: THEME_CONSTANTS.colors.text,
                               maxWidth: '180px',

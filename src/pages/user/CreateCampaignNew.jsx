@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
-import { checkCapability, createMasterCampaign, getCampaignById, updateCampaignStatus, createCampaignEntries, sendCampaign, getAllContactsFromBatches, getReachableUsers, clearContactBatches, deleteContactFromBatch, clearCapabilityResults } from '../../redux/slices/campaignSlice';
+import { checkCapability, createMasterCampaign, getCampaignById, getAllContactsFromBatches } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
 
 
@@ -135,14 +135,14 @@ export default function CreateCampaignNew() {
     const startTime = Date.now();
     let progressInterval = null;
     let apiCompleted = false;
-    
+
     progressInterval = setInterval(() => {
       if (apiCompleted) return;
-      
+
       const elapsed = Date.now() - startTime;
       const progress = Math.min((elapsed / 30000) * 85, 85);
       setCheckingProgress(progress);
-      
+
       if (progress >= 85) {
         clearInterval(progressInterval);
       }
@@ -150,26 +150,26 @@ export default function CreateCampaignNew() {
 
     try {
       message.success(`${phoneNumbers.length} contacts uploaded!`);
-      
+
       // Call checkCapability API directly
       const response = await dispatch(checkCapability({ phoneNumbers })).unwrap();
-      
+
       console.log('✅ Capability Check Response:', response);
       console.log('📊 Summary:', response.summary);
       console.log('📋 Data:', response.data);
       console.log('🔄 API Used:', response.summary?.apiUsed);
-      
+
       // API completed - complete progress to 100%
       apiCompleted = true;
       clearInterval(progressInterval);
-      
+
       let currentProgress = checkingProgress;
       const completeInterval = setInterval(() => {
         currentProgress += 8;
         if (currentProgress >= 100) {
           currentProgress = 100;
           clearInterval(completeInterval);
-          
+
           // Show 100% for 1 second before hiding
           setTimeout(() => {
             setChecking(false);
@@ -178,10 +178,10 @@ export default function CreateCampaignNew() {
         }
         setCheckingProgress(currentProgress);
       }, 30);
-      
+
       // Store response in variable
       setCapabilityResponse(response);
-      
+
       // Update batch stats from response
       if (response.success && response.summary) {
         setBatchStats({
@@ -191,7 +191,7 @@ export default function CreateCampaignNew() {
         });
         message.success(`Capability check complete! ${response.summary.rcsCapable} RCS-capable out of ${response.summary.total}`);
       }
-      
+
     } catch (error) {
       apiCompleted = true;
       clearInterval(progressInterval);
@@ -283,16 +283,16 @@ export default function CreateCampaignNew() {
 
     setManualContactModal(false);
     manualContactForm.resetFields();
-    
+
     await processContacts(validNumbers);
   };
 
   const handleDeleteContact = (phoneNumber) => {
     if (!capabilityResponse?.data) return;
-    
+
     const updatedData = capabilityResponse.data.filter(c => c.phoneNumber !== phoneNumber);
     const rcsCapable = updatedData.filter(c => c.isCapable).length;
-    
+
     setCapabilityResponse({
       ...capabilityResponse,
       data: updatedData,
@@ -303,13 +303,13 @@ export default function CreateCampaignNew() {
         notCapable: updatedData.length - rcsCapable
       }
     });
-    
+
     setBatchStats({
       total: updatedData.length,
       rcsCapable,
       notCapable: updatedData.length - rcsCapable
     });
-    
+
     message.success('Contact removed');
   };
 
@@ -344,10 +344,10 @@ export default function CreateCampaignNew() {
   //     })).unwrap();
 
   //     const rcsContacts = contactsRes.data.filter(c => c.isRcsCapable);
-      
+
   //     console.log('📊 Stats RCS Capable:', batchStats.rcsCapable);
   //     console.log('🔍 Actual RCS Contacts:', rcsContacts.length);
-      
+
   //     if (rcsContacts.length === batchStats.rcsCapable) {
   //       message.success(`✅ Perfect sync! Stats: ${batchStats.rcsCapable} = Database: ${rcsContacts.length}`);
   //     } else {
@@ -394,15 +394,15 @@ export default function CreateCampaignNew() {
       content: (
         <div style={{ padding: '24px 0' }}>
           {showProgress ? (
-            <div style={{ 
+            <div style={{
               background: THEME_CONSTANTS.colors.surface,
               borderRadius: THEME_CONSTANTS.radius.lg,
               padding: '24px',
               border: `2px solid ${THEME_CONSTANTS.colors.primary}`
             }}>
               <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ 
-                  width: '48px', 
+                <div style={{
+                  width: '48px',
                   height: '48px',
                   background: THEME_CONSTANTS.colors.primaryLight,
                   borderRadius: THEME_CONSTANTS.radius.lg,
@@ -425,8 +425,8 @@ export default function CreateCampaignNew() {
                   {Math.round(sendingProgress)}%
                 </div>
               </div>
-              <Progress 
-                percent={sendingProgress} 
+              <Progress
+                percent={sendingProgress}
                 status={sendingProgress === 100 ? 'success' : 'active'}
                 strokeColor={{
                   '0%': THEME_CONSTANTS.colors.primary,
@@ -438,37 +438,37 @@ export default function CreateCampaignNew() {
             </div>
           ) : (
             <>
-          <div style={{ background: THEME_CONSTANTS.colors.background, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px', marginBottom: '20px', border: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ fontSize: '24px' }}>📋</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Campaign Name</div>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, marginTop: '4px' }}>{campaignName}</div>
+              <div style={{ background: THEME_CONSTANTS.colors.background, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px', marginBottom: '20px', border: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ fontSize: '24px' }}>📋</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Campaign Name</div>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, marginTop: '4px' }}>{campaignName}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ background: THEME_CONSTANTS.colors.success, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
-              <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
-              <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
-              <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
-            </div>
-            
-            <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
-              <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
-              <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
-              <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per RCS message</div>
-            </div>
-          </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ background: THEME_CONSTANTS.colors.success, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
+                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
+                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
+                </div>
 
-          <div style={{ background: THEME_CONSTANTS.colors.primaryLight, border: `1px solid ${THEME_CONSTANTS.colors.primary}`, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', display: 'flex', gap: '12px' }}>
-            <div style={{ fontSize: '20px' }}>ℹ️</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.primary, marginBottom: '4px' }}>Ready to Send</div>
-              <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text, lineHeight: 1.5 }}>Messages will be sent to {batchStats.rcsCapable} RCS capable contacts immediately.</div>
-            </div>
-          </div>
+                <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
+                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
+                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per RCS message</div>
+                </div>
+              </div>
+
+              <div style={{ background: THEME_CONSTANTS.colors.primaryLight, border: `1px solid ${THEME_CONSTANTS.colors.primary}`, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', display: 'flex', gap: '12px' }}>
+                <div style={{ fontSize: '20px' }}>ℹ️</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.primary, marginBottom: '4px' }}>Ready to Send</div>
+                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text, lineHeight: 1.5 }}>Messages will be sent to {batchStats.rcsCapable} RCS capable contacts immediately.</div>
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -491,77 +491,8 @@ export default function CreateCampaignNew() {
         return new Promise(async (resolve) => {
           setShowProgress(true);
           setSendingProgress(0);
-        
-        // Immediately show progress modal
-        modalInstance.update({
-          content: (
-            <div style={{ padding: '24px 0' }}>
-              <div style={{ background: THEME_CONSTANTS.colors.background, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px', marginBottom: '20px', border: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ fontSize: '24px' }}>📋</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Campaign Name</div>
-                    <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, marginTop: '4px' }}>{campaignName}</div>
-                  </div>
-                </div>
-              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ background: THEME_CONSTANTS.colors.success, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
-                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
-                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
-                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
-                </div>
-                
-                <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
-                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
-                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
-                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per RCS message</div>
-                </div>
-              </div>
-
-              <div style={{ background: THEME_CONSTANTS.colors.primaryLight, border: `2px solid ${THEME_CONSTANTS.colors.primary}`, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                  <div style={{ 
-                    width: '48px', 
-                    height: '48px',
-                    background: THEME_CONSTANTS.colors.surface,
-                    borderRadius: THEME_CONSTANTS.radius.lg,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `2px solid ${THEME_CONSTANTS.colors.primary}`
-                  }}>
-                    <SendOutlined style={{ fontSize: '24px', color: THEME_CONSTANTS.colors.primary }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>
-                      Creating Campaign...
-                    </div>
-                    <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>
-                      Processing bulk entries
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>
-                    0%
-                  </div>
-                </div>
-                <Progress 
-                  percent={0} 
-                  status="active"
-                  strokeColor={THEME_CONSTANTS.colors.primary}
-                  strokeWidth={10}
-                  showInfo={false}
-                />
-              </div>
-            </div>
-          ),
-          okButtonProps: { style: { display: 'none' } },
-          cancelButtonProps: { style: { display: 'none' } }
-        });
-        
-        const updateModalContent = (progress) => {
-          const isComplete = progress === 100;
+          // Immediately show progress modal
           modalInstance.update({
             content: (
               <div style={{ padding: '24px 0' }}>
@@ -581,7 +512,7 @@ export default function CreateCampaignNew() {
                     <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
                     <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
                   </div>
-                  
+
                   <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
                     <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
                     <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
@@ -589,36 +520,36 @@ export default function CreateCampaignNew() {
                   </div>
                 </div>
 
-                <div style={{ background: isComplete ? THEME_CONSTANTS.colors.successLight : THEME_CONSTANTS.colors.primaryLight, border: `2px solid ${isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary}`, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px' }}>
+                <div style={{ background: THEME_CONSTANTS.colors.primaryLight, border: `2px solid ${THEME_CONSTANTS.colors.primary}`, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                    <div style={{ 
-                      width: '48px', 
+                    <div style={{
+                      width: '48px',
                       height: '48px',
                       background: THEME_CONSTANTS.colors.surface,
                       borderRadius: THEME_CONSTANTS.radius.lg,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: `2px solid ${isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary}`
+                      border: `2px solid ${THEME_CONSTANTS.colors.primary}`
                     }}>
-                      <SendOutlined style={{ fontSize: '24px', color: isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary }} />
+                      <SendOutlined style={{ fontSize: '24px', color: THEME_CONSTANTS.colors.primary }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>
-                        {isComplete ? '✓ Campaign Created!' : 'Creating Campaign...'}
+                        Creating Campaign...
                       </div>
                       <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>
-                        {progress < 90 ? 'Processing bulk entries' : isComplete ? 'Completed successfully' : 'Finalizing'}
+                        Processing bulk entries
                       </div>
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary }}>
-                      {Math.round(progress)}%
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>
+                      0%
                     </div>
                   </div>
-                  <Progress 
-                    percent={progress} 
-                    status={isComplete ? 'success' : 'active'}
-                    strokeColor={isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary}
+                  <Progress
+                    percent={0}
+                    status="active"
+                    strokeColor={THEME_CONSTANTS.colors.primary}
                     strokeWidth={10}
                     showInfo={false}
                   />
@@ -628,134 +559,203 @@ export default function CreateCampaignNew() {
             okButtonProps: { style: { display: 'none' } },
             cancelButtonProps: { style: { display: 'none' } }
           });
-        };
-        
-        updateModalContent(0);
-        
-        const startTime = Date.now();
-        let progressInterval = null;
-        let apiCompleted = false;
-        
-        progressInterval = setInterval(() => {
-          if (apiCompleted) return;
-          
-          const elapsed = Date.now() - startTime;
-          const progress = Math.min((elapsed / 60000) * 85, 85);
-          setSendingProgress(progress);
-          updateModalContent(progress);
-          
-          if (progress >= 85) {
-            clearInterval(progressInterval);
-          }
-        }, 100);
 
-        try {
-          const rcsContacts = capabilityResponse?.data?.filter(contact => contact.isCapable) || [];
+          const updateModalContent = (progress) => {
+            const isComplete = progress === 100;
+            modalInstance.update({
+              content: (
+                <div style={{ padding: '24px 0' }}>
+                  <div style={{ background: THEME_CONSTANTS.colors.background, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px', marginBottom: '20px', border: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ fontSize: '24px' }}>📋</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Campaign Name</div>
+                        <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, marginTop: '4px' }}>{campaignName}</div>
+                      </div>
+                    </div>
+                  </div>
 
-          if (rcsContacts.length === 0) {
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ background: THEME_CONSTANTS.colors.success, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
+                      <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
+                      <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
+                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
+                    </div>
+
+                    <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
+                      <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
+                      <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
+                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per RCS message</div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: isComplete ? THEME_CONSTANTS.colors.successLight : THEME_CONSTANTS.colors.primaryLight, border: `2px solid ${isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary}`, borderRadius: THEME_CONSTANTS.radius.lg, padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: THEME_CONSTANTS.colors.surface,
+                        borderRadius: THEME_CONSTANTS.radius.lg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: `2px solid ${isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary}`
+                      }}>
+                        <SendOutlined style={{ fontSize: '24px', color: isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '16px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>
+                          {isComplete ? '✓ Campaign Created!' : 'Creating Campaign...'}
+                        </div>
+                        <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>
+                          {progress < 90 ? 'Processing bulk entries' : isComplete ? 'Completed successfully' : 'Finalizing'}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '24px', fontWeight: 700, color: isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary }}>
+                        {Math.round(progress)}%
+                      </div>
+                    </div>
+                    <Progress
+                      percent={progress}
+                      status={isComplete ? 'success' : 'active'}
+                      strokeColor={isComplete ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary}
+                      strokeWidth={10}
+                      showInfo={false}
+                    />
+                  </div>
+                </div>
+              ),
+              okButtonProps: { style: { display: 'none' } },
+              cancelButtonProps: { style: { display: 'none' } }
+            });
+          };
+
+          updateModalContent(0);
+
+          const startTime = Date.now();
+          let progressInterval = null;
+          let apiCompleted = false;
+
+          progressInterval = setInterval(() => {
+            if (apiCompleted) return;
+
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min((elapsed / 60000) * 85, 85);
+            setSendingProgress(progress);
+            updateModalContent(progress);
+
+            if (progress >= 85) {
+              clearInterval(progressInterval);
+            }
+          }, 100);
+
+          try {
+            const rcsContacts = capabilityResponse?.data?.filter(contact => contact.isCapable) || [];
+
+            if (rcsContacts.length === 0) {
+              clearInterval(progressInterval);
+              setShowProgress(false);
+              setSendingProgress(0);
+              modalInstance.destroy();
+              message.error('No RCS-capable contacts found');
+              return;
+            }
+
+            const rcsNumbers = rcsContacts.map(contact => contact.phoneNumber);
+
+            // Create campaign - this will handle both creation and entry processing
+            const campaignRes = await dispatch(createMasterCampaign({
+              name: campaignName,
+              templateId: selectedTemplate._id,
+              phoneNumbers: rcsNumbers
+            })).unwrap();
+
+            const campaignId = campaignRes.data.masterCampaign._id;
+            const botId = campaignRes.data.botId;
+
+            // Poll campaign status until it becomes 'pending' (Kafka completed)
+            const pollStatus = async () => {
+              const maxAttempts = 60;
+              for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                try {
+                  const statusRes = await dispatch(getCampaignById({ id: campaignId })).unwrap();
+                  const currentStatus = statusRes.data?.status;
+
+                  if (currentStatus === 'pending' || "completed") {
+                    console.log('✅ Kafka completed all entries, status is now pending');
+                    // Immediately jump to 100%
+                    apiCompleted = true;
+                    clearInterval(progressInterval);
+                    setSendingProgress(100);
+                    updateModalContent(100);
+                    return true;
+                  }
+
+                  // Update progress during polling (85% to 95%)
+                  const pollingProgress = 85 + (i / maxAttempts) * 10;
+                  setSendingProgress(pollingProgress);
+                  updateModalContent(pollingProgress);
+                } catch (err) {
+                  console.error('Status check error:', err);
+                }
+              }
+              return false;
+            };
+
+            const completed = await pollStatus();
+
+            if (completed) {
+              // Status is pending - show 100% for 1.5 seconds then navigate
+              setTimeout(() => {
+                setShowProgress(false);
+                setSendingProgress(0);
+                modalInstance.destroy();
+                message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
+
+                setTimeout(() => {
+                  navigate('/reports');
+                }, 200);
+              }, 1500);
+            } else {
+              // Timeout - still complete the progress animation
+              console.warn('⚠️ Timeout waiting for Kafka completion');
+              apiCompleted = true;
+              clearInterval(progressInterval);
+
+              let currentProgress = Math.max(sendingProgress, 95);
+              const completeInterval = setInterval(() => {
+                currentProgress += 1;
+                if (currentProgress >= 100) {
+                  currentProgress = 100;
+                  clearInterval(completeInterval);
+
+                  setTimeout(() => {
+                    setShowProgress(false);
+                    setSendingProgress(0);
+                    modalInstance.destroy();
+                    message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
+
+                    setTimeout(() => {
+                      navigate('/reports');
+                    }, 200);
+                  }, 1500);
+                }
+                setSendingProgress(currentProgress);
+                updateModalContent(currentProgress);
+              }, 100);
+            }
+
+          } catch (error) {
+            apiCompleted = true;
             clearInterval(progressInterval);
             setShowProgress(false);
             setSendingProgress(0);
             modalInstance.destroy();
-            message.error('No RCS-capable contacts found');
-            return;
+            message.error('Failed to create campaign: ' + (error.message || error));
           }
-
-          const rcsNumbers = rcsContacts.map(contact => contact.phoneNumber);
-
-          // Create campaign - this will handle both creation and entry processing
-          const campaignRes = await dispatch(createMasterCampaign({
-            name: campaignName,
-            templateId: selectedTemplate._id,
-            phoneNumbers: rcsNumbers
-          })).unwrap();
-
-          const campaignId = campaignRes.data.masterCampaign._id;
-          const botId = campaignRes.data.botId;
-
-          // Poll campaign status until it becomes 'pending' (Kafka completed)
-          const pollStatus = async () => {
-            const maxAttempts = 60;
-            for (let i = 0; i < maxAttempts; i++) {
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              
-              try {
-                const statusRes = await dispatch(getCampaignById({ id: campaignId })).unwrap();
-                const currentStatus = statusRes.data?.status;
-                
-                if (currentStatus === 'pending' || "completed") {
-                  console.log('✅ Kafka completed all entries, status is now pending');
-                  // Immediately jump to 100%
-                  apiCompleted = true;
-                  clearInterval(progressInterval);
-                  setSendingProgress(100);
-                  updateModalContent(100);
-                  return true;
-                }
-                
-                // Update progress during polling (85% to 95%)
-                const pollingProgress = 85 + (i / maxAttempts) * 10;
-                setSendingProgress(pollingProgress);
-                updateModalContent(pollingProgress);
-              } catch (err) {
-                console.error('Status check error:', err);
-              }
-            }
-            return false;
-          };
-          
-          const completed = await pollStatus();
-          
-          if (completed) {
-            // Status is pending - show 100% for 1.5 seconds then navigate
-            setTimeout(() => {
-              setShowProgress(false);
-              setSendingProgress(0);
-              modalInstance.destroy();
-              message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
-              
-              setTimeout(() => {
-                navigate('/reports');
-              }, 200);
-            }, 1500);
-          } else {
-            // Timeout - still complete the progress animation
-            console.warn('⚠️ Timeout waiting for Kafka completion');
-            apiCompleted = true;
-            clearInterval(progressInterval);
-            
-            let currentProgress = Math.max(sendingProgress, 95);
-            const completeInterval = setInterval(() => {
-              currentProgress += 1;
-              if (currentProgress >= 100) {
-                currentProgress = 100;
-                clearInterval(completeInterval);
-                
-                setTimeout(() => {
-                  setShowProgress(false);
-                  setSendingProgress(0);
-                  modalInstance.destroy();
-                  message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
-                  
-                  setTimeout(() => {
-                    navigate('/reports');
-                  }, 200);
-                }, 1500);
-              }
-              setSendingProgress(currentProgress);
-              updateModalContent(currentProgress);
-            }, 100);
-          }
-          
-        } catch (error) {
-          apiCompleted = true;
-          clearInterval(progressInterval);
-          setShowProgress(false);
-          setSendingProgress(0);
-          modalInstance.destroy();
-          message.error('Failed to create campaign: ' + (error.message || error));
-        }
-      });
+        });
       }
     });
   };
@@ -764,14 +764,14 @@ export default function CreateCampaignNew() {
     // If contacts are uploaded, download them
     if (campaignId && batchStats.total > 0) {
       try {
-        const response = await dispatch(getAllContactsFromBatches({ 
-          campaignId, 
-          page: 1, 
-          limit: 10 
+        const response = await dispatch(getAllContactsFromBatches({
+          campaignId,
+          page: 1,
+          limit: 10
         })).unwrap();
-        
+
         const contacts = response.data || [];
-        
+
         if (contacts.length === 0) {
           message.warning('No contacts found to download');
           return;
@@ -780,8 +780,8 @@ export default function CreateCampaignNew() {
         // Create Excel with uploaded contacts
         const data = [['Index', 'Phone Number', 'Status']];
         contacts.forEach((contact, index) => {
-          const status = contact.isRcsCapable === true ? 'RCS Ready' : 
-                        contact.isRcsCapable === false ? 'Not Capable' : 'Checking...';
+          const status = contact.isRcsCapable === true ? 'RCS Ready' :
+            contact.isRcsCapable === false ? 'Not Capable' : 'Checking...';
           data.push([index + 1, contact.phoneNumber, status]);
         });
 
@@ -827,7 +827,7 @@ export default function CreateCampaignNew() {
           <Row gutter={[24, 24]}>
             <Col xs={24} lg={14}>
               {/* <RCSCampaignTimeWarning /> */}
-              
+
               <Card style={{ marginBottom: '24px', borderRadius: THEME_CONSTANTS.radius.lg, border: `1px solid ${THEME_CONSTANTS.colors.borderLight}` }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>1. Campaign Name</h3>
                 <Input
@@ -837,7 +837,7 @@ export default function CreateCampaignNew() {
                   size="large"
                 />
               </Card>
-              
+
               <Card style={{ marginBottom: '24px', borderRadius: THEME_CONSTANTS.radius.lg, border: `1px solid ${THEME_CONSTANTS.colors.borderLight}` }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>2. Select Template</h3>
                 <Select
@@ -873,9 +873,9 @@ export default function CreateCampaignNew() {
                     <Button icon={<PlusOutlined />} onClick={() => setManualContactModal(true)} loading={checking} style={{ width: '100%', height: '44px' }}>Add Manual</Button>
                   </Col>
                   <Col span={8}>
-                    <Button 
-                      icon={<DownloadOutlined />} 
-                      onClick={downloadDemo} 
+                    <Button
+                      icon={<DownloadOutlined />}
+                      onClick={downloadDemo}
                       style={{ width: '100%', height: '44px' }}
                     >
                       Demo
@@ -884,7 +884,7 @@ export default function CreateCampaignNew() {
                 </Row>
                 <Row gutter={[12, 12]} style={{ marginTop: '12px' }}>
                   <Col span={8}>
-                    <Button 
+                    <Button
                       type="primary"
                       ghost
                       onClick={() => setShowReachableUsers(!showReachableUsers)}
@@ -895,7 +895,7 @@ export default function CreateCampaignNew() {
                     </Button>
                   </Col>
                   <Col span={8}>
-                    <Button 
+                    <Button
                       type="primary"
                       onClick={() => setShowContacts(!showContacts)}
                       disabled={batchStats.total === 0}
@@ -905,7 +905,7 @@ export default function CreateCampaignNew() {
                     </Button>
                   </Col>
                   <Col span={8}>
-                    <Button 
+                    <Button
                       danger
                       icon={<DeleteOutlined />}
                       onClick={handleClearContacts}
@@ -925,14 +925,14 @@ export default function CreateCampaignNew() {
                     boxShadow: THEME_CONSTANTS.shadow.lg,
                     border: `2px solid ${THEME_CONSTANTS.colors.primary}`
                   }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
                       gap: '16px',
                       marginBottom: '16px'
                     }}>
-                      <div style={{ 
-                        width: '48px', 
+                      <div style={{
+                        width: '48px',
                         height: '48px',
                         background: THEME_CONSTANTS.colors.primaryLight,
                         borderRadius: THEME_CONSTANTS.radius.lg,
@@ -941,8 +941,8 @@ export default function CreateCampaignNew() {
                         justifyContent: 'center',
                         border: `2px solid ${THEME_CONSTANTS.colors.primary}`
                       }}>
-                        <div style={{ 
-                          width: '24px', 
+                        <div style={{
+                          width: '24px',
                           height: '24px',
                           border: `3px solid ${THEME_CONSTANTS.colors.primary}`,
                           borderTopColor: 'transparent',
@@ -951,33 +951,33 @@ export default function CreateCampaignNew() {
                         }} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ 
-                          fontSize: '16px', 
-                          fontWeight: 700, 
+                        <div style={{
+                          fontSize: '16px',
+                          fontWeight: 700,
                           color: THEME_CONSTANTS.colors.text,
                           marginBottom: '4px',
                           letterSpacing: '-0.01em'
                         }}>
                           {checkingProgress === 100 ? '✓ Capability Check Complete!' : 'Checking RCS Capability'}
                         </div>
-                        <div style={{ 
-                          fontSize: '13px', 
+                        <div style={{
+                          fontSize: '13px',
                           color: THEME_CONSTANTS.colors.textSecondary,
                           fontWeight: 500
                         }}>
                           {checkingProgress < 85 ? 'Verifying contacts...' : checkingProgress === 100 ? 'All contacts verified' : 'Finalizing...'}
                         </div>
                       </div>
-                      <div style={{ 
-                        fontSize: '24px', 
-                        fontWeight: 700, 
-                        color: checkingProgress === 100 ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary 
+                      <div style={{
+                        fontSize: '24px',
+                        fontWeight: 700,
+                        color: checkingProgress === 100 ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.primary
                       }}>
                         {Math.round(checkingProgress)}%
                       </div>
                     </div>
-                    <Progress 
-                      percent={checkingProgress} 
+                    <Progress
+                      percent={checkingProgress}
                       status={checkingProgress === 100 ? 'success' : 'active'}
                       strokeColor={{
                         '0%': THEME_CONSTANTS.colors.primary,
@@ -1015,7 +1015,7 @@ export default function CreateCampaignNew() {
                     <div style={{ padding: '12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
                       <strong>All Contacts</strong>
                     </div>
-                    <ContactsTable 
+                    <ContactsTable
                       contacts={capabilityResponse.data}
                       onDelete={handleDeleteContact}
                       loading={false}
@@ -1027,7 +1027,7 @@ export default function CreateCampaignNew() {
                     <div style={{ padding: '12px', background: '#f6ffed', borderBottom: '1px solid #b7eb8f' }}>
                       <strong style={{ color: '#52c41a' }}>RCS Ready Contacts</strong>
                     </div>
-                    <ContactsTable 
+                    <ContactsTable
                       contacts={capabilityResponse.data.filter(c => c.isCapable)}
                       onDelete={handleDeleteContact}
                       loading={false}

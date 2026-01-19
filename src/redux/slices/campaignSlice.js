@@ -46,12 +46,6 @@ export const createCampaignEntries = createAsyncThunkHandler(
   'campaigns/create-entries'
 );
 
-export const sendCampaign = createAsyncThunkHandler(
-  'campaigns/send',
-  _post,
-  'campaigns/send'
-);
-
 export const getCampaignStats = createAsyncThunkHandler(
   'campaigns/getStats',
   _get,
@@ -397,7 +391,7 @@ const campaignSlice = createSlice({
       .addCase(getContactBatchesWithData.fulfilled, (state, action) => {
         const newBatches = action.payload.data || [];
         state.contactBatches = newBatches;
-        
+
         if (newBatches.length > 0) {
           const total = newBatches.reduce((sum, batch) => sum + batch.totalContacts, 0);
           const rcsCapable = newBatches.reduce((sum, batch) => {
@@ -417,7 +411,7 @@ const campaignSlice = createSlice({
           }, 0);
           const checkedCount = newBatches.reduce((sum, batch) => sum + (batch.processedContacts || batch.totalContacts), 0);
           const notCapable = checkedCount - rcsCapable;
-          
+
           state.batchStats = { total, rcsCapable, notCapable };
         }
       })
@@ -427,13 +421,13 @@ const campaignSlice = createSlice({
       .addCase(getContactBatches.fulfilled, (state, action) => {
         const newBatches = action.payload.data || [];
         state.contactBatches = newBatches;
-        
+
         if (newBatches.length > 0) {
           const total = newBatches.reduce((sum, batch) => sum + batch.totalContacts, 0);
           const rcsCapable = newBatches.reduce((sum, batch) => sum + (batch.rcsCapableCount || 0), 0);
           const checkedCount = newBatches.reduce((sum, batch) => sum + (batch.processedContacts || 0), 0);
           const notCapable = checkedCount - rcsCapable;
-          
+
           state.batchStats = { total, rcsCapable, notCapable };
         }
       })
@@ -454,10 +448,10 @@ const campaignSlice = createSlice({
   },
 });
 
-export const { 
-  clearError, 
-  setCurrentCampaign, 
-  clearCurrentCampaign, 
+export const {
+  clearError,
+  setCurrentCampaign,
+  clearCurrentCampaign,
   clearCapabilityResults,
   clearCampaignMessages,
   setBatchStats,
