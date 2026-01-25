@@ -641,6 +641,20 @@ export default function Orders() {
       align: 'center',
     },
     {
+      title: 'Expired',
+      key: 'expired',
+      render: (text, record) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+          <ClockCircleOutlined style={{ color: '#faad14', fontSize: '16px' }} />
+          <span style={{ fontWeight: 600, color: '#faad14', fontSize: '15px' }}>
+            {record?.expiredCount || 0}
+          </span>
+        </div>
+      ),
+      width: 120,
+      align: 'center',
+    },
+    {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
