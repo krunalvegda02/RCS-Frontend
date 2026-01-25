@@ -52,6 +52,7 @@ const ContactsTable = ({ contacts, onDelete, loading }) => {
           key: 'phoneNumber',
           render: (phone) => <span style={{ fontFamily: 'monospace' }}>{phone}</span>
         },
+        /* COMMENTED OUT - STATUS COLUMN
         {
           title: 'Status',
           dataIndex: 'isCapable',
@@ -62,6 +63,7 @@ const ContactsTable = ({ contacts, onDelete, loading }) => {
             return <Tag color="orange">Checking...</Tag>;
           }
         },
+        */
         {
           title: 'Action',
           key: 'action',
@@ -129,6 +131,31 @@ export default function CreateCampaignNew() {
       return;
     }
 
+    // CAPABILITY CHECK DISABLED - Direct upload without RCS verification
+    message.success(`${phoneNumbers.length} contacts uploaded!`);
+
+    const contactsData = phoneNumbers.map(phone => ({
+      phoneNumber: phone,
+      isCapable: true
+    }));
+
+    setCapabilityResponse({
+      success: true,
+      data: contactsData,
+      summary: {
+        total: phoneNumbers.length,
+        rcsCapable: phoneNumbers.length,
+        notCapable: 0
+      }
+    });
+
+    setBatchStats({
+      total: phoneNumbers.length,
+      rcsCapable: phoneNumbers.length,
+      notCapable: 0
+    });
+
+    /* COMMENTED OUT - CAPABILITY CHECK
     setChecking(true);
     setCheckingProgress(0);
 
@@ -200,6 +227,7 @@ export default function CreateCampaignNew() {
       const errorMsg = error?.message || error?.data?.message || String(error);
       message.error(`Error processing contacts: ${errorMsg}`);
     }
+    */
   };
 
   const handleExcelUpload = async (file) => {
@@ -369,12 +397,12 @@ export default function CreateCampaignNew() {
       message.error('Please enter campaign name');
       return;
     }
-    if (batchStats.rcsCapable === 0) {
-      message.error('No valid RCS contacts found');
+    if (batchStats.total === 0) {
+      message.error('No contacts found');
       return;
     }
 
-    const estimatedCost = batchStats.rcsCapable * 1;
+    const estimatedCost = batchStats.total * 1;
     const modalInstance = Modal.confirm({
       title: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -450,9 +478,9 @@ export default function CreateCampaignNew() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
                 <div style={{ background: THEME_CONSTANTS.colors.success, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
-                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
-                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
-                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
+                  <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>TOTAL CONTACTS</div>
+                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.total}</div>
+                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Ready to send</div>
                 </div>
 
                 <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
@@ -466,7 +494,7 @@ export default function CreateCampaignNew() {
                 <div style={{ fontSize: '20px' }}>ℹ️</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.primary, marginBottom: '4px' }}>Ready to Send</div>
-                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text, lineHeight: 1.5 }}>Messages will be sent to {batchStats.rcsCapable} RCS capable contacts immediately.</div>
+                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text, lineHeight: 1.5 }}>Messages will be sent to {batchStats.total} contacts immediately.</div>
                 </div>
               </div>
             </>
@@ -650,24 +678,24 @@ export default function CreateCampaignNew() {
           }, 100);
 
           try {
-            const rcsContacts = capabilityResponse?.data?.filter(contact => contact.isCapable) || [];
+            const allContacts = capabilityResponse?.data || [];
 
-            if (rcsContacts.length === 0) {
+            if (allContacts.length === 0) {
               clearInterval(progressInterval);
               setShowProgress(false);
               setSendingProgress(0);
               modalInstance.destroy();
-              message.error('No RCS-capable contacts found');
+              message.error('No contacts found');
               return;
             }
 
-            const rcsNumbers = rcsContacts.map(contact => contact.phoneNumber);
+            const allNumbers = allContacts.map(contact => contact.phoneNumber);
 
             // Create campaign - this will handle both creation and entry processing
             const campaignRes = await dispatch(createMasterCampaign({
               name: campaignName,
               templateId: selectedTemplate._id,
-              phoneNumbers: rcsNumbers
+              phoneNumbers: allNumbers
             })).unwrap();
 
             const campaignId = campaignRes.data.masterCampaign._id;
@@ -712,7 +740,7 @@ export default function CreateCampaignNew() {
                 setShowProgress(false);
                 setSendingProgress(0);
                 modalInstance.destroy();
-                message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
+                message.success(`Campaign created on ${botId} with ${allContacts.length} contacts!`);
 
                 setTimeout(() => {
                   navigate('/reports');
@@ -735,7 +763,7 @@ export default function CreateCampaignNew() {
                     setShowProgress(false);
                     setSendingProgress(0);
                     modalInstance.destroy();
-                    message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
+                    message.success(`Campaign created on ${botId} with ${allContacts.length} contacts!`);
 
                     setTimeout(() => {
                       navigate('/reports');
@@ -1040,12 +1068,12 @@ export default function CreateCampaignNew() {
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={handleSendCampaign}
-                disabled={!selectedTemplate || !campaignName.trim() || batchStats.rcsCapable === 0}
+                disabled={!selectedTemplate || !campaignName.trim() || batchStats.total === 0}
                 size="large"
                 block
                 style={{ height: '52px', fontSize: '16px', fontWeight: 600 }}
               >
-                Send Campaign ({batchStats.rcsCapable} contacts)
+                Send Campaign ({batchStats.total} contacts)
               </Button>
             </Col>
 
@@ -1104,3 +1132,24 @@ export default function CreateCampaignNew() {
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
