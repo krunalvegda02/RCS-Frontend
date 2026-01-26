@@ -75,6 +75,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user?._id) {
+      console.log('Dashboard User Data:', {
+        'wallet.balance': user?.wallet?.balance,
+        'Wallet': user?.Wallet,
+        'wallet.blockedBalance': user?.wallet?.blockedBalance
+      });
       dispatch(fetchDashboardStats(user._id));
       dispatch(fetchRecentOrders(user._id));
       // Refresh user data to get latest wallet info
@@ -546,7 +551,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency((user?.wallet?.balance || 0) - Math.abs(user?.wallet?.blockedBalance || 0))}
+                      {formatCurrency(user?.wallet?.balance || user?.Wallet || 0)}
                     </span>
                   </div>
                   <p

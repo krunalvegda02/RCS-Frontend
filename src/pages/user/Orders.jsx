@@ -1747,7 +1747,7 @@ export default function Orders() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                            ₹{selectedOrder?.actualCost || selectedOrder?.estimatedCost || 0}
+                            ₹{selectedOrder?.actualCost ?? selectedOrder?.estimatedCost ?? 0}
                           </div>
                           <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Credits Used</div>
                         </div>
