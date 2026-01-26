@@ -612,6 +612,23 @@ export default function Orders() {
       align: 'center',
     },
     {
+      title: 'RCS Capable',
+      key: 'rcsCapable',
+      render: (text, record) => {
+        const rcsCount = record.rcsCapableCount || record.stats?.rcsCapable || 0;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <PhoneOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '16px' }} />
+            <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.primary, fontSize: '15px' }}>
+              {rcsCount}
+            </span>
+          </div>
+        );
+      },
+      width: 130,
+      align: 'center',
+    },
+    {
       title: 'Delivered',
       key: 'delivered',
       render: (text, record) => (
@@ -658,8 +675,10 @@ export default function Orders() {
       key: 'rate',
       render: (text, record) => {
         const deliveredCount = record?.totalDelivered || 0;
-        const totalMessages = record?.cost || 0;
-        const rate = totalMessages > 0 ? (deliveredCount / totalMessages) * 100 : 0;
+        const failedCount = record?.failedCount || 0;
+        const rcsCapableCount = record.rcsCapableCount || record.stats?.rcsCapable || 0;
+        const totalProcessed = deliveredCount + failedCount;
+        const rate = rcsCapableCount > 0 ? (deliveredCount / rcsCapableCount) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         const displayRate = rate < 1 && rate > 0 ? rate.toFixed(2) : Math.round(rate);
 

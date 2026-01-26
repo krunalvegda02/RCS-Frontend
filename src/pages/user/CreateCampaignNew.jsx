@@ -486,7 +486,7 @@ export default function CreateCampaignNew() {
                 <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
                   <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
                   <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
-                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per RCS message</div>
+                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per message</div>
                 </div>
               </div>
 
@@ -494,7 +494,7 @@ export default function CreateCampaignNew() {
                 <div style={{ fontSize: '20px' }}>ℹ️</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: THEME_CONSTANTS.colors.primary, marginBottom: '4px' }}>Ready to Send</div>
-                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text, lineHeight: 1.5 }}>Messages will be sent to {batchStats.total} contacts immediately.</div>
+                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.text, lineHeight: 1.5 }}>Campaign will be sent to {batchStats.total} contacts.</div>
                 </div>
               </div>
             </>
@@ -605,15 +605,15 @@ export default function CreateCampaignNew() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
                     <div style={{ background: THEME_CONSTANTS.colors.success, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
-                      <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>RCS READY</div>
-                      <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.rcsCapable}</div>
-                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Contacts verified</div>
+                      <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>TOTAL CONTACTS</div>
+                      <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{batchStats.total}</div>
+                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>Ready to send</div>
                     </div>
 
                     <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
                       <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
                       <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
-                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per RCS message</div>
+                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per message</div>
                     </div>
                   </div>
 
@@ -788,33 +788,20 @@ export default function CreateCampaignNew() {
     });
   };
 
-  const downloadDemo = async () => {
+  const downloadDemo = () => {
     // If contacts are uploaded, download them
-    if (campaignId && batchStats.total > 0) {
+    if (batchStats.total > 0 && capabilityResponse?.data) {
       try {
-        const response = await dispatch(getAllContactsFromBatches({
-          campaignId,
-          page: 1,
-          limit: 10
-        })).unwrap();
-
-        const contacts = response.data || [];
-
-        if (contacts.length === 0) {
-          message.warning('No contacts found to download');
-          return;
-        }
+        const contacts = capabilityResponse.data;
 
         // Create Excel with uploaded contacts
-        const data = [['Index', 'Phone Number', 'Status']];
+        const data = [['Index', 'Phone Number']];
         contacts.forEach((contact, index) => {
-          const status = contact.isRcsCapable === true ? 'RCS Ready' :
-            contact.isRcsCapable === false ? 'Not Capable' : 'Checking...';
-          data.push([index + 1, contact.phoneNumber, status]);
+          data.push([index + 1, contact.phoneNumber]);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(data);
-        ws['!cols'] = [{ wch: 8 }, { wch: 15 }, { wch: 15 }];
+        ws['!cols'] = [{ wch: 8 }, { wch: 15 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
         XLSX.writeFile(wb, `uploaded_contacts_${Date.now()}.xlsx`);
@@ -829,6 +816,7 @@ export default function CreateCampaignNew() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
       XLSX.writeFile(wb, 'demo_contacts.xlsx');
+      message.success('Demo template downloaded');
     }
   };
 
@@ -911,28 +899,17 @@ export default function CreateCampaignNew() {
                   </Col>
                 </Row>
                 <Row gutter={[12, 12]} style={{ marginTop: '12px' }}>
-                  <Col span={8}>
-                    <Button
-                      type="primary"
-                      ghost
-                      onClick={() => setShowReachableUsers(!showReachableUsers)}
-                      disabled={batchStats.rcsCapable === 0}
-                      style={{ width: '100%', height: '44px' }}
-                    >
-                      {showReachableUsers ? 'Hide' : 'Show'} RCS ({batchStats.rcsCapable})
-                    </Button>
-                  </Col>
-                  <Col span={8}>
+                  <Col span={12}>
                     <Button
                       type="primary"
                       onClick={() => setShowContacts(!showContacts)}
                       disabled={batchStats.total === 0}
                       style={{ width: '100%', height: '44px' }}
                     >
-                      {showContacts ? 'Hide' : 'Show'} All ({batchStats.total})
+                      {showContacts ? 'Hide' : 'Show'} Contacts ({batchStats.total})
                     </Button>
                   </Col>
-                  <Col span={8}>
+                  <Col span={12}>
                     <Button
                       danger
                       icon={<DeleteOutlined />}
@@ -1016,27 +993,11 @@ export default function CreateCampaignNew() {
                     />
                   </div>
                 )}
-                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', marginTop: '16px' }}>
-                  <Row gutter={[16, 16]}>
-                    <Col span={8}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text }}>{batchStats.total}</div>
-                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Total</div>
-                      </div>
-                    </Col>
-                    <Col span={8}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.success }}>{batchStats.rcsCapable}</div>
-                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>RCS Ready</div>
-                      </div>
-                    </Col>
-                    <Col span={8}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '24px', fontWeight: 700, color: '#ff4d4f' }}>{batchStats.notCapable || 0}</div>
-                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Invalid</div>
-                      </div>
-                    </Col>
-                  </Row>
+                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '8px', marginTop: '16px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '36px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>{batchStats.total}</div>
+                    <div style={{ fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '8px', fontWeight: 600 }}>Total Contacts Uploaded</div>
+                  </div>
                 </div>
                 {showContacts && batchStats.total > 0 && capabilityResponse?.data && (
                   <div style={{ marginTop: '16px', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
