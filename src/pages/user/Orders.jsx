@@ -240,6 +240,7 @@ export default function Orders() {
       'running': { color: '#e6f7ff', textColor: '#1890ff', border: '#1890ff' },
       'processing': { color: '#e6f7ff', textColor: '#1890ff', border: '#1890ff' },
       'pending': { color: '#fffbe6', textColor: '#faad14', border: '#faad14' },
+      'settled': { color: '#e0f2fe', textColor: '#0284c7', border: '#0284c7' },
       'draft': { color: '#f5f5f5', textColor: '#8c8c8c', border: '#d9d9d9' },
       'paused': { color: '#fff7e6', textColor: '#fa8c16', border: '#fa8c16' },
       'failed': { color: '#fff1f0', textColor: '#ff4d4f', border: '#ff4d4f' },
@@ -248,23 +249,21 @@ export default function Orders() {
     const config = statusConfig[status] || { color: '#f5f5f5', textColor: '#8c8c8c', border: '#d9d9d9' };
 
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 0' }}>
-        <div>
-          <Tag
-            color={config.color}
-            style={{
-              color: config.textColor,
-              border: `1px solid ${config.border}`,
-              fontWeight: 600,
-              padding: '4px 8px',
-              borderRadius: THEME_CONSTANTS.radius.sm,
-              fontSize: '11px',
-              textTransform: 'capitalize'
-            }}
-          >
-            {status || 'Unknown'}
-          </Tag>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0' }}>
+        <Tag
+          color={config.color}
+          style={{
+            color: config.textColor,
+            border: `1px solid ${config.border}`,
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '11px',
+            textTransform: 'capitalize'
+          }}
+        >
+          {status || 'Unknown'}
+        </Tag>
       </div>
     );
   };
@@ -1725,6 +1724,7 @@ export default function Orders() {
                           { label: 'Sent', value: 'sent' },
                           { label: 'Delivered', value: 'delivered' },
                           { label: 'Read', value: 'read' },
+                          { label: 'Replied', value: 'replied' },
                           { label: 'Failed', value: 'failed' },
                           { label: 'Expired', value: 'expired' },
                         ]}
@@ -1803,31 +1803,42 @@ export default function Orders() {
                       key: 'status',
                       width: 110,
                       render: (status) => {
-                        const colors = {
-                          sent: THEME_CONSTANTS.colors.primary,
-                          delivered: THEME_CONSTANTS.colors.success,
-                          read: '#8b5cf6',
-                          failed: THEME_CONSTANTS.colors.danger,
-                          queued: THEME_CONSTANTS.colors.warning
+                        const statusColors = {
+                          pending: { color: '#faad14', bg: '#fffbe6' },
+                          sent: { color: THEME_CONSTANTS.colors.primary, bg: '#e6f7ff' },
+                          delivered: { color: THEME_CONSTANTS.colors.success, bg: '#f6ffed' },
+                          read: { color: '#8b5cf6', bg: '#f3e8ff' },
+                          replied: { color: '#10b981', bg: '#d1fae5' },
+                          failed: { color: THEME_CONSTANTS.colors.danger, bg: '#fff1f0' },
+                          expired: { color: '#f59e0b', bg: '#fef3c7' },
+                          queued: { color: '#6366f1', bg: '#eef2ff' }
                         };
+                        const config = statusColors[status] || { color: '#6b7280', bg: '#f3f4f6' };
                         return (
-                          <Tag color={colors[status] || '#8c8c8c'} style={{ fontSize: '12px', fontWeight: 600, padding: '4px 10px' }}>
+                          <Tag style={{ 
+                            fontSize: '12px', 
+                            fontWeight: 600, 
+                            padding: '4px 10px',
+                            color: config.color,
+                            background: config.bg,
+                            border: `1px solid ${config.color}30`
+                          }}>
                             {status?.toUpperCase()}
                           </Tag>
                         );
                       }
                     },
-                    {
-                      title: 'Type',
-                      dataIndex: 'templateType',
-                      key: 'type',
-                      width: 100,
-                      render: (type) => (
-                        <Tag style={{ fontSize: '12px', background: THEME_CONSTANTS.colors.primaryLight, color: THEME_CONSTANTS.colors.primary, border: 'none', fontWeight: 600 }}>
-                          {type}
-                        </Tag>
-                      )
-                    },
+                    // {
+                    //   title: 'Type',
+                    //   dataIndex: 'templateType',
+                    //   key: 'type',
+                    //   width: 100,
+                    //   render: (type) => (
+                    //     <Tag style={{ fontSize: '12px', background: THEME_CONSTANTS.colors.primaryLight, color: THEME_CONSTANTS.colors.primary, border: 'none', fontWeight: 600 }}>
+                    //       {type}
+                    //     </Tag>
+                    //   )
+                    // },
                     {
                       title: 'Sent At',
                       dataIndex: 'sentAt',

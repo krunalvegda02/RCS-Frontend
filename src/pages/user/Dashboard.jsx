@@ -546,7 +546,7 @@ export default function Dashboard() {
                         color: THEME_CONSTANTS.colors.success,
                       }}
                     >
-                      {formatCurrency(user?.wallet?.balance || user?.Wallet || 0)}
+                      {formatCurrency((user?.wallet?.balance || 0) - Math.abs(user?.wallet?.blockedBalance || 0))}
                     </span>
                   </div>
                   <p
