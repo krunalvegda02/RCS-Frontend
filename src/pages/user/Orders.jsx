@@ -1721,6 +1721,8 @@ export default function Orders() {
                         options={[
                           { label: 'All Status', value: 'all' },
                           { label: 'Draft', value: 'draft' },
+                          { label: 'Draft', value: 'draft' },
+                          { label: 'Pending', value: 'pending' },
                           { label: 'Sent', value: 'sent' },
                           { label: 'Delivered', value: 'delivered' },
                           { label: 'Read', value: 'read' },
