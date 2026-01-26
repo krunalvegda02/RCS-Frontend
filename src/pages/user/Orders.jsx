@@ -629,6 +629,25 @@ export default function Orders() {
       align: 'center',
     },
     {
+      title: 'Sent',
+      key: 'sent',
+      render: (text, record) => {
+        const deliveredCount = record?.totalDelivered || 0;
+        const failedCount = record?.failedCount || 0;
+        const sentCount = deliveredCount + failedCount;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <SendOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
+            <span style={{ fontWeight: 600, color: '#1890ff', fontSize: '15px' }}>
+              {sentCount}
+            </span>
+          </div>
+        );
+      },
+      width: 110,
+      align: 'center',
+    },
+    {
       title: 'Delivered',
       key: 'delivered',
       render: (text, record) => (
@@ -1705,6 +1724,37 @@ export default function Orders() {
                     </div>
                   </Card>
                 </Col>
+                {selectedOrder?.status === 'settled' && (
+                  <Col xs={24} sm={12} md={8} lg={4}>
+                    <Card style={{
+                      borderRadius: THEME_CONSTANTS.radius.lg,
+                      border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                      boxShadow: THEME_CONSTANTS.shadow.sm,
+                      background: THEME_CONSTANTS.colors.surface
+                    }} bodyStyle={{ padding: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          background: '#e0f2fe',
+                          borderRadius: THEME_CONSTANTS.radius.md,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <span style={{ fontSize: '20px' }}>💳</span>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                            ₹{selectedOrder?.actualCost || selectedOrder?.estimatedCost || 0}
+                          </div>
+                          <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Credits Used</div>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                )}
               </Row>
             </div>
 
@@ -1739,8 +1789,8 @@ export default function Orders() {
                         size="large"
                         options={[
                           { label: 'All Status', value: 'all' },
-                          { label: 'Draft', value: 'draft' },
-                          { label: 'Draft', value: 'draft' },
+                          // { label: 'Draft', value: 'draft' },
+                          // { label: 'Draft', value: 'draft' },
                           { label: 'Pending', value: 'pending' },
                           { label: 'Sent', value: 'sent' },
                           { label: 'Delivered', value: 'delivered' },
