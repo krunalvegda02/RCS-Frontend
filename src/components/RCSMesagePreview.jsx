@@ -203,6 +203,8 @@ export default function RCSMessagePreview({ data }) {
                 fontSize: '12px',
                 margin: '0 0 12px 0',
                 lineHeight: '1.4',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
               }}
             >
               {subtitle}
@@ -310,6 +312,9 @@ export default function RCSMessagePreview({ data }) {
                       color: '#333',
                       fontSize: '10px',
                       margin: '0 0 8px 0',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      lineHeight: '1.3',
                     }}
                   >
                     {card.subtitle}

@@ -624,11 +624,12 @@ export default function CreateTemplatePage() {
 
       <div style={{ marginBottom: '28px' }}>
         <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Card Subtitle</label>
-        <Input
+        <Input.TextArea
+          rows={3}
           placeholder="e.g., Limited Time Offer"
           value={richCard.subtitle}
           onChange={(e) => setRichCard({ ...richCard, subtitle: e.target.value })}
-          style={{ height: '52px', fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0' }}
+          style={{ fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0', lineHeight: '1.6' }}
         />
       </div>
 
@@ -769,11 +770,12 @@ export default function CreateTemplatePage() {
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Item Subtitle</label>
-              <Input
+              <Input.TextArea
+                rows={3}
                 placeholder="e.g., Description"
                 value={item.subtitle}
                 onChange={(e) => handleCarouselItemChange(itemIndex, 'subtitle', e.target.value)}
-                style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+                style={{ fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px', lineHeight: '1.6' }}
               />
             </div>
 
