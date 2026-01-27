@@ -184,7 +184,9 @@ export default function Orders() {
     }
 
     console.log('Fetching orders with params:', params);
-    dispatch(fetchOrders(params));
+    dispatch(fetchOrders(params)).unwrap().then(result => {
+      console.log('Pagination data:', result.pagination);
+    });
   }, [dispatch, user?._id, currentPage, searchText, statusFilter, typeFilter, campaignFilter, sortOrder, dateRange]);
 
   // Fetch all campaigns once for filter dropdowns
@@ -822,7 +824,7 @@ export default function Orders() {
                 >
                   <Statistic
                     title="Total Campaigns"
-                    value={pagination.total}
+                    value={pagination.total || 0}
                     prefix={<BarChartOutlined style={{ marginRight: '8px', color: THEME_CONSTANTS.colors.primary }} />}
                     valueStyle={{ color: THEME_CONSTANTS.colors.primary, fontSize: '28px', fontWeight: 700 }}
                     titleStyle={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}
