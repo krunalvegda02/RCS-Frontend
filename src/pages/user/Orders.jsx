@@ -417,47 +417,25 @@ export default function Orders() {
   const exportToExcel = async () => {
     if (isExporting) return;
 
-    let toastInterval;
     try {
       setIsExporting(true);
 
-      // Start dismissing toasts immediately before any API calls
-      toastInterval = setInterval(() => {
-        toast.dismiss();
-      }, 10);
-
-      // Small delay to ensure interval starts
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // Fetch all campaigns
-      const campaignsResult = await dispatch(fetchAllCampaigns(user._id)).unwrap();
-      const allCampaigns = campaignsResult.data || [];
+      // Use orders from Redux state which already has rcsCapableCount
+      const allCampaigns = orders || [];
 
       if (allCampaigns.length === 0) {
-        clearInterval(toastInterval);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        toast.dismiss();
         toast.error('No campaigns to export');
-        setIsExporting(false);
         return;
       }
 
-      // Fetch messages for all campaigns silently
-      const messagesResults = await Promise.all(
-        allCampaigns.map(campaign =>
-          dispatch(fetchAllCampaignMessages(campaign._id))
-            .unwrap()
-            .then(result => result)
-            .catch(() => ({ data: [] }))
-        )
-      );
-
-      // Create campaigns overview sheet
       const campaignsData = allCampaigns.map((order, idx) => {
         const deliveredCount = order?.totalDelivered || 0;
         const failedCount = order?.failedCount || 0;
+        const expiredCount = order?.expiredCount || 0;
+        const rcsCapableCount = order?.rcsCapableCount || order?.stats?.rcsCapable || 0;
         const totalRecipients = order?.cost || 0;
-        const successRate = totalRecipients > 0 ? ((deliveredCount / totalRecipients) * 100).toFixed(2) : 0;
+        const sentCount = deliveredCount + failedCount;
+        const successRate = rcsCapableCount > 0 ? ((deliveredCount / rcsCapableCount) * 100).toFixed(2) : 0;
 
         return {
           'S.No': idx + 1,
@@ -466,79 +444,32 @@ export default function Orders() {
           'Message Type': order?.type || 'N/A',
           'Status': order?.status || 'N/A',
           'Total Recipients': totalRecipients,
-          'Successfully Delivered': deliveredCount,
+          'RCS Capable': rcsCapableCount,
+          'Sent': sentCount,
+          'Delivered': deliveredCount,
           'Failed': failedCount,
+          'Expired': expiredCount,
           'Success Rate (%)': successRate,
           'Created Date': new Date(order.createdAt).toLocaleDateString(),
           'Created Time': new Date(order.createdAt).toLocaleTimeString(),
         };
       });
 
-      // Create all messages sheet
-      const allMessagesData = [];
-      allCampaigns.forEach((campaign, campaignIdx) => {
-        const messages = messagesResults[campaignIdx]?.data || [];
-        messages.forEach((msg) => {
-          allMessagesData.push({
-            'S.No': allMessagesData.length + 1,
-            'Campaign Name': campaign.CampaignName,
-            'Campaign ID': campaign._id,
-            'Phone Number': msg.phoneNumber || 'N/A',
-            'Status': msg.status?.toUpperCase() || 'N/A',
-            'Template Type': msg.templateType || 'N/A',
-            'Sent At': msg.sentAt ? new Date(msg.sentAt).toLocaleString() : 'N/A',
-            'Delivered At': msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString() : 'N/A',
-            'Read At': msg.readAt ? new Date(msg.readAt).toLocaleString() : 'N/A',
-            'Interactions': msg.interactions || 0,
-            'Replies': msg.replies || 0,
-            'User Response': msg.userText || msg.clickedAction || msg.suggestionResponse?.plainText || 'N/A',
-            'Error': msg.status === 'failed' ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A',
-          });
-        });
-      });
-
-      // Create workbook with multiple sheets
       const workbook = XLSX.utils.book_new();
-
-      // Add campaigns overview sheet
       const campaignsSheet = XLSX.utils.json_to_sheet(campaignsData);
       campaignsSheet['!cols'] = [
         { wch: 8 }, { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 12 },
-        { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 15 },
-        { wch: 15 }, { wch: 15 }
+        { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 10 },
+        { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
       ];
-      XLSX.utils.book_append_sheet(workbook, campaignsSheet, 'Campaigns Overview');
+      XLSX.utils.book_append_sheet(workbook, campaignsSheet, 'Campaigns Report');
 
-      // Add all messages sheet
-      if (allMessagesData.length > 0) {
-        const messagesSheet = XLSX.utils.json_to_sheet(allMessagesData);
-        messagesSheet['!cols'] = [
-          { wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 12 },
-          { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-          { wch: 12 }, { wch: 10 }, { wch: 30 }, { wch: 30 }
-        ];
-        XLSX.utils.book_append_sheet(workbook, messagesSheet, 'All Messages');
-      }
-
-      // Stop dismissing toasts before file write
-      if (toastInterval) clearInterval(toastInterval);
-      await new Promise(resolve => setTimeout(resolve, 150));
-      toast.dismiss();
-
-      // Write file after clearing toasts
-      XLSX.writeFile(workbook, `complete-campaign-report-${new Date().toISOString().split('T')[0]}.xlsx`);
-
-      // Show success toast after file download
-      await new Promise(resolve => setTimeout(resolve, 200));
-      toast.success(`Exported ${allCampaigns.length} campaigns with ${allMessagesData.length} messages`);
+      XLSX.writeFile(workbook, `campaigns-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success(`Exported ${allCampaigns.length} campaigns successfully`);
     } catch (error) {
       console.error('Export error:', error);
-      if (toastInterval) clearInterval(toastInterval);
-      await new Promise(resolve => setTimeout(resolve, 150));
-      toast.dismiss();
       toast.error('Failed to export report');
     } finally {
-      if (toastInterval) clearInterval(toastInterval);
       setIsExporting(false);
     }
   };
