@@ -195,19 +195,6 @@ export default function Orders() {
     }
   }, [user?._id, dispatch]);
 
-  // // Auto-refresh orders every 3 seconds to update campaign status (faster refresh)
-  // useEffect(() => {
-  //   if (user?._id) {
-  //     const interval = setInterval(() => {
-  //       dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: 10 }));
-  //     }, 3000); // Refresh every 3 seconds (faster)
-
-  //     return () => clearInterval(interval);
-  //   }
-  // }, [dispatch, user?._id, currentPage]);
-
-
-
   const fetchAllCampaignStats = async () => {
     for (const order of orders) {
       if (order._id) {
@@ -283,30 +270,30 @@ export default function Orders() {
     }
   };
 
-  const handleModalSearch = (searchValue) => {
-    setModalSearchText(searchValue);
-    setModalCurrentPage(1);
-    if (selectedOrder?._id) {
+  // Debounced fetch effect for Search and Filter
+  useEffect(() => {
+    if (!showModal || !selectedOrder?._id) return;
+
+    const timer = setTimeout(() => {
       dispatch(fetchCampaignMessages({
         campaignId: selectedOrder._id,
         page: 1,
         limit: 10,
-        search: searchValue || undefined
+        search: modalSearchText || undefined,
+        status: modalStatusFilter !== 'all' ? modalStatusFilter : undefined
       }));
-    }
+      setModalCurrentPage(1);
+    }, 400); // Slightly faster debounce
+
+    return () => clearTimeout(timer);
+  }, [modalSearchText, modalStatusFilter, showModal, selectedOrder?._id]);
+
+  const handleModalSearch = (searchValue) => {
+    setModalSearchText(searchValue);
   };
 
   const handleModalStatusFilter = (status) => {
     setModalStatusFilter(status);
-    setModalCurrentPage(1);
-    if (selectedOrder?._id) {
-      dispatch(fetchCampaignMessages({
-        campaignId: selectedOrder._id,
-        page: 1,
-        limit: 10,
-        status: status !== 'all' ? status : undefined
-      }));
-    }
   };
 
   const handleModalPageChange = (page) => {
@@ -1126,10 +1113,11 @@ export default function Orders() {
                     style={{ width: '100%' }}
                     size="large"
                     options={[
-                      { label: '📊 All', value: 'all' },
-                      { label: '✅ Completed', value: 'completed' },
-                      { label: '⚡ Processing', value: 'processing' },
-                      { label: '⏳ Pending', value: 'pending' },
+                      { label: 'All', value: 'all' },
+                      { label: 'Completed', value: 'completed' },
+                      { label: 'Settled', value: 'settled' },
+                      { label: 'Processing', value: 'processing' },
+                      { label: 'Pending', value: 'pending' },
                     ]}
                   />
                 </Col>
@@ -1153,7 +1141,7 @@ export default function Orders() {
                     style={{ width: '100%' }}
                     size="large"
                     options={[
-                      { label: '📱 All', value: 'all' },
+                      { label: 'All', value: 'all' },
                       ...getUniqueTypes().map((type) => ({ label: type, value: type })),
                     ]}
                   />
@@ -1181,7 +1169,7 @@ export default function Orders() {
                     placeholder="Select campaign"
                     optionFilterProp="label"
                     options={[
-                      { label: '🎯 All Campaigns', value: 'all' },
+                      { label: 'All Campaigns', value: 'all' },
                       ...getUniqueCampaigns().map((campaign) => ({
                         label: campaign,
                         value: campaign,
@@ -1886,9 +1874,9 @@ export default function Orders() {
                         };
                         const config = statusColors[status] || { color: '#6b7280', bg: '#f3f4f6' };
                         return (
-                          <Tag style={{ 
-                            fontSize: '12px', 
-                            fontWeight: 600, 
+                          <Tag style={{
+                            fontSize: '12px',
+                            fontWeight: 600,
                             padding: '4px 10px',
                             color: config.color,
                             background: config.bg,
