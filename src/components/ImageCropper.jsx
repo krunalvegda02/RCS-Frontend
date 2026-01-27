@@ -38,8 +38,8 @@ const RCS_ASPECT_RATIOS = {
     ratio: 16 / 9,
     label: 'Rich Card - 16:9',
     description: 'Recommended for single card',
-    optimalWidth: 1200,
-    optimalHeight: 675,
+    optimalWidth: 1440,
+    optimalHeight: 720,
     minWidth: 400,
     minHeight: 225,
   },
@@ -47,8 +47,8 @@ const RCS_ASPECT_RATIOS = {
     ratio: 4 / 3,
     label: 'Carousel - 4:3',
     description: 'Recommended for carousel',
-    optimalWidth: 800,
-    optimalHeight: 600,
+    optimalWidth: 960,
+    optimalHeight: 720,
     minWidth: 300,
     minHeight: 225,
   },
@@ -463,7 +463,7 @@ const previewCanvasRef = useRef(null);
       const actualCropWidth = Math.round(crop.width * scaleX);
       const actualCropHeight = Math.round(crop.height * scaleY);
 
-      const maxOutputWidth = selectedRatioKey === 'richCard' ? 1200 : 800;
+      const maxOutputWidth = selectedRatioKey === 'richCard' ? 1440 : 960;
       const outputWidth = Math.min(actualCropWidth, maxOutputWidth);
       const outputHeight = Math.round(outputWidth / (crop.width / crop.height));
 
@@ -762,8 +762,8 @@ const previewCanvasRef = useRef(null);
               </Card>
             </div>
 
-            {/* RIGHT SIDE - CONTROLS PANEL (40%) - NO SCROLL */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* RIGHT SIDE - CONTROLS PANEL (40%) - STICKY */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px', position: 'sticky', top: '0', alignSelf: 'flex-start' }}>
               <Card size="small" title={<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ fontSize: '18px' }}></span><span style={{ fontWeight: 600 }}>Live Preview</span></div>} style={{ borderRadius: '12px', border: '1px solid #e0e7ff', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '12px', background: 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)' }}>
                 <div style={{ width: '100%', maxWidth: '360px', margin: '0 auto', position: 'relative', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                   <canvas ref={previewCanvasRef} style={{ width: '100%', display: 'block', background: '#000' }} />
