@@ -719,7 +719,7 @@ export default function CreateCampaignNew() {
                 message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
 
                 setTimeout(() => {
-                  navigate('/reports');
+                  navigate('/dashboard/reports');
                 }, 200);
               }, 1500);
             } else {
@@ -742,7 +742,7 @@ export default function CreateCampaignNew() {
                     message.success(`Campaign created on ${botId} with ${rcsContacts.length} contacts!`);
 
                     setTimeout(() => {
-                      navigate('/reports');
+                      navigate('/dashboard/reports');
                     }, 200);
                   }, 1500);
                 }

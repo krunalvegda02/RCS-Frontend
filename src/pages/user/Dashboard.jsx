@@ -1170,7 +1170,7 @@ export default function Dashboard() {
               </h3>
               <Button
                 type="primary"
-                onClick={() => navigate('/reports')}
+                onClick={() => navigate('/dashboard/reports')}
                 style={{
                   background: THEME_CONSTANTS.colors.primary,
                   border: 'none',

@@ -350,7 +350,7 @@ export default function CreateTemplatePage() {
 
       // Navigate back to templates list
       setTimeout(() => {
-        navigate('/templates');
+        navigate('/dashboard/templates');
       }, 1500);
     } catch (error) {
       console.error('Template save error:', error);
@@ -913,7 +913,7 @@ export default function CreateTemplatePage() {
             </Breadcrumb.Item>
             <Breadcrumb.Item>
               <span
-                onClick={() => navigate('/templates')}
+                onClick={() => navigate('/dashboard/templates')}
                 style={{
                   color: THEME_CONSTANTS.colors.primary,
                   fontWeight: THEME_CONSTANTS.typography.h6.weight,
@@ -984,7 +984,7 @@ export default function CreateTemplatePage() {
               <div style={{ textAlign: screens.lg ? 'right' : 'left' }}>
                 <Button
                   icon={<ArrowLeftOutlined />}
-                  onClick={() => navigate('/templates')}
+                  onClick={() => navigate('/dashboard/templates')}
                   style={{
                     height: '44px',
                     padding: '0 24px',
@@ -1062,7 +1062,7 @@ export default function CreateTemplatePage() {
                 Preview
               </Button>
               <Button
-                onClick={() => navigate('/templates')}
+                onClick={() => navigate('/dashboard/templates')}
                 style={{
                   fontWeight: 600,
                   borderRadius: '10px',

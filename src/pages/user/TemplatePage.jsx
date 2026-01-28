@@ -83,7 +83,7 @@ export default function TemplatePage() {
 
 
   const handleEdit = (template) => {
-    navigate('/create-template', { state: { editingTemplate: template } });
+    navigate('/dashboard/create-template', { state: { editingTemplate: template } });
   };
 
   const handlePreview = (template) => {
@@ -414,7 +414,7 @@ export default function TemplatePage() {
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
-                    onClick={() => navigate('/create-template')}
+                    onClick={() => navigate('/dashboard/create-template')}
                     style={{
                       background: THEME_CONSTANTS.colors.primary,
                       borderColor: THEME_CONSTANTS.colors.primary,
@@ -491,7 +491,7 @@ export default function TemplatePage() {
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
-                  onClick={() => navigate('/create-template')}
+                  onClick={() => navigate('/dashboard/create-template')}
                   style={{
                     marginTop: '16px',
                     background: THEME_CONSTANTS.colors.primary,
