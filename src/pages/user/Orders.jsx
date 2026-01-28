@@ -1493,7 +1493,7 @@ export default function Orders() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {(selectedOrder?.totalDelivered || 0) + (selectedOrder?.failedCount || 0) }
+                          {(selectedOrder?.totalDelivered || 0) + (selectedOrder?.totalRead || 0) + (selectedOrder?.totalReplied || 0) + (selectedOrder?.failedCount || 0)}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Sent</div>
                       </div>
