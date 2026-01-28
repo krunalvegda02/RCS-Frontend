@@ -113,34 +113,34 @@ export default function UserLayout() {
 
   const menuItems = [
     {
-      key: '/',
+      key: '/dashboard',
       icon: <HomeOutlined className="text-xl" />,
       label: 'Dashboard',
-      onClick: () => navigate('/'),
+      onClick: () => navigate('/dashboard'),
     },
     {
-      key: '/newCampaign',
+      key: '/dashboard/newCampaign',
       icon: <SendOutlined className="text-xl" />,
       label: 'Send Message',
-      onClick: () => navigate('/newCampaign'),
+      onClick: () => navigate('/dashboard/newCampaign'),
     },
     {
-      key: '/templates',
+      key: '/dashboard/templates',
       icon: <FileTextOutlined className="text-xl" />,
       label: 'Templates',
-      onClick: () => navigate('/templates'),
+      onClick: () => navigate('/dashboard/templates'),
     },
     {
-      key: '/reports',
+      key: '/dashboard/reports',
       icon: <BarChartOutlined className="text-xl" />,
       label: 'Reports',
-      onClick: () => navigate('/reports'),
+      onClick: () => navigate('/dashboard/reports'),
     },
     {
-      key: '/wallet',
+      key: '/dashboard/wallet',
       icon: <WalletOutlined className="text-xl" />,
       label: 'Wallet',
-      onClick: () => navigate('/wallet'),
+      onClick: () => navigate('/dashboard/wallet'),
     },
     
   ];
@@ -150,7 +150,7 @@ export default function UserLayout() {
       key: 'profile',
       icon: <UserOutlined />,
       label: 'Profile Settings',
-      onClick: () => navigate('/profile'),
+      onClick: () => navigate('/dashboard/profile'),
     },
     ...(user?.role === 'admin' ? [{
       key: 'admin',

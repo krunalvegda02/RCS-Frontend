@@ -11,7 +11,7 @@ const AuthChecker = () => {
   useEffect(() => {
     const checkAuth = () => {
       // Don't check auth on public routes
-      const publicRoutes = ['/login', '/register']
+      const publicRoutes = ['/', '/login', '/register']
       if (publicRoutes.includes(location.pathname)) {
         return
       }

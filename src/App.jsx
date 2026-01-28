@@ -68,8 +68,6 @@ function App() {
               ))}
             </Route>
           ))}
-
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </ReduxProvider>
@@ -77,6 +75,3 @@ function App() {
 }
 
 export default App
-
-
-

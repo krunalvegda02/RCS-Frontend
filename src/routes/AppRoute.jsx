@@ -10,7 +10,7 @@ const AppRoute = ({ children, allowedRoles, requiresAuth = true }) => {
     if (!requiresAuth) return null;
     if (!isAuthenticated || !token) return '/login?reason=unauthorized';
     if (allowedRoles && !allowedRoles.some(role => role.toLowerCase() === user?.role?.toLowerCase())) {
-      return user?.role === 'ADMIN' ? '/admin' : '/';
+      return user?.role === 'ADMIN' ? '/admin' : '/dashboard';
     }
     return null;
   }, [isAuthenticated, token, requiresAuth, allowedRoles, user?.role]);

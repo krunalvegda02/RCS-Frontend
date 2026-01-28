@@ -1,6 +1,7 @@
 import { lazy } from 'react'
 
 // Lazy loaded components
+const LandingPage = lazy(() => import('../pages/LandingPage.jsx'))
 const Dashboard = lazy(() => import('../pages/user/Dashboard.jsx'))
 const UserReports = lazy(() => import('../pages/admin/UserReports.jsx'))
 const AllCampaigns = lazy(() => import('../pages/admin/AllCampaigns.jsx'))
@@ -26,6 +27,11 @@ export const pageData = {
   // Public routes
   public: [
     {
+      path: '/',
+      component: LandingPage,
+      requiresAuth: false
+    },
+    {
       path: '/login',
       component: Login,
       requiresAuth: false
@@ -40,7 +46,7 @@ export const pageData = {
   // User routes
   user: [
     {
-      path: '/',
+      path: '/dashboard',
       layout: Layout,
       allowedRoles: ['USER'],
       children: [

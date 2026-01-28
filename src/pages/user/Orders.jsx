@@ -1482,18 +1482,18 @@ export default function Orders() {
                       <div style={{
                         width: '48px',
                         height: '48px',
-                        background: THEME_CONSTANTS.colors.successLight,
+                        background: '#e6f7ff',
                         borderRadius: THEME_CONSTANTS.radius.md,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0
                       }}>
-                        <SendOutlined style={{ fontSize: '20px', color: THEME_CONSTANTS.colors.success }} />
+                        <SendOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {(selectedOrder?.totalDelivered || 0) + (selectedOrder?.failedCount || 0)}
+                          {(selectedOrder?.totalDelivered || 0) + (selectedOrder?.failedCount || 0)  + (selectedOrder?.totalRead || 0) + (selectedOrder?.totalReplied || 0)}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Sent</div>
                       </div>

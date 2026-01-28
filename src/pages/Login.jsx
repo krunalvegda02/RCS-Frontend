@@ -52,7 +52,7 @@ export default function Login() {
   useEffect(() => {
     if (isAuthenticated && user && !loading && !hasRedirected.current) {
       hasRedirected.current = true;
-      const targetPath = user.role?.toLowerCase() === 'admin' ? '/admin' : '/';
+      const targetPath = user.role?.toLowerCase() === 'admin' ? '/admin' : '/dashboard';
       navigate(targetPath, { replace: true });
     }
   }, [isAuthenticated, user, loading, navigate]);
@@ -84,7 +84,7 @@ export default function Login() {
         toast.success('Login successful!');
         
         // Navigate based on role
-        const targetPath = result.user.role?.toLowerCase() === 'admin' ? '/admin' : '/';
+        const targetPath = result.user.role?.toLowerCase() === 'admin' ? '/admin' : '/dashboard';
         navigate(targetPath, { replace: true });
       }
     } catch (error) {
