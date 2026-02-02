@@ -485,8 +485,8 @@ export default function CreateCampaignNew() {
 
                 <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
                   <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
-                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
-                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per message</div>
+                  <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{estimatedCost} Credits</div>
+                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>1 Credit per message</div>
                 </div>
               </div>
 
@@ -543,8 +543,8 @@ export default function CreateCampaignNew() {
 
                   <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
                     <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
-                    <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
-                    <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per RCS message</div>
+                    <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{estimatedCost} Credits</div>
+                    <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>1 Credit per RCS message</div>
                   </div>
                 </div>
 
@@ -612,8 +612,8 @@ export default function CreateCampaignNew() {
 
                     <div style={{ background: THEME_CONSTANTS.colors.warning, borderRadius: THEME_CONSTANTS.radius.lg, padding: '16px', color: 'white' }}>
                       <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: 600 }}>ESTIMATED COST</div>
-                      <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>₹{estimatedCost}</div>
-                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>₹1 per message</div>
+                      <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1 }}>{estimatedCost} Credits</div>
+                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>1 Credit per message</div>
                     </div>
                   </div>
 

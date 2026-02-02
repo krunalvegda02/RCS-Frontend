@@ -28,6 +28,8 @@ import { THEME_CONSTANTS } from '../theme';
 import AccountStatusChecker from '../components/AccountStatusChecker';
 import RCSTimeWarning from '../components/RCSTimeWarning';
 
+import RCSLogo from '../assets/RCS.png';
+
 const { Sider, Header, Content, Footer } = Layout;
 
 export default function UserLayout() {
@@ -175,62 +177,22 @@ export default function UserLayout() {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: THEME_CONSTANTS.spacing.lg,
+        justifyContent: 'center',
         padding: `${THEME_CONSTANTS.spacing.lg} ${THEME_CONSTANTS.spacing.xl}`,
         height: '80px',
         borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`,
         background: THEME_CONSTANTS.colors.surface,
       }}
     >
-      <div
+      <img
+        src={RCSLogo}
+        alt="RCS Logo"
         style={{
-          width: isMobile ? '40px' : '48px',
-          height: isMobile ? '40px' : '48px',
-          background: THEME_CONSTANTS.colors.primaryLight,
-          border: `1px solid ${THEME_CONSTANTS.colors.primary}20`,
-          borderRadius: THEME_CONSTANTS.radius.xl,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: THEME_CONSTANTS.shadow.sm,
-          flexShrink: 0,
+          height: isMobile ? '180px' : '210px',
+          width: 'auto',
+          objectFit: 'contain',
         }}
-      >
-        <MailOutlined
-          style={{
-            color: THEME_CONSTANTS.colors.primary,
-            fontSize: isMobile ? '20px' : '24px'
-          }}
-        />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h1
-          style={{
-            color: THEME_CONSTANTS.colors.text,
-            fontWeight: 700,
-            fontSize: isMobile ? '18px' : '20px',
-            margin: 0,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          RCS Dashboard
-        </h1>
-        <p
-          style={{
-            fontSize: '12px',
-            color: THEME_CONSTANTS.colors.textSecondary,
-            fontWeight: 500,
-            margin: 0,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {user?.companyname}
-        </p>
-      </div>
+      />
     </div>
   );
 
@@ -438,24 +400,27 @@ export default function UserLayout() {
             >
               {/* Mobile menu toggle */}
               {!isDesktop && (
-                <Button
-                  type="text"
-                  size={isMobile ? 'middle' : 'large'}
-                  icon={
-                    drawerVisible ? (
-                      <CloseOutlined style={{ fontSize: isMobile ? '16px' : '18px' }} />
-                    ) : (
-                      <MenuOutlined style={{ fontSize: isMobile ? '16px' : '18px' }} />
-                    )
-                  }
-                  onClick={() => setDrawerVisible(!drawerVisible)}
-                  style={{
-                    color: THEME_CONSTANTS.colors.textSecondary,
-                    borderRadius: THEME_CONSTANTS.radius.md,
-                    transition: 'all 0.2s ease',
-                  }}
-                  className="hover:text-blue-600 hover:bg-blue-50"
-                />
+                <>
+                  <Button
+                    type="text"
+                    size={isMobile ? 'middle' : 'large'}
+                    icon={
+                      drawerVisible ? (
+                        <CloseOutlined style={{ fontSize: isMobile ? '16px' : '18px' }} />
+                      ) : (
+                        <MenuOutlined style={{ fontSize: isMobile ? '16px' : '18px' }} />
+                      )
+                    }
+                    onClick={() => setDrawerVisible(!drawerVisible)}
+                    style={{
+                      color: THEME_CONSTANTS.colors.textSecondary,
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      transition: 'all 0.2s ease',
+                    }}
+                    className="hover:text-blue-600 hover:bg-blue-50"
+                  />
+                  
+                </>
               )}
 
               <div>
@@ -465,7 +430,7 @@ export default function UserLayout() {
                   color: THEME_CONSTANTS.colors.text,
                   margin: 0
                 }}>
-                  Dashboard - {user?.companyname}
+                  {user?.companyname}
                 </h2>
               </div>
 

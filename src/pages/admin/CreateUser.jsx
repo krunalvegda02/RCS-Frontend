@@ -692,7 +692,7 @@ function CreateUser() {
                       <Form.Item
                         label={
                           <span style={{ fontWeight: 600, fontSize: 13 }}>
-                            Initial Wallet Balance (₹)
+                            Initial Wallet Balance (credit )
                           </span>
                         }
                         name="walletBalance"
@@ -703,8 +703,8 @@ function CreateUser() {
                           step={100}
                           size="large"
                           placeholder="e.g., 5000"
-                          formatter={(value) => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={(value) => value.replace(/₹\s?|(,*)/g, '')}
+                          formatter={(value) => `credit  ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          parser={(value) => value.replace(/credit \s?|(,*)/g, '')}
                           style={{
                             width: '100%',
                             borderRadius: THEME_CONSTANTS.radius.base,

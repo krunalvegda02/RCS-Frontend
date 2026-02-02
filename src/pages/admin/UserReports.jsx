@@ -352,7 +352,7 @@ const UserReports = () => {
             <StatCard
               icon={DollarOutlined}
               title="Current Balance"
-              value={`₹${wallet.balance.toLocaleString('en-IN')}`}
+              value={`${wallet.balance.toLocaleString('en-IN')} Credits`}
               color={THEME_CONSTANTS.colors.success}
             />
           </Col>
@@ -360,7 +360,7 @@ const UserReports = () => {
             <StatCard
               icon={DollarOutlined}
               title="Available Balance"
-              value={`₹${wallet.availableBalance.toLocaleString('en-IN')}`}
+              value={`${wallet.availableBalance.toLocaleString('en-IN')} Credits`}
               color={THEME_CONSTANTS.colors.primary}
             />
           </Col>
@@ -368,7 +368,7 @@ const UserReports = () => {
             <StatCard
               icon={DollarOutlined}
               title="Blocked Balance"
-              value={`₹${wallet.blockedBalance.toLocaleString('en-IN')}`}
+              value={`${wallet.blockedBalance.toLocaleString('en-IN')} Credits`}
               color={THEME_CONSTANTS.colors.warning}
             />
           </Col>
@@ -449,7 +449,7 @@ const UserReports = () => {
             <StatCard
               icon={DollarOutlined}
               title="Total Spent"
-              value={`₹${campaignStats.totalCost.toLocaleString('en-IN')}`}
+              value={`${campaignStats.totalCost.toLocaleString('en-IN')} Credits`}
               color={THEME_CONSTANTS.colors.primary}
             />
           </Col>
@@ -508,9 +508,9 @@ const UserReports = () => {
               columns={[
                 { title: 'Date', dataIndex: 'createdAt', key: 'date', render: (date) => (<div><div style={{ fontWeight: 500, fontSize: '13px' }}>{new Date(date).toLocaleDateString('en-IN')}</div><div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary }}>{new Date(date).toLocaleTimeString('en-IN')}</div></div>) },
                 { title: 'Type', dataIndex: 'type', key: 'type', render: (type) => <Tag icon={type === 'credit' ? <ArrowUpOutlined /> : <ArrowDownOutlined />} color={type === 'credit' ? 'green' : 'red'} style={{ fontWeight: 600 }}>{type.toUpperCase()}</Tag> },
-                { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (amount, record) => <span style={{ color: record.type === 'credit' ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.danger, fontWeight: 600, fontSize: '14px' }}>{record.type === 'credit' ? '+' : '-'}₹{amount.toLocaleString('en-IN')}</span> },
+                { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (amount, record) => <span style={{ color: record.type === 'credit' ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.danger, fontWeight: 600, fontSize: '14px' }}>{record.type === 'credit' ? '+' : '-'}{amount.toLocaleString('en-IN')} Credits</span> },
                 { title: 'Description', dataIndex: 'description', key: 'description', render: (desc) => <span style={{ fontSize: '13px' }}>{desc}</span> },
-                { title: 'Balance After', dataIndex: 'balanceAfter', key: 'balanceAfter', render: (balance) => <span style={{ fontWeight: 600 }}>₹{balance.toLocaleString('en-IN')}</span> }
+                { title: 'Balance After', dataIndex: 'balanceAfter', key: 'balanceAfter', render: (balance) => <span style={{ fontWeight: 600 }}>{balance.toLocaleString('en-IN')} Credits</span> }
               ]}
             />
           ) : (

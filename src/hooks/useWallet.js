@@ -22,12 +22,12 @@ export const useWallet = () => {
       if (showMessage) {
         if (blockedBalance > 0) {
           message.error({
-            content: `Insufficient available balance. ₹${blockedBalance.toLocaleString()} is blocked in active campaigns. Available: ₹${availableBalance.toLocaleString()}, Required: ₹${requiredAmount.toLocaleString()}`,
+            content: `Insufficient available balance. ${blockedBalance.toLocaleString()} Credits is blocked in active campaigns. Available: ${availableBalance.toLocaleString()} Credits, Required: ${requiredAmount.toLocaleString()} Credits`,
             duration: 5,
           });
         } else {
           message.error({
-            content: `Insufficient wallet balance. Available: ₹${availableBalance.toLocaleString()}, Required: ₹${requiredAmount.toLocaleString()}`,
+            content: `Insufficient wallet balance. Available: ${availableBalance.toLocaleString()} Credits, Required: ${requiredAmount.toLocaleString()} Credits`,
             duration: 4,
           });
         }
@@ -41,11 +41,11 @@ export const useWallet = () => {
   const showBalanceInfo = () => {
     if (blockedBalance > 0) {
       message.info(
-        `Total: ₹${totalBalance.toLocaleString()} | Blocked: ₹${blockedBalance.toLocaleString()} | Available: ₹${availableBalance.toLocaleString()} | Used: ₹${creditsUsed.toLocaleString()}`,
+        `Total: ${totalBalance.toLocaleString()} Credits | Blocked: ${blockedBalance.toLocaleString()} Credits | Available: ${availableBalance.toLocaleString()} Credits | Used: ${creditsUsed.toLocaleString()} Credits`,
         5
       );
     } else {
-      message.info(`Total: ₹${totalBalance.toLocaleString()} | Available: ₹${availableBalance.toLocaleString()} | Used: ₹${creditsUsed.toLocaleString()}`);
+      message.info(`Total: ${totalBalance.toLocaleString()} Credits | Available: ${availableBalance.toLocaleString()} Credits | Used: ${creditsUsed.toLocaleString()} Credits`);
     }
   };
   
@@ -60,12 +60,12 @@ export const useWallet = () => {
     updateBalance,
     checkBalance,
     showBalanceInfo,
-    formattedBalance: `₹${totalBalance.toLocaleString()}`,
-    formattedTotalBalance: `₹${totalBalance.toLocaleString()}`,
-    formattedAvailableBalance: `₹${availableBalance.toLocaleString()}`,
-    formattedRemainingBalance: `₹${availableBalance.toLocaleString()}`,
-    formattedBlockedBalance: `₹${Math.abs(blockedBalance).toLocaleString()}`,
-    formattedCreditsUsed: `₹${creditsUsed.toLocaleString()}`,
+    formattedBalance: `${totalBalance.toLocaleString()} Credits`,
+    formattedTotalBalance: `${totalBalance.toLocaleString()} Credits`,
+    formattedAvailableBalance: `${availableBalance.toLocaleString()} Credits`,
+    formattedRemainingBalance: `${availableBalance.toLocaleString()} Credits`,
+    formattedBlockedBalance: `${Math.abs(blockedBalance).toLocaleString()} Credits`,
+    formattedCreditsUsed: `${creditsUsed.toLocaleString()} Credits`,
     hasBlockedBalance: blockedBalance > 0,
   };
 };

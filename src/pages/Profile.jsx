@@ -297,7 +297,7 @@ const Profile = () => {
             fontSize: '14px'
           }}
         >
-          {record.type === 'credit' ? '+' : '-'}₹{amount}
+          {record.type === 'credit' ? '+' : '-'}{amount} Credits
         </Text>
       ),
     },

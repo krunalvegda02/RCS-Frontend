@@ -2,6 +2,7 @@ import { lazy } from 'react'
 
 // Lazy loaded components
 const LandingPage = lazy(() => import('../pages/LandingPage.jsx'))
+const ScheduleDemo = lazy(() => import('../pages/ScheduleDemo.jsx'))
 const Dashboard = lazy(() => import('../pages/user/Dashboard.jsx'))
 const UserReports = lazy(() => import('../pages/admin/UserReports.jsx'))
 const AllCampaigns = lazy(() => import('../pages/admin/AllCampaigns.jsx'))
@@ -16,8 +17,10 @@ const Users = lazy(() => import('../pages/admin/Users.jsx'))
 const WalletRequests = lazy(() => import('../pages/admin/WalletRequests.jsx'))
 const AdminProfile = lazy(() => import('../pages/admin/AdminProfile.jsx'))
 const AdminReports = lazy(() => import('../pages/admin/AdminReports.jsx'))
+const DemoRequests = lazy(() => import('../pages/admin/DemoRequests.jsx'))
 const Login = lazy(() => import('../pages/Login.jsx'))
 const Register = lazy(() => import('../pages/Register.jsx'))
+const Onboarding = lazy(() => import('../pages/Onboarding.jsx'))
 
 // Layouts
 const Layout = lazy(() => import('../layout/layout.jsx'))
@@ -32,13 +35,18 @@ export const pageData = {
       requiresAuth: false
     },
     {
+      path: '/schedule-demo',
+      component: ScheduleDemo,
+      requiresAuth: false
+    },
+    {
       path: '/login',
       component: Login,
       requiresAuth: false
     },
     {
       path: '/register',
-      component: Register,
+      component: Onboarding,
       requiresAuth: false
     }
   ],
@@ -123,6 +131,10 @@ export const pageData = {
         {
           path: 'user-report/:userId',
           component: UserReports
+        },
+        {
+          path: 'demo-requests',
+          component: DemoRequests
         }
       ]
     }

@@ -63,7 +63,7 @@ function AdminDashboard() {
     try {
       const res = await _get('v1/dashboard/admin', {}, {}, token);
       if (res.data.success) {
-        console.log('Dashboard data:', res.data.dashboard.recentUsers); // Debug log
+        console.log('Dashboard data:', res.data.dashboard.recentUsers); 
         setStats(res.data.dashboard.stats);
         setRecentUsers(res.data.dashboard.recentUsers || []);
         setRecentRequests(res.data.dashboard.recentWalletRequests || []);

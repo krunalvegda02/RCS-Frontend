@@ -95,7 +95,7 @@ export default function Dashboard() {
           userId: user._id,
         })).unwrap();
 
-        toast.success(`Wallet recharge request of ₹${addAmount} submitted for admin approval!`);
+        toast.success(`Wallet recharge request of ${addAmount} Credits submitted for admin approval!`);
         setAddAmount('');
         setShowAddMoney(false);
         refreshUser();
@@ -115,11 +115,7 @@ export default function Dashboard() {
     setRefreshing(false);
   };
 
-  const formatCurrency = (value) =>
-    new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(value);
+  const formatCurrency = (value) => `${value.toLocaleString('en-IN')} Credits`;
 
   const messageColumns = [
     {
@@ -149,17 +145,17 @@ export default function Dashboard() {
       ),
       width: '12%',
     },
-    {
-      title: 'Sent',
-      dataIndex: 'successCount',
-      key: 'sent',
-      render: (sent) => (
-        <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success }}>
-          {sent || 0}
-        </span>
-      ),
-      width: '12%',
-    },
+    // {
+    //   title: 'Sent',
+    //   dataIndex: 'successCount',
+    //   key: 'sent',
+    //   render: (sent) => (
+    //     <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success }}>
+    //       {sent || 0}
+    //     </span>
+    //   ),
+    //   width: '12%',
+    // },
     {
       title: 'Delivered',
       dataIndex: 'totalDelivered',
@@ -1318,7 +1314,7 @@ export default function Dashboard() {
       >
         <div style={{ marginBottom: '24px' }}>
           <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, marginBottom: '8px', display: 'block' }}>
-            Amount (₹)
+            Amount
           </label>
           <InputNumber
             value={addAmount}
@@ -1326,7 +1322,7 @@ export default function Dashboard() {
             placeholder="Enter amount"
             style={{ width: '100%' }}
             min={0}
-            prefix="₹"
+        
             size="large"
           />
         </div>
@@ -1336,7 +1332,7 @@ export default function Dashboard() {
             Quick Select
           </p>
           <Row gutter={[12, 12]}>
-            {[100, 500, 1000].map((amount) => (
+            {[100000, 200000, 500000].map((amount) => (
               <Col xs={8} key={amount}>
                 <Button
                   block
@@ -1346,7 +1342,7 @@ export default function Dashboard() {
                     color: THEME_CONSTANTS.colors.primary,
                   }}
                 >
-                  ₹{amount}
+                  {amount}
                 </Button>
               </Col>
             ))}

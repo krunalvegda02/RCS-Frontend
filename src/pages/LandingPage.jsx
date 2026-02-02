@@ -1,393 +1,1538 @@
-import React, { useEffect } from 'react';
-import { Layout, Button, Row, Col, Card, Divider } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Layout, Button, Row, Col, Card, Typography, Grid, Statistic } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../theme';
-import { 
-  ThunderboltOutlined, 
-  CheckCircleOutlined, 
-  DashboardOutlined, 
-  FileExcelOutlined, 
+import { useAuth } from '../context/AuthContext';
+import RCSLogo from '../assets/RCS.png';
+import {
+  ThunderboltOutlined,
+  CheckCircleOutlined,
+  DashboardOutlined,
+  FileExcelOutlined,
   RocketOutlined,
   AimOutlined,
   BarChartOutlined,
   SearchOutlined,
   DownloadOutlined,
-  LockOutlined
+  LockOutlined,
+  CreditCardOutlined,
+  SyncOutlined,
+  LineChartOutlined,
+  CustomerServiceOutlined,
+  ClockCircleOutlined,
+  StarOutlined,
+  ArrowRightOutlined,
+  MessageOutlined,
+  SafetyOutlined,
+  TeamOutlined,
+  CloudServerOutlined,
+  FileTextOutlined,
+  PictureOutlined,
+  LayoutOutlined,
+  CheckCircleFilled,
+  FileImageFilled,
+  PlayCircleOutlined,
+  ArrowUpOutlined,
+  MailOutlined,
+  SettingOutlined,
+  ApiOutlined
 } from '@ant-design/icons';
 
-const { Header, Content, Footer } = Layout;
+const { Header, Content } = Layout;
+const { Title, Paragraph, Text } = Typography;
+const { useBreakpoint } = Grid;
+const { CountUp } = Statistic;
 
-const sectionStyle = {
-  padding: '80px 24px',
-  fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+// Professional color palette using theme constants
+const professionalColors = {
+  primary: THEME_CONSTANTS.colors.primary,
+  primaryLight: THEME_CONSTANTS.colors.primaryLight,
+  primaryDark: THEME_CONSTANTS.colors.primaryDark,
+  surface: THEME_CONSTANTS.colors.surface,
+  background: THEME_CONSTANTS.colors.background,
+  text: THEME_CONSTANTS.colors.text,
+  textSecondary: THEME_CONSTANTS.colors.textSecondary,
+  border: THEME_CONSTANTS.colors.border,
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  info: '#3b82f6'
 };
 
-const containerStyle = {
-  maxWidth: 1200,
-  margin: '0 auto',
-};
+// Counter Animation Component with trigger
+const AnimatedCounter = ({ end, duration = 2000, prefix = '', suffix = '', decimals = 0, start = false }) => {
+  const [count, setCount] = useState(0);
 
-const sectionTitleStyle = {
-  fontSize: 36,
-  fontWeight: 800,
-  marginBottom: 16,
-  letterSpacing: '-0.5px',
-  textAlign: 'center'
-};
+  useEffect(() => {
+    if (!start) return;
 
-const sectionSubtitleStyle = {
-  fontSize: 17,
-  lineHeight: 1.6,
-  textAlign: 'center',
-  maxWidth: 600,
-  margin: '0 auto'
+    let current = 0;
+    const increment = end / (duration / 16);
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(decimals > 0 ? current : Math.floor(current));
+      }
+    }, 16);
+
+    return () => clearInterval(timer);
+  }, [end, duration, decimals, start]);
+
+  return (
+    <span style={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit' }}>
+      {prefix}{count.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}
+    </span>
+  );
 };
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const screens = useBreakpoint();
+  const [activeIndex, setActiveIndex] = useState(1);
+
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsRef = React.useRef(null);
+
+
+  const plans = [
+    {
+      credits: '1,00,000',
+      price: '₹0.50',
+      total: '₹50,000',
+      color: professionalColors.info,
+    },
+    {
+      credits: '2,50,000',
+      price: '₹0.40',
+      total: '₹1,00,000',
+      color: professionalColors.primary,
+      tag: 'MOST POPULAR',
+    },
+    {
+      credits: '5,00,000',
+      price: '₹0.30',
+      total: '₹1,50,000',
+      color: professionalColors.success,
+    },
+  ];
+
+
+  const next = () =>
+    setActiveIndex((prev) => (prev + 1) % plans.length);
+
+  const prev = () =>
+    setActiveIndex((prev) =>
+      prev === 0 ? plans.length - 1 : prev - 1
+    );
+
 
   useEffect(() => {
-    document.title = 'Enterprise RCS Messaging Platform | High-Speed Jio RCS';
-  }, []);
+    document.title = 'RCSsender - Enterprise RCS Messaging Platform | Verified Business Messaging';
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !statsVisible) {
+          setStatsVisible(true);
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    if (statsRef.current) {
+      observer.observe(statsRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [statsVisible]);
+
+  // Responsive styles
+  const containerStyle = {
+    maxWidth: 1200,
+    margin: '0 auto',
+    padding: screens.xs ? '0 16px' : screens.sm ? '0 20px' : '0 24px'
+  };
+
+  const sectionStyle = {
+    padding: screens.xs ? '60px 16px' : screens.sm ? '80px 20px' : '100px 24px'
+  };
+
+  const headingStyle = (level) => ({
+    fontSize: screens.xs
+      ? level === 1 ? '32px' : level === 2 ? '28px' : '24px'
+      : screens.sm
+        ? level === 1 ? '40px' : level === 2 ? '32px' : '26px'
+        : level === 1 ? '56px' : level === 2 ? '42px' : '30px',
+    fontWeight: 800,
+    lineHeight: 1.1,
+    marginBottom: screens.xs ? '16px' : '24px'
+  });
+
+  // Common section header style
+  const sectionHeaderStyle = {
+    textAlign: 'center',
+    marginBottom: screens.xs ? '48px' : '64px'
+  };
+
+  // Common card style for all sections
+  const cardStyle = {
+    height: '100%',
+    border: `1px solid ${professionalColors.border}`,
+    borderRadius: '20px',
+    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08)',
+    position: 'relative',
+    overflow: 'hidden',
+    background: professionalColors.surface,
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    cursor: 'pointer'
+  };
+
+  // Common hover effect for cards
+  const handleCardHover = (e, color = professionalColors.primary) => {
+    e.currentTarget.style.transform = 'translateY(-8px)';
+    e.currentTarget.style.boxShadow = `0 20px 40px ${color}25`;
+    e.currentTarget.style.borderColor = color;
+  };
+
+  const handleCardLeave = (e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.08)';
+    e.currentTarget.style.borderColor = professionalColors.border;
+  };
 
   return (
-    <Layout style={{ background: THEME_CONSTANTS.colors.background, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      {/* Header */}
-      <Header style={{ background: THEME_CONSTANTS.colors.surface, borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`, padding: '0 24px', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ ...containerStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ margin: 0, fontWeight: 800, fontSize: 26, letterSpacing: '-0.5px', color: THEME_CONSTANTS.colors.primary }}>RCS Sender Platform</h1>
-          <Button type="primary" size="large" onClick={() => navigate('/login')}>Get Started</Button>
+    <Layout style={{
+      background: professionalColors.background,
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      minHeight: '100vh'
+    }}>
+      {/* Header - Responsive & Professional */}
+      <Header style={{
+        background: professionalColors.surface,
+        borderBottom: `1px solid ${professionalColors.border}`,
+        padding: screens.xs ? '0 16px' : '0 24px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        backdropFilter: 'blur(10px)',
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        height: screens.xs ? '64px' : '72px'
+      }}>
+        <div style={{
+          ...containerStyle,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          height: '100%'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: screens.xs ? '8px' : '12px' }}>
+            <img
+              src={RCSLogo}
+              alt="RCSsender Logo"
+              style={{
+                height: screens.xs ? '130px' : screens.sm ? '200px' : '100px',
+                // width: 'auto'
+              }}
+            />
+
+          </div>
+
+          <div style={{ display: 'flex', gap: screens.xs ? '12px' : '24px', alignItems: 'center' }}>
+            {screens.sm && (
+              <>
+              </>
+            )}
+            <Button
+              type="primary"
+              size={screens.xs ? 'middle' : 'large'}
+              style={{
+                padding: screens.xs ? '8px 16px' : '12px 24px',
+                fontWeight: 600,
+                background: `linear-gradient(135deg, ${professionalColors.primary} 0%, ${professionalColors.primaryDark} 100%)`,
+                border: 'none',
+                fontSize: screens.xs ? '14px' : '16px'
+              }}
+              onClick={() => navigate('/register')}
+            >
+              Get Started
+            </Button>
+          </div>
         </div>
       </Header>
 
       <Content>
-        {/* Hero */}
-        <section style={{ background: THEME_CONSTANTS.colors.background, padding: '100px 24px 80px' }}>
-          <div style={containerStyle}>
-            <Row gutter={[48, 48]} align="middle">
-              <Col xs={24} md={12}>
-                <h1 style={{ fontSize: 48, fontWeight: 900, lineHeight: 1.1, letterSpacing: '-1.5px', color: THEME_CONSTANTS.colors.text }}>
-                  Enterprise‑Grade RCS Messaging
-                </h1>
-                <p style={{ fontSize: 18, color: THEME_CONSTANTS.colors.textSecondary, marginTop: 24, lineHeight: 1.7 }}>
-                  Deliver 1,00,000+ RCS messages in under 20 minutes with 99% success rate.
-                  Built on Jio RCS APIs with real‑time analytics, retries, and downloadable reports.
-                </p>
-                <div style={{ marginTop: 40 }}>
-                  <Button type="primary" size="large" style={{ height: 48, fontSize: 16, fontWeight: 600, paddingLeft: 32, paddingRight: 32 }} onClick={() => navigate('/login')}>Get Started</Button>
-                  <Button size="large" style={{ marginLeft: 16, height: 48, fontSize: 16, fontWeight: 600 }} onClick={() => navigate('/login')}>Request Demo</Button>
+        {/* Hero Section */}
+        <section style={{
+          ...sectionStyle,
+          position: 'relative',
+          overflow: 'hidden',
+          background: `linear-gradient(135deg, ${professionalColors.primaryLight}08 0%, ${professionalColors.background} 100%)`
+        }}>
+          {/* Background Elements */}
+          <div style={{
+            position: 'absolute',
+            top: screens.xs ? '-100px' : '-200px',
+            left: screens.xs ? '-100px' : '-200px',
+            width: screens.xs ? '300px' : '500px',
+            height: screens.xs ? '300px' : '500px',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${professionalColors.primaryLight}15 0%, transparent 70%)`,
+            filter: 'blur(40px)',
+            zIndex: 0
+          }} />
+
+          <div style={{ ...containerStyle, position: 'relative', zIndex: 1 }}>
+            <Row
+              gutter={screens.xs ? [32, 32] : screens.sm ? [40, 40] : [60, 40]}
+              align="middle"
+              justify="center"
+              style={{ flexDirection: screens.lg ? 'row' : 'column' }}
+            >
+              <Col xs={24} lg={12}>
+                {/* Hero Content */}
+                <div style={{ marginBottom: screens.xs ? '20px' : '32px' }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: screens.xs ? '6px 12px' : '8px 16px',
+                    background: `${professionalColors.primary}12`,
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '50px',
+                    border: `1px solid ${professionalColors.primary}30`,
+                    marginBottom: screens.xs ? '16px' : '24px'
+                  }}>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: professionalColors.primary,
+                      animation: 'pulse 2s infinite'
+                    }} />
+                    <span style={{
+                      fontSize: screens.xs ? '12px' : '14px',
+                      fontWeight: 700,
+                      color: professionalColors.primary,
+                      textTransform: 'uppercase'
+                    }}>
+                      <RocketOutlined style={{ marginRight: '6px' }} />
+                      Enterprise RCS Platform
+                    </span>
+                  </div>
+                </div>
+
+                <Title style={headingStyle(1)}>
+                  <span style={{ display: 'block' }}>
+                    Send Verified
+                  </span>
+                  <span style={{
+                    background: `linear-gradient(135deg, ${professionalColors.primary} 0%, ${professionalColors.primaryDark} 100%)`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    display: 'inline-block',
+                    marginBottom: '8px'
+                  }}>
+                    Business Messages
+                  </span>
+                </Title>
+
+                <Paragraph style={{
+                  fontSize: screens.xs ? '16px' : '18px',
+                  color: professionalColors.textSecondary,
+                  lineHeight: 1.6,
+                  marginBottom: screens.xs ? '24px' : '32px',
+                  maxWidth: '600px'
+                }}>
+                  Deliver <strong style={{ color: professionalColors.primary }}>4 types of rich RCS messages</strong>
+                  {' '}with verified identity. Send 100,000+ messages in under 20 minutes with{' '}
+                  <strong style={{ color: professionalColors.success }}>99.2% delivery success</strong>.
+                </Paragraph>
+
+                {/* Feature Badges */}
+                <div style={{
+
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '10px',
+                  marginBottom: screens.xs ? '24px' : '32px'
+                }}>
+                  {[
+                    { text: 'Blue Tick Verified', icon: <SafetyOutlined />, color: professionalColors.primary },
+                    { text: 'Carousel Cards', icon: <PictureOutlined />, color: professionalColors.success },
+                    { text: 'Action Buttons', icon: <ThunderboltOutlined />, color: professionalColors.warning },
+                    { text: 'Rich Media', icon: <FileImageFilled />, color: professionalColors.info }
+                  ].map((feature, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: screens.xs ? '6px 12px' : '8px 16px',
+                      background: `${feature.color}10`,
+                      borderRadius: '30px',
+                      border: `1px solid ${feature.color}30`,
+                      flex: screens.xs ? '1 1 calc(50% - 8px)' : 'none'
+                    }}>
+                      <div style={{ color: feature.color, fontSize: screens.xs ? '14px' : '16px' }}>
+                        {feature.icon}
+                      </div>
+                      <span style={{
+                        fontSize: screens.xs ? '12px' : '14px',
+                        fontWeight: 600,
+                        color: professionalColors.text
+                      }}>
+                        {feature.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: screens.xs ? '12px' : '16px',
+                  flexWrap: 'wrap',
+                  marginBottom: screens.xs ? '32px' : '48px'
+                }}>
+                  <Button
+                    type="primary"
+                    size={screens.xs ? 'middle' : 'large'}
+                    style={{
+                      height: screens.xs ? '44px' : '56px',
+                      fontSize: screens.xs ? '14px' : '16px',
+                      fontWeight: 700,
+                      padding: screens.xs ? '0 24px' : '0 32px',
+                      background: `linear-gradient(135deg, ${professionalColors.primary} 0%, ${professionalColors.primaryDark} 100%)`,
+                      border: 'none',
+                      borderRadius: '12px',
+                      boxShadow: `0 8px 32px ${professionalColors.primary}40`,
+                      flex: screens.xs ? '1' : 'none'
+                    }}
+                    onClick={() => navigate('/register')}
+                  >
+                    Start Messaging
+                    <ArrowRightOutlined style={{ marginLeft: '8px' }} />
+                  </Button>
+
+                  <Button
+                    size={screens.xs ? 'middle' : 'large'}
+                    style={{
+                      height: screens.xs ? '44px' : '56px',
+                      fontSize: screens.xs ? '14px' : '16px',
+                      fontWeight: 600,
+                      padding: screens.xs ? '0 24px' : '0 32px',
+                      borderRadius: '12px',
+                      border: `2px solid ${professionalColors.border}`,
+                      background: 'transparent',
+                      color: professionalColors.text,
+                      flex: screens.xs ? '1' : 'none'
+                    }}
+                    onClick={() => navigate('/schedule-demo')}
+                  >
+                    <PlayCircleOutlined style={{ marginRight: '8px' }} />
+                    Watch Demo
+                  </Button>
+                </div>
+
+                {/* Trust Indicators with Counters */}
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: screens.xs ? '16px' : '24px',
+                  paddingTop: screens.xs ? '16px' : '24px',
+                  borderTop: `1px solid ${professionalColors.border}`
+                }}>
+                  {[
+                    { icon: <CheckCircleOutlined />, value: '99.2%', label: 'Delivery Rate' },
+                    { icon: <ClockCircleOutlined />, value: '5-min', label: 'Setup Time' },
+                    { icon: <ThunderboltOutlined />, value: '3.5L+/hr', label: 'Capacity' }
+                  ].map((item, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      flex: screens.xs ? '1 1 100%' : 'none'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: screens.xs ? '32px' : '36px',
+                        height: screens.xs ? '32px' : '36px',
+                        borderRadius: '50%',
+                        background: `${professionalColors.primary}15`,
+                        color: professionalColors.primary
+                      }}>
+                        {item.icon}
+                      </div>
+                      <div>
+                        <div style={{
+                          fontSize: screens.xs ? '16px' : '18px',
+                          fontWeight: 700,
+                          color: professionalColors.text
+                        }}>
+                          {item.value}
+                        </div>
+                        <div style={{
+                          fontSize: screens.xs ? '12px' : '14px',
+                          color: professionalColors.textSecondary
+                        }}>
+                          {item.label}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </Col>
-              <Col xs={24} md={12}>
-                <Card style={{ height: 400, borderRadius: 20, boxShadow: THEME_CONSTANTS.shadow.xl, background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, ${THEME_CONSTANTS.colors.surface} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${THEME_CONSTANTS.colors.primary}20` }}>
-                  <BarChartOutlined style={{ fontSize: 140, color: THEME_CONSTANTS.colors.primary }} />
-                </Card>
+
+              {/* Dashboard Preview */}
+              <Col xs={24} lg={12} style={{ display: screens.xs ? 'none' : 'block' }}>
+                <div style={{
+                  position: 'relative',
+                  padding: '0',
+                  margin: screens.xs ? '0 -16px' : '0'
+                }}>
+                  <div style={{
+                    width: '100%',
+                    minHeight: screens.xs ? '260px' : '400px',
+                    background: professionalColors.surface,
+                    borderRadius: screens.xs ? '0' : '24px',
+                    border: screens.xs ? 'none' : `1px solid ${professionalColors.border}`,
+                    boxShadow: screens.xs ? 'none' : '0 32px 80px rgba(0, 0, 0, 0.12)',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}>
+
+
+                    {/* Dashboard Header */}
+                    <div style={{
+                      padding: screens.xs ? '12px' : '24px',
+                      gap: screens.xs ? '6px' : '12px',
+                      borderBottom: `1px solid ${professionalColors.border}`,
+                      display: 'flex',
+                      flexDirection: screens.xs ? 'column' : 'row',
+                      justifyContent: 'space-between',
+                      alignItems: screens.xs ? 'flex-start' : 'center',
+                      gap: screens.xs ? '8px' : '0',
+                      background: 'rgba(255, 255, 255, 0.8)'
+                    }}>
+                      <div>
+                        <div style={{
+                          fontSize: screens.xs ? '10px' : '12px',
+                          color: professionalColors.textSecondary,
+                          marginBottom: '2px'
+                        }}>
+                          Active RCS Campaign
+                        </div>
+                        <div style={{
+                          fontSize: screens.xs ? '20px' : '28px',
+                          fontWeight: 800,
+                          color: professionalColors.text
+                        }}>
+                          98,432
+                        </div>
+                        <div style={{
+                          fontSize: screens.xs ? '10px' : '12px',
+                          color: professionalColors.success
+                        }}>
+                          <ArrowUpOutlined /> 2.4% increase
+                        </div>
+                      </div>
+
+                      <div style={{
+                        padding: screens.xs ? '4px 8px' : '6px 12px',
+                        background: `${professionalColors.primary}15`,
+                        borderRadius: '20px',
+                        fontSize: screens.xs ? '11px' : '12px',
+                        fontWeight: 600,
+                        color: professionalColors.primary,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <SafetyOutlined />
+                        Verified
+                      </div>
+                    </div>
+
+                    {/* Message Types Grid */}
+                    <div style={{ padding: screens.xs ? '12px 16px' : '24px' }}>
+                      <div style={{
+                        fontSize: screens.xs ? '12px' : '14px',
+                        fontWeight: 600,
+                        color: professionalColors.text,
+                        marginBottom: screens.xs ? '10px' : '16px'
+                      }}>
+                        Message Types Performance
+                      </div>
+
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: screens.xs ? '1fr' : 'repeat(2, 1fr)',
+                        gap: screens.xs ? '10px' : '16px'
+                      }}>
+                        {[
+                          { type: 'Rich Card', delivered: 24832, rate: 98.7, color: professionalColors.primary },
+                          { type: 'Carousel', delivered: 18941, rate: 99.1, color: professionalColors.success },
+                          { type: 'Action', delivered: 32761, rate: 97.9, color: professionalColors.warning },
+                          { type: 'Text', delivered: 21898, rate: 99.5, color: professionalColors.info }
+                        ].map((item, index) => (
+                          <div key={index} style={{
+                            padding: screens.xs ? '10px 12px' : '16px',
+                            background: professionalColors.background,
+                            borderRadius: '12px',
+                            border: `1px solid ${professionalColors.border}`,
+                            transition: 'all 0.3s ease'
+                          }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-4px)';
+                              e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)';
+                              e.currentTarget.style.borderColor = item.color;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                              e.currentTarget.style.borderColor = professionalColors.border;
+                            }}>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '8px'
+                            }}>
+                              <span style={{
+                                fontSize: screens.xs ? '13px' : '14px',
+                                fontWeight: 600,
+                                color: professionalColors.text
+                              }}>
+                                {item.type}
+                              </span>
+                              <div style={{
+                                width: '12px',
+                                height: '12px',
+                                borderRadius: '50%',
+                                background: item.color
+                              }} />
+                            </div>
+                            <div style={{
+                              fontSize: screens.xs ? '16px' : '20px',
+
+                              fontWeight: 800,
+                              color: professionalColors.text
+                            }}>
+                              {item.delivered.toLocaleString()}
+                            </div>
+                            <div style={{
+                              fontSize: screens.xs ? '11px' : '12px',
+                              color: professionalColors.textSecondary
+                            }}>
+                              Delivered • {item.rate}% success
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </Col>
             </Row>
           </div>
         </section>
 
-        {/* Trust Metrics */}
-        <section style={{ 
-          background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`, 
-          padding: '80px 24px' 
+        {/* Message Types Section */}
+        <section style={{
+          ...sectionStyle,
+          background: professionalColors.surface,
+          borderTop: `1px solid ${professionalColors.border}`,
+          borderBottom: `1px solid ${professionalColors.border}`
         }}>
           <div style={containerStyle}>
-            <h2 style={{ 
-              ...sectionTitleStyle,
-              color: THEME_CONSTANTS.colors.surface, 
-              marginBottom: 56
-            }}>Trusted by Enterprises</h2>
-            <Row gutter={[24, 24]} justify="center">
+            <div style={sectionHeaderStyle}>
+              <div style={{
+                display: 'inline-block',
+                padding: '8px 20px',
+                background: `${professionalColors.success}15`,
+                borderRadius: '30px',
+                border: `1px solid ${professionalColors.success}30`,
+                marginBottom: '24px'
+              }}>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  color: professionalColors.success,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  <MessageOutlined style={{ marginRight: '8px' }} />
+                  Message Formats
+                </span>
+              </div>
+
+              <Title level={2} style={headingStyle(2)}>
+                4 Types of Interactive Messages
+              </Title>
+              <Paragraph style={{
+                fontSize: screens.xs ? '16px' : '18px',
+                color: professionalColors.textSecondary,
+                maxWidth: '700px',
+                margin: '0 auto'
+              }}>
+                Engage customers with rich formats beyond plain SMS
+              </Paragraph>
+            </div>
+
+            <Row gutter={screens.xs ? [16, 16] : screens.sm ? [24, 24] : [32, 32]}>
               {[
-                { Icon: BarChartOutlined, title: '1L+', label: 'Messages/Campaign' },
-                { Icon: CheckCircleOutlined, title: '99%', label: 'Delivery Success' },
-                { Icon: ThunderboltOutlined, title: 'Real-Time', label: 'Analytics' },
-                { Icon: FileExcelOutlined, title: 'Excel', label: 'Exports' },
-                { Icon: RocketOutlined, title: 'Jio', label: 'RCS APIs' }
-              ].map(({ Icon, title, label }) => (
-                <Col xs={12} sm={8} md={4} key={label} style={{ display: 'flex' }}>
-                  <div style={{
-                    background: 'rgba(255,255,255,0.95)',
-                    borderRadius: THEME_CONSTANTS.radius.lg,
-                    padding: '28px 20px',
-                    textAlign: 'center',
-                    boxShadow: THEME_CONSTANTS.shadow.xl,
-                    transition: THEME_CONSTANTS.transition.normal,
-                    cursor: 'pointer',
-                    border: `2px solid rgba(255,255,255,0.3)`,
-                    backdropFilter: 'blur(10px)',
-                    height: '200px',
-                    width: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-8px)';
-                    e.currentTarget.style.boxShadow = '0 25px 50px rgba(0,0,0,0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.xl;
-                  }}>
-                    <Icon style={{
-                      fontSize: 40,
-                      marginBottom: 12,
-                      color: THEME_CONSTANTS.colors.primary
-                    }} />
-                    <h3 style={{
-                      fontSize: 28,
-                      fontWeight: 800,
-                      marginBottom: 6,
-                      color: THEME_CONSTANTS.colors.primary,
-                      letterSpacing: '-0.5px'
-                    }}>{title}</h3>
-                    <p style={{ 
-                      color: THEME_CONSTANTS.colors.textSecondary, 
-                      fontSize: 13, 
-                      fontWeight: 600, 
-                      margin: 0 
-                    }}>{label}</p>
-                  </div>
+                {
+                  title: 'Plain Text',
+                  desc: 'Simple, reliable delivery for critical alerts and notifications.',
+                  icon: <FileTextOutlined />,
+                  color: professionalColors.info,
+                  stats: '99.5% Success',
+                  counter: 99.5
+                },
+                {
+                  title: 'Carousel Cards',
+                  desc: 'Showcase multiple products or offers in a swipeable gallery.',
+                  icon: <PictureOutlined />,
+                  color: professionalColors.success,
+                  stats: '↑ 42% CTR',
+                  counter: 42
+                },
+                {
+                  title: 'Action Buttons',
+                  desc: 'Drive conversions with clickable call-to-action buttons.',
+                  icon: <ThunderboltOutlined />,
+                  color: professionalColors.warning,
+                  stats: '3.2x Engagement',
+                  counter: 3.2
+                },
+                {
+                  title: 'Rich Image Cards',
+                  desc: 'Deliver visually stunning messages with high-res images & branding.',
+                  icon: <LayoutOutlined />,
+                  color: professionalColors.error,
+                  stats: '89% Open Rate',
+                  counter: 89
+                }
+              ].map((type, idx) => (
+                <Col xs={24} sm={12} lg={6} key={idx}>
+                  <Card
+                    hoverable
+                    style={cardStyle}
+                    onMouseEnter={(e) => handleCardHover(e, type.color)}
+                    onMouseLeave={handleCardLeave}
+                    bodyStyle={{
+                      padding: screens.xs ? '24px 20px' : '32px',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <div style={{
+                      width: screens.xs ? '60px' : '72px',
+                      height: screens.xs ? '60px' : '72px',
+                      borderRadius: '18px',
+                      background: `${type.color}15`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '24px',
+                      border: `2px solid ${type.color}30`
+                    }}>
+                      <div style={{
+                        fontSize: screens.xs ? '30px' : '34px',
+                        color: type.color
+                      }}>
+                        {type.icon}
+                      </div>
+                    </div>
+
+                    <Title level={4} style={{
+                      fontSize: screens.xs ? '20px' : '22px',
+                      fontWeight: 700,
+                      marginBottom: '16px',
+                      color: professionalColors.text
+                    }}>
+                      {type.title}
+                    </Title>
+
+                    <Paragraph style={{
+                      color: professionalColors.textSecondary,
+                      lineHeight: 1.7,
+                      marginBottom: 'auto',
+                      fontSize: screens.xs ? '15px' : '16px',
+                      fontWeight: 400
+                    }}>
+                      {type.desc}
+                    </Paragraph>
+                  </Card>
                 </Col>
               ))}
             </Row>
           </div>
         </section>
 
-        {/* Features */}
-        <section style={{ background: THEME_CONSTANTS.colors.background, ...sectionStyle }}>
-          <div style={containerStyle}>
-            <div style={{ textAlign: 'center', marginBottom: 56 }}>
-              <h2 style={{ ...sectionTitleStyle, color: THEME_CONSTANTS.colors.text }}>Why Teams Choose Our Platform</h2>
-              <p style={{ ...sectionSubtitleStyle, color: THEME_CONSTANTS.colors.textSecondary }}>Enterprise-grade features built for scale, reliability, and performance</p>
-            </div>
-            <Row gutter={[24, 24]}>
-            {[
-              { Icon: ThunderboltOutlined, title: 'High-Throughput Engine', desc: 'Kafka-based messaging for 1L+ messages' },
-              { Icon: AimOutlined, title: 'Smart TPS Control', desc: 'Guaranteed delivery with retry queues' },
-              { Icon: DashboardOutlined, title: 'Real-Time Analytics', desc: 'Track sent, delivered & read status' },
-              { Icon: SearchOutlined, title: 'Campaign Insights', desc: 'Detailed logs & failure analysis' },
-              { Icon: DownloadOutlined, title: 'One-Click Reports', desc: 'Export to Excel & CSV instantly' },
-              { Icon: LockOutlined, title: 'Secure Integration', desc: 'Authenticated Jio RCS APIs' }
-            ].map(({ Icon, title, desc }) => (
-              <Col xs={24} sm={12} md={8} key={title} style={{ display: 'flex' }}>
-                <div style={{
-                  background: THEME_CONSTANTS.colors.surface,
-                  borderRadius: THEME_CONSTANTS.radius.xl,
-                  padding: 28,
-                  height: '240px',
-                  width: '100%',
-                  boxShadow: THEME_CONSTANTS.shadow.lg,
-                  border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                  transition: THEME_CONSTANTS.transition.normal,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.xl;
-                  e.currentTarget.style.borderColor = THEME_CONSTANTS.colors.primary;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = THEME_CONSTANTS.shadow.lg;
-                  e.currentTarget.style.borderColor = THEME_CONSTANTS.colors.border;
-                }}>
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    width: 100,
-                    height: 100,
-                    background: THEME_CONSTANTS.colors.primaryLight,
-                    opacity: 0.5,
-                    borderRadius: `0 ${THEME_CONSTANTS.radius.xl} 0 100%`
-                  }} />
-                  <div style={{
-                    width: 56,
-                    height: 56,
-                    background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
-                    borderRadius: THEME_CONSTANTS.radius.lg,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 16,
-                    boxShadow: THEME_CONSTANTS.shadow.md,
-                    position: 'relative',
-                    zIndex: 1
-                  }}>
-                    <Icon style={{ fontSize: 28, color: THEME_CONSTANTS.colors.surface }} />
-                  </div>
-                  <h3 style={{
-                    fontSize: 18,
-                    fontWeight: 700,
-                    marginBottom: 10,
-                    color: THEME_CONSTANTS.colors.text,
-                    position: 'relative',
-                    zIndex: 1,
-                    letterSpacing: '-0.3px'
-                  }}>{title}</h3>
-                  <p style={{
-                    color: THEME_CONSTANTS.colors.textSecondary,
-                    fontSize: 14,
-                    lineHeight: 1.6,
-                    margin: 0,
-                    position: 'relative',
-                    zIndex: 1
-                  }}>{desc}</p>
-                </div>
-              </Col>
-            ))}
-            </Row>
-          </div>
-        </section>
-
-        {/* Analytics Preview */}
-        <section style={{ background: THEME_CONSTANTS.colors.surface, ...sectionStyle }}>
-          <div style={containerStyle}>
-            <Row gutter={[48, 48]} align="middle">
-            <Col xs={24} md={12}>
-              <div style={{
-                background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
-                padding: 40,
-                borderRadius: THEME_CONSTANTS.radius.xl,
-                color: THEME_CONSTANTS.colors.surface
-              }}>
-                <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 20 }}>Real‑Time Analytics & Reports</h2>
-                <p style={{ fontSize: 16, lineHeight: 1.8, marginBottom: 28, opacity: 0.95 }}>
-                  Track every message lifecycle with millisecond accuracy. Get instant insights into campaign performance and export detailed reports.
-                </p>
-                <div style={{ display: 'grid', gap: 16 }}>
-                  {[
-                    { icon: <DashboardOutlined />, text: 'Live campaign dashboards' },
-                    { icon: <SearchOutlined />, text: 'Failure reason breakdown' },
-                    { icon: <BarChartOutlined />, text: 'User interaction tracking' },
-                    { icon: <FileExcelOutlined />, text: 'Excel & CSV exports' }
-                  ].map(({ icon, text }) => (
-                    <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{
-                        width: 40,
-                        height: 40,
-                        background: 'rgba(255,255,255,0.2)',
-                        borderRadius: THEME_CONSTANTS.radius.md,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 20
-                      }}>
-                        {icon}
-                      </div>
-                      <span style={{ fontSize: 15, fontWeight: 500 }}>{text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Col>
-            <Col xs={24} md={12}>
-              <Card style={{ height: 360, borderRadius: 16, boxShadow: THEME_CONSTANTS.shadow.lg, background: THEME_CONSTANTS.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}>
-                <DashboardOutlined style={{ fontSize: 120, color: THEME_CONSTANTS.colors.primary }} />
-              </Card>
-            </Col>
-            </Row>
-          </div>
-        </section>
-
-        {/* Pricing */}
-        <section style={{ 
-          background: THEME_CONSTANTS.colors.background,
-          ...sectionStyle
+        {/* Features Section */}
+        <section style={{
+          ...sectionStyle,
+          background: professionalColors.background
         }}>
           <div style={containerStyle}>
-            <div style={{ textAlign: 'center', marginBottom: 56 }}>
-              <h2 style={{ ...sectionTitleStyle, color: THEME_CONSTANTS.colors.text }}>Simple, Transparent Pricing</h2>
-              <p style={{ ...sectionSubtitleStyle, color: THEME_CONSTANTS.colors.textSecondary }}>Pay only for what you use. No hidden fees, no surprises.</p>
-            </div>
-            
-            <Card style={{ 
-              maxWidth: 700, 
-              margin: '0 auto', 
-              borderRadius: 20, 
-              boxShadow: THEME_CONSTANTS.shadow.xl, 
-              border: `2px solid ${THEME_CONSTANTS.colors.primary}`,
-              background: THEME_CONSTANTS.colors.surface
-            }}>
-              <div style={{ textAlign: 'center', padding: '32px 24px' }}>
-                <div style={{ marginBottom: 32 }}>
-                  <div style={{ fontSize: 64, fontWeight: 900, color: THEME_CONSTANTS.colors.primary, letterSpacing: '-2px', lineHeight: 1 }}>
-                    ₹1
-                  </div>
-                  <div style={{ fontSize: 18, color: THEME_CONSTANTS.colors.textSecondary, marginTop: 12, fontWeight: 600 }}>
-                    per delivered message
-                  </div>
-                </div>
-                
-                <Divider />
-                
-                <div style={{ textAlign: 'left', padding: '0 24px' }}>
-                  <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, color: THEME_CONSTANTS.colors.text }}>What's Included:</h3>
-                  <Row gutter={[24, 16]}>
-                    {[
-                      'Pay only for delivered messages',
-                      'Failed messages refunded automatically',
-                      'Real-time analytics & reports',
-                      'Unlimited campaigns',
-                      'Excel & CSV exports',
-                      '24/7 support'
-                    ].map((item) => (
-                      <Col xs={24} sm={12} key={item}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                          <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: 18, marginTop: 2 }} />
-                          <span style={{ fontSize: 15, color: THEME_CONSTANTS.colors.text }}>{item}</span>
-                        </div>
-                      </Col>
-                    ))}
-                  </Row>
-                </div>
-                
-                <div style={{ marginTop: 40, padding: '0 24px' }}>
-                  <Button 
-                    type="primary" 
-                    size="large" 
-                    block 
-                    style={{ height: 56, fontSize: 16, fontWeight: 600 }} 
-                    onClick={() => navigate('/login')}
-                  >
-                    Get Started Now
-                  </Button>
-                  <p style={{ marginTop: 16, fontSize: 13, color: THEME_CONSTANTS.colors.textSecondary }}>
-                    No credit card required • Start with free credits
-                  </p>
-                </div>
+            <div style={sectionHeaderStyle}>
+              <div style={{
+                display: 'inline-block',
+                padding: '8px 20px',
+                background: `${professionalColors.primary}15`,
+                borderRadius: '30px',
+                border: `1px solid ${professionalColors.primary}30`,
+                marginBottom: '24px'
+              }}>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  color: professionalColors.primary,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  <ThunderboltOutlined style={{ marginRight: '8px' }} />
+                  Enterprise Platform
+                </span>
               </div>
-            </Card>
+
+              <Title level={2} style={headingStyle(2)}>
+                Professional RCS Platform
+              </Title>
+              <Paragraph style={{
+                fontSize: screens.xs ? '16px' : '18px',
+                color: professionalColors.textSecondary,
+                maxWidth: '800px',
+                margin: '0 auto'
+              }}>
+                Every feature is engineered for <strong style={{ color: professionalColors.primary, fontWeight: 600 }}>maximum reliability</strong> and enterprise performance.
+              </Paragraph>
+            </div>
+
+            <Row gutter={screens.xs ? [16, 16] : screens.sm ? [24, 24] : [32, 32]}>
+              {[
+                {
+                  icon: <SafetyOutlined />,
+                  title: 'Verified Blue Tick',
+                  desc: 'Official verification badge that builds instant trust and credibility with customers.',
+                  stats: '↑ 100% Trust',
+                  color: professionalColors.primary,
+                  counter: 100
+                },
+                {
+                  icon: <CloudServerOutlined />,
+                  title: 'High-Throughput Engine',
+                  desc: 'Kafka-based architecture delivering messages per hour with 99.9% uptime guarantee.',
+                  stats: '3.5L+/hr',
+                  color: professionalColors.success,
+                  counter: 350000
+                },
+                {
+                  icon: <DashboardOutlined />,
+                  title: 'Real-Time Analytics',
+                  desc: 'Live tracking of delivery rates, engagement metrics, and campaign performance.',
+                  stats: '<100ms Updates',
+                  color: professionalColors.info,
+                  counter: 100
+                },
+                {
+                  icon: <AimOutlined />,
+                  title: 'Smart Rate Control',
+                  desc: 'Dynamic TPS adjustment with automatic retry queues ensuring message delivery success.',
+                  stats: '99.2% Success',
+                  color: professionalColors.warning,
+                  counter: 99.2
+                },
+                {
+                  icon: <LockOutlined />,
+                  title: 'Enterprise Security',
+                  desc: 'End-to-end encryption, authenticated APIs, GDPR compliance, and SOC2 certified.',
+                  stats: 'Military Grade',
+                  color: professionalColors.error,
+                  counter: 100
+                },
+                {
+                  icon: <TeamOutlined />,
+                  title: 'Multi-Agent Support',
+                  desc: 'Collaborate with unlimited team members from a single, unified dashboard.',
+                  stats: 'Unlimited Agents',
+                  color: professionalColors.primaryDark,
+                  counter: 999
+                }
+              ].map((feature, index) => (
+                <Col xs={24} sm={12} lg={8} key={index}>
+                  <Card
+                    hoverable
+                    style={cardStyle}
+                    onMouseEnter={(e) => handleCardHover(e, feature.color)}
+                    onMouseLeave={handleCardLeave}
+                    bodyStyle={{
+                      padding: screens.xs ? '24px 20px' : '32px',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <div style={{
+                      width: screens.xs ? '60px' : '72px',
+                      height: screens.xs ? '60px' : '72px',
+                      borderRadius: '18px',
+                      background: `${feature.color}15`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '24px',
+                      border: `2px solid ${feature.color}30`
+                    }}>
+                      <div style={{
+                        fontSize: screens.xs ? '30px' : '34px',
+                        color: feature.color
+                      }}>
+                        {feature.icon}
+                      </div>
+                    </div>
+
+                    <Title level={4} style={{
+                      fontSize: screens.xs ? '20px' : '22px',
+                      fontWeight: 700,
+                      marginBottom: '16px',
+                      color: professionalColors.text
+                    }}>
+                      {feature.title}
+                    </Title>
+
+                    <Paragraph style={{
+                      color: professionalColors.textSecondary,
+                      lineHeight: 1.7,
+                      marginBottom: 'auto',
+                      fontSize: screens.xs ? '15px' : '16px',
+                      fontWeight: 400
+                    }}>
+                      {feature.desc}
+                    </Paragraph>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
           </div>
         </section>
 
-        {/* Final CTA */}
-        <section style={{ background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`, color: THEME_CONSTANTS.colors.surface, padding: '80px 24px', textAlign: 'center' }}>
+        {/* Analytics Section with Counters */}
+        <section ref={statsRef} style={{
+          ...sectionStyle,
+          background: professionalColors.surface,
+          borderTop: `1px solid ${professionalColors.border}`,
+          borderBottom: `1px solid ${professionalColors.border}`
+        }}>
           <div style={containerStyle}>
-            <h2 style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 16 }}>Start Sending RCS Messages at Scale</h2>
-            <p style={{ fontSize: 18, lineHeight: 1.6, opacity: 0.95 }}>
-              Launch enterprise‑grade RCS campaigns in minutes.
-            </p>
-            <Button size="large" style={{ marginTop: 40, height: 56, fontSize: 16, background: THEME_CONSTANTS.colors.surface, color: THEME_CONSTANTS.colors.primary, fontWeight: 700, paddingLeft: 40, paddingRight: 40, border: 'none' }} onClick={() => navigate('/login')}>
-              Get Started Now
-            </Button>
+            <div style={sectionHeaderStyle}>
+              <div style={{
+                display: 'inline-block',
+                padding: '8px 20px',
+                background: `${professionalColors.info}15`,
+                borderRadius: '30px',
+                border: `1px solid ${professionalColors.info}30`,
+                marginBottom: '24px'
+              }}>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  color: professionalColors.info,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  <DashboardOutlined style={{ marginRight: '8px' }} />
+                  Advanced Analytics
+                </span>
+              </div>
+
+              <Title level={2} style={headingStyle(2)}>
+                Real-Time Analytics Dashboard
+              </Title>
+              <Paragraph style={{
+                fontSize: screens.xs ? '16px' : '18px',
+                color: professionalColors.textSecondary,
+                maxWidth: '700px',
+                margin: '0 auto'
+              }}>
+                Track every message lifecycle with enterprise-grade insights and real-time counters
+              </Paragraph>
+            </div>
+
+            {/* Top Stats Row with Counters */}
+            <div style={{
+              marginBottom: screens.xs ? '48px' : '64px',
+              background: professionalColors.background,
+              padding: screens.xs ? '12px' : '16px',
+              borderRadius: screens.xs ? '10px' : '12px',
+              border: `1px solid ${professionalColors.border}`,
+              boxShadow: screens.xs ? 'none' : '0 6px 16px rgba(0,0,0,0.06)',
+
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.05)'
+            }}>
+              <Row gutter={screens.xs ? [24, 24] : [32, 32]}>
+                {[
+                  { label: 'Messages Analyzed Daily', value: 1000000, suffix: '+', color: professionalColors.primary, icon: <BarChartOutlined /> },
+                  { label: 'Data Accuracy', value: 99.9, suffix: '%', color: professionalColors.success, icon: <CheckCircleOutlined /> },
+                  { label: 'Real-time Updates', value: 100, suffix: 'ms', prefix: '<', color: professionalColors.info, icon: <ThunderboltOutlined /> },
+                  { label: 'Active Monitoring', value: 24, suffix: '/7', color: professionalColors.warning, icon: <DashboardOutlined /> }
+                ].map((stat, idx) => (
+                  <Col xs={12} md={6} key={idx}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{
+                        width: '60px',
+                        height: '60px',
+                        margin: '0 auto 16px',
+                        background: `${stat.color}15`,
+                        borderRadius: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <div style={{ fontSize: '28px', color: stat.color }}>
+                          {stat.icon}
+                        </div>
+                      </div>
+                      <div style={{
+                        fontSize: screens.xs ? '32px' : '40px',
+                        fontWeight: 800,
+                        color: stat.color,
+                        marginBottom: '8px',
+                        lineHeight: 1
+                      }}>
+                        <AnimatedCounter
+                          end={stat.value}
+                          prefix={stat.prefix || ''}
+                          suffix={stat.suffix}
+                          decimals={stat.value % 1 === 0 ? 0 : 1}
+                          duration={2000 + idx * 500}
+                          start={statsVisible}
+                        />
+                      </div>
+                      <div style={{
+                        fontSize: '14px',
+                        color: professionalColors.textSecondary,
+                        fontWeight: 500
+                      }}>
+                        {stat.label}
+                      </div>
+                    </div>
+                  </Col>
+                ))}
+              </Row>
+            </div>
+
+            {/* Analytics Cards */}
+            <Row gutter={screens.xs ? [24, 24] : [32, 32]}>
+              {[
+                {
+                  icon: <LineChartOutlined />,
+                  title: 'Performance Metrics',
+                  description: 'Real-time monitoring with customizable widgets and live metrics',
+                  metrics: [
+                    { label: 'Delivery Rate', value: 99.2, suffix: '%', counter: 99.2 },
+                    { label: 'Response Time', value: 180, suffix: 'ms', counter: 180 },
+                    { label: 'Cost Per Message', value: 1, prefix: '₹', counter: 1 }
+                  ]
+                },
+                {
+                  icon: <BarChartOutlined />,
+                  title: 'Engagement Insights',
+                  description: 'Track clicks, replies, and interaction patterns with detailed insights',
+                  metrics: [
+                    { label: 'Click-through Rate', value: 42, suffix: '%', counter: 42 },
+                    { label: 'Average Replies', value: 3.2, suffix: '', counter: 3.2 },
+                    { label: 'User Segments', value: 25, suffix: '+', counter: 25 }
+                  ]
+                },
+                {
+                  icon: <SearchOutlined />,
+                  title: 'Failure Analysis',
+                  description: 'Detailed breakdown with actionable insights and automated alerts',
+                  metrics: [
+                    { label: 'Error Resolution', value: 98.5, suffix: '%', counter: 98.5 },
+                    { label: 'Retry Success', value: 89.7, suffix: '%', counter: 89.7 },
+                    { label: 'Auto Fix Rate', value: 95.2, suffix: '%', counter: 95.2 }
+                  ]
+                }
+              ].map((item, index) => (
+                <Col xs={24} md={8} key={index}>
+                  <Card
+                    hoverable
+                    style={cardStyle}
+                    onMouseEnter={(e) => handleCardHover(e, professionalColors.primary)}
+                    onMouseLeave={handleCardLeave}
+                    bodyStyle={{
+                      padding: screens.xs ? '24px' : '32px',
+                      height: '100%'
+                    }}
+                  >
+                    {/* Icon */}
+                    <div style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '16px',
+                      background: `${professionalColors.primary}15`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '24px',
+                      border: `2px solid ${professionalColors.primary}30`
+                    }}>
+                      <div style={{ fontSize: '32px', color: professionalColors.primary }}>
+                        {item.icon}
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <Title level={3} style={{
+                      fontSize: screens.xs ? '20px' : '22px',
+                      fontWeight: 700,
+                      marginBottom: '12px',
+                      color: professionalColors.text
+                    }}>
+                      {item.title}
+                    </Title>
+
+                    {/* Description */}
+                    <Paragraph style={{
+                      color: professionalColors.textSecondary,
+                      lineHeight: 1.6,
+                      marginBottom: '32px',
+                      fontSize: screens.xs ? '15px' : '16px'
+                    }}>
+                      {item.description}
+                    </Paragraph>
+
+                    {/* Metrics with Counters */}
+                    <div>
+                      {item.metrics.map((metric, idx) => (
+                        <div key={idx} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '16px 0',
+                          borderTop: idx === 0 ? 'none' : `1px solid ${professionalColors.border}`
+                        }}>
+                          <span style={{
+                            color: professionalColors.textSecondary,
+                            fontSize: '14px',
+                            fontWeight: 500
+                          }}>
+                            {metric.label}
+                          </span>
+                          <div style={{
+                            fontSize: '18px',
+                            fontWeight: 700,
+                            color: professionalColors.primary
+                          }}>
+                            <AnimatedCounter
+                              end={metric.counter}
+                              prefix={metric.prefix || ''}
+                              suffix={metric.suffix}
+                              decimals={metric.counter % 1 === 0 ? 0 : 1}
+                              duration={2000 + idx * 500 + index * 300}
+                              start={statsVisible}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </div>
+        </section>
+
+
+        {/* ================= PRICING SECTION ================= */}
+        <section
+          style={{
+            ...sectionStyle,
+            background: professionalColors.background,
+            position: 'relative',
+          }}
+        >
+          <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+            {/* ===== Pricing Header ===== */}
+            <div
+              style={{
+                textAlign: 'center',
+                marginBottom: screens.xs ? '48px' : '64px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 26px',
+                  background: `${professionalColors.warning}15`,
+                  borderRadius: 999,
+                  border: `1px solid ${professionalColors.warning}30`,
+                  marginBottom: 28,
+                }}
+              >
+                <CreditCardOutlined style={{ color: professionalColors.warning }} />
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: professionalColors.warning,
+                    letterSpacing: '1.2px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Credits Pricing
+                </span>
+              </div>
+
+              <Title
+                level={2}
+                style={{
+                  fontSize: screens.xs ? 34 : 46,
+                  fontWeight: 900,
+                  marginBottom: 16,
+                }}
+              >
+                Simple, predictable pricing
+              </Title>
+
+              <Paragraph
+                style={{
+                  fontSize: screens.xs ? 16 : 19,
+                  color: professionalColors.textSecondary,
+                  maxWidth: 720,
+                  margin: '0 auto',
+                  lineHeight: 1.7,
+                }}
+              >
+                Buy RCS credits in bulk and pay <strong>only for delivered messages</strong>.
+                No setup fees. No lock-in. Built for scale.
+              </Paragraph>
+            </div>
+
+            {/* ===== Infinite Carousel ===== */}
+            <div
+              style={{
+                position: 'relative',
+                height: screens.xs ? 520 : 580,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: screens.xs ? 'visible' : 'hidden',
+                padding: screens.xs ? '0 20px' : '0'
+              }}
+              onWheel={(e) => {
+                e.preventDefault();
+                if (e.deltaY > 0 || e.deltaX > 0) next();
+                else prev();
+              }}
+            >
+              {plans.map((plan, i) => {
+                const diff = i - activeIndex;
+                const position =
+                  diff > plans.length / 2
+                    ? diff - plans.length
+                    : diff < -plans.length / 2
+                      ? diff + plans.length
+                      : diff;
+
+                const isCenter = position === 0;
+
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      width: screens.xs ? 'calc(100% - 40px)' : 440,
+                      maxWidth: screens.xs ? '340px' : '440px',
+                      padding: screens.xs ? '36px 28px' : '48px 44px',
+                      background: professionalColors.surface,
+                      borderRadius: screens.xs ? 24 : 32,
+                      border: `1px solid ${plan.color}`,
+                      transform: `
+                translateX(${position * (screens.xs ? 0 : 460)}px)
+                scale(${isCenter ? 1 : screens.xs ? 0.85 : 0.9})
+              `,
+                      filter: isCenter ? 'none' : 'blur(1px)',
+                      opacity: isCenter ? 1 : screens.xs ? 0.3 : 0.75,
+                      zIndex: isCenter ? 5 : 2,
+                      pointerEvents: isCenter ? 'auto' : 'none',
+                      transition: 'all 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                  >
+                    {plan.tag && isCenter && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -18,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          padding: '6px 22px',
+                          background: plan.color,
+                          color: '#fff',
+                          fontSize: 12,
+                          fontWeight: 800,
+                          borderRadius: 999,
+                        }}
+                      >
+                        {plan.tag}
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        padding: 14,
+                        borderRadius: 20,
+                        background: `${plan.color}15`,
+                        border: `1px solid ${plan.color}30`,
+                        fontWeight: 800,
+                        color: plan.color,
+                        marginBottom: 32,
+                      }}
+                    >
+                      {plan.credits} MESSAGE CREDITS
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                      <div style={{ fontSize: 56, fontWeight: 900 }}>
+                        {plan.price}
+                      </div>
+                      <div style={{ color: professionalColors.textSecondary }}>
+                        per delivered message
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        padding: 16,
+                        borderRadius: 16,
+                        background: professionalColors.background,
+                        marginBottom: 36,
+                        border: `1px solid ${professionalColors.border}`,
+                        fontWeight: 800,
+                        fontSize: 18,
+                        color: professionalColors.primary,
+                      }}
+                    >
+                      Total: {plan.total}
+                    </div>
+
+                    {[
+                      'Pay only for delivered messages',
+                      'Verified RCS branding',
+                      'Advanced analytics',
+                      'Enterprise-grade security',
+                    ].map((f, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          marginBottom: 14,
+                          fontSize: 14,
+                        }}
+                      >
+                        <CheckCircleFilled style={{ color: plan.color }} />
+                        {f}
+                      </div>
+                    ))}
+
+                    <Button
+                      type={isCenter ? 'primary' : 'default'}
+                      size="large"
+                      style={{
+                        width: '100%',
+                        marginTop: 40,
+                        borderRadius: 14,
+                        fontWeight: 700,
+                        height: 54,
+                        background: isCenter ? plan.color : 'transparent',
+                        borderColor: plan.color,
+                      }}
+                      onClick={() => navigate('/register')}
+                    >
+                      Get Start with us
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+        {/* ================= END PRICING SECTION ================= */}
+
+
+
+        {/* CTA Section */}
+        <section style={{
+          padding: screens.xs ? '60px 16px 60px' : screens.sm ? '80px 20px 80px' : '100px 24px 100px',
+          background: `linear-gradient(135deg, ${professionalColors.primaryLight} 0%, ${professionalColors.background} 100%)`,
+          textAlign: 'center',
+          borderTop: `1px solid ${professionalColors.border}`
+        }}>
+          <div style={{ ...containerStyle, position: 'relative' }}>
+            <div style={{
+              maxWidth: '800px',
+              margin: '0 auto'
+            }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '12px 24px',
+                background: `${professionalColors.primary}15`,
+                borderRadius: '30px',
+                border: `1px solid ${professionalColors.primary}30`,
+                marginBottom: screens.xs ? '24px' : '32px',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <RocketOutlined style={{ marginRight: '8px', color: professionalColors.primary }} />
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  color: professionalColors.primary,
+                  textTransform: 'uppercase'
+                }}>
+                  READY TO LAUNCH
+                </span>
+              </div>
+
+              <Title level={2} style={headingStyle(2)}>
+                Start Sending Verified RCS Messages Today
+              </Title>
+
+              <Paragraph style={{
+                fontSize: screens.xs ? '16px' : '18px',
+                lineHeight: 1.6,
+                color: professionalColors.textSecondary,
+                marginBottom: screens.xs ? '32px' : '48px',
+                maxWidth: '600px',
+                margin: '0 auto'
+              }}>
+                Join enterprise teams sending millions of verified messages with 99%+ delivery success.
+              </Paragraph>
+
+              <div style={{
+                display: 'flex',
+                gap: screens.xs ? '12px' : '16px',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+                marginBottom: screens.xs ? '32px' : '48px',
+                marginTop: screens.xs ? '0' : '18px'
+              }}>
+                <Button
+                  type="primary"
+                  size={screens.xs ? 'middle' : 'large'}
+                  style={{
+                    height: screens.xs ? '48px' : '56px',
+                    fontSize: screens.xs ? '16px' : '16px',
+                    fontWeight: 600,
+                    padding: screens.xs ? '0 32px' : '0 48px',
+                    background: `linear-gradient(135deg, ${professionalColors.primary} 0%, ${professionalColors.primaryDark} 100%)`,
+                    border: 'none',
+                    boxShadow: '0 8px 32px rgba(24, 144, 255, 0.4)',
+                    borderRadius: '12px',
+                    width: screens.xs ? '100%' : 'auto'
+                  }}
+                  onClick={() => navigate('/register')}
+                >
+                  Get Started  <ArrowRightOutlined style={{ marginLeft: '8px' }} />
+                </Button>
+
+                <Button
+                  size={screens.xs ? 'middle' : 'large'}
+                  style={{
+                    height: screens.xs ? '48px' : '56px',
+                    fontSize: screens.xs ? '16px' : '16px',
+                    fontWeight: 600,
+                    padding: screens.xs ? '0 32px' : '0 48px',
+                    border: `2px solid ${professionalColors.primary}`,
+                    color: professionalColors.primary,
+                    background: 'transparent',
+                    borderRadius: '12px',
+                    width: screens.xs ? '100%' : 'auto'
+                  }}
+                  onClick={() => navigate('/schedule-demo')}
+                >
+                  Schedule Demo
+                </Button>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                gap: screens.xs ? '16px' : '32px',
+                justifyContent: 'center',
+                flexWrap: 'wrap'
+              }}>
+                {[
+                  { icon: <ClockCircleOutlined />, text: '5-minute setup' },
+                  { icon: <CreditCardOutlined />, text: 'No credit card' },
+                  { icon: <TeamOutlined />, text: '24/7 support' }
+                ].map((item, index) => (
+                  <div key={index} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flex: screens.xs ? '1 1 100%' : 'none'
+                  }}>
+                    <div style={{ color: professionalColors.primary }}>
+                      {item.icon}
+                    </div>
+                    <span style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      color: professionalColors.textSecondary
+                    }}>
+                      {item.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       </Content>
 
-      <Footer style={{ textAlign: 'center', background: THEME_CONSTANTS.colors.surface, padding: '40px 24px', borderTop: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
-        <p style={{ margin: 0, color: THEME_CONSTANTS.colors.textSecondary, fontSize: 14 }}>
-          © {new Date().getFullYear()} RCS Sender Platform · Built for Enterprise Messaging
-        </p>
-      </Footer>
+      {/* ===== Footer ===== */}
+      <footer
+        style={{
+          background: professionalColors.surface,
+          borderTop: `1px solid ${professionalColors.border}`,
+          padding: screens.xs ? '0px 0px 32px' : '0px 0px 40px',
+          marginTop: 0
+        }}
+      >
+        <div
+          style={{
+
+            paddingTop: 24,
+            borderTop: `1px solid ${professionalColors.border}`,
+            textAlign: 'center',
+            fontSize: 12,
+            color: professionalColors.textSecondary,
+          }}
+        >
+          © {new Date().getFullYear()} RCSsender. All rights reserved.
+        </div>
+
+      </footer>
+
     </Layout>
   );
 };

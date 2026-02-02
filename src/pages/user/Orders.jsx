@@ -431,13 +431,14 @@ export default function Orders() {
       }
 
       const campaignsData = allCampaigns.map((order, idx) => {
-        const deliveredCount = order?.totalDelivered || 0;
-        const failedCount = order?.failedCount || 0;
-        const expiredCount = order?.expiredCount || 0;
-        const rcsCapableCount = order?.rcsCapableCount || order?.stats?.rcsCapable || 0;
+        // Backend already sends correct totalDelivered
+        const totalDelivered = order?.totalDelivered || 0;
+        const failed = order?.failedCount || 0;
+        const sentCount = totalDelivered + failed;
+        const expired = order?.expiredCount || 0;
+        const rcsCapableCount = order?.rcsCapableCount || 0;
         const totalRecipients = order?.cost || 0;
-        const sentCount = deliveredCount + failedCount;
-        const successRate = rcsCapableCount > 0 ? ((deliveredCount / rcsCapableCount) * 100).toFixed(2) : 0;
+        const successRate = rcsCapableCount > 0 ? ((totalDelivered / rcsCapableCount) * 100).toFixed(2) : 0;
 
         return {
           'S.No': idx + 1,
@@ -448,9 +449,9 @@ export default function Orders() {
           'Total Recipients': totalRecipients,
           'RCS Capable': rcsCapableCount,
           'Sent': sentCount,
-          'Delivered': deliveredCount,
-          'Failed': failedCount,
-          'Expired': expiredCount,
+          'Delivered': totalDelivered,
+          'Failed': failed,
+          'Expired': expired,
           'Success Rate (%)': successRate,
           'Created Date': new Date(order.createdAt).toLocaleDateString(),
           'Created Time': new Date(order.createdAt).toLocaleTimeString(),
@@ -552,9 +553,10 @@ export default function Orders() {
       title: 'Sent',
       key: 'sent',
       render: (text, record) => {
-        const deliveredCount = record?.totalDelivered || 0;
-        const failedCount = record?.failedCount || 0;
-        const sentCount = deliveredCount + failedCount;
+        // Sent = totalDelivered + failed
+        const totalDelivered = record?.totalDelivered || 0;
+        const failed = record?.failedCount || 0;
+        const sentCount = totalDelivered + failed;
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
             <SendOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
@@ -570,14 +572,18 @@ export default function Orders() {
     {
       title: 'Delivered',
       key: 'delivered',
-      render: (text, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-          <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
-          <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '15px' }}>
-            {record?.totalDelivered || 0}
-          </span>
-        </div>
-      ),
+      render: (text, record) => {
+        // Backend already sends correct totalDelivered for both settled and non-settled
+        const totalDelivered = record?.totalDelivered || 0;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '16px' }} />
+            <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success, fontSize: '15px' }}>
+              {totalDelivered}
+            </span>
+          </div>
+        );
+      },
       width: 130,
       align: 'center',
     },
@@ -588,7 +594,7 @@ export default function Orders() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <CloseCircleOutlined style={{ color: THEME_CONSTANTS.colors.danger, fontSize: '16px' }} />
           <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.danger, fontSize: '15px' }}>
-            {record?.failedCount || 0}
+            {record?.failedCount || record?.stats?.failed || 0}
           </span>
         </div>
       ),
@@ -602,7 +608,7 @@ export default function Orders() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <ClockCircleOutlined style={{ color: '#faad14', fontSize: '16px' }} />
           <span style={{ fontWeight: 600, color: '#faad14', fontSize: '15px' }}>
-            {record?.expiredCount || 0}
+            {record?.expiredCount || record?.stats?.expired || 0}
           </span>
         </div>
       ),
@@ -613,11 +619,10 @@ export default function Orders() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        const deliveredCount = record?.totalDelivered || 0;
-        const failedCount = record?.failedCount || 0;
-        const rcsCapableCount = record.rcsCapableCount || record.stats?.rcsCapable || 0;
-        const totalProcessed = deliveredCount + failedCount;
-        const rate = rcsCapableCount > 0 ? (deliveredCount / rcsCapableCount) * 100 : 0;
+        // Backend already sends correct totalDelivered
+        const totalDelivered = record?.totalDelivered || 0;
+        const rcsCapableCount = record.rcsCapableCount || 0;
+        const rate = rcsCapableCount > 0 ? (totalDelivered / rcsCapableCount) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         const displayRate = rate < 1 && rate > 0 ? rate.toFixed(2) : Math.round(rate);
 
@@ -1493,10 +1498,7 @@ export default function Orders() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {selectedOrder?.status === 'settled'
-                            ? (selectedOrder?.totalDelivered || 0) + (selectedOrder?.totalRead || 0) + (selectedOrder?.totalReplied || 0) + (selectedOrder?.failedCount || 0)
-                            : (selectedOrder?.totalDelivered || 0) + (selectedOrder?.failedCount || 0)
-                          }
+                          {(selectedOrder?.totalDelivered || 0) + (selectedOrder?.failedCount || 0)}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Sent</div>
                       </div>
@@ -1671,7 +1673,7 @@ export default function Orders() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                            ₹{selectedOrder?.actualCost ?? selectedOrder?.estimatedCost ?? 0}
+                            {selectedOrder?.actualCost ?? selectedOrder?.estimatedCost ?? 0}
                           </div>
                           <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Credits Used</div>
                         </div>

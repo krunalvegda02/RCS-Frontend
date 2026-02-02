@@ -55,7 +55,7 @@ const WalletTransaction = () => {
     }
   };
 
-  const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
+  const formatCurrency = (value) => `${Number(value || 0).toLocaleString('en-IN')} Credits`;
   
   const formatDate = (date) => {
     if (!date) return '-';
@@ -335,7 +335,7 @@ const WalletTransaction = () => {
                         borderRadius: THEME_CONSTANTS.radius.md,
                       }}
                     >
-                      Add Money
+                      Add Credits
                     </Button>
                   </Col>
                 </Row>
@@ -387,11 +387,11 @@ const WalletTransaction = () => {
         </div>
       </div>
 
-      {/* Add Money Modal */}
+      {/* Add Credits Modal */}
       <Modal
         title={
           <div style={{ fontSize: '18px', fontWeight: 700, color: THEME_CONSTANTS.colors.textPrimary }}>
-            Add Money to Wallet
+            Add Credits to Wallet
           </div>
         }
         open={showAddMoney}
@@ -420,7 +420,7 @@ const WalletTransaction = () => {
             Quick Select
           </p>
           <Row gutter={[12, 12]}>
-            {[100, 500, 1000, 2000].map((amount) => (
+            {[100000, 2500000, 500000].map((amount) => (
               <Col xs={8} sm={6} key={amount}>
                 <Button
                   block
