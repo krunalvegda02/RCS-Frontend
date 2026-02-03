@@ -420,7 +420,7 @@ const WalletTransaction = () => {
             Quick Select
           </p>
           <Row gutter={[12, 12]}>
-            {[100000, 2500000, 500000].map((amount) => (
+            {[100000, 250000, 500000].map((amount) => (
               <Col xs={8} sm={6} key={amount}>
                 <Button
                   block

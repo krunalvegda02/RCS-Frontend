@@ -251,6 +251,20 @@ const LandingPage = () => {
               </>
             )}
             <Button
+              size={screens.xs ? 'middle' : 'large'}
+              style={{
+                padding: screens.xs ? '8px 16px' : '12px 24px',
+                fontWeight: 600,
+                border: `2px solid ${professionalColors.primary}`,
+                color: professionalColors.primary,
+                background: 'transparent',
+                fontSize: screens.xs ? '14px' : '16px'
+              }}
+              onClick={() => navigate('/login')}
+            >
+              Login
+            </Button>
+            <Button
               type="primary"
               size={screens.xs ? 'middle' : 'large'}
               style={{
