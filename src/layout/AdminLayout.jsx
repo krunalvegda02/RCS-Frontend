@@ -24,6 +24,7 @@ import {
   FundOutlined,
   WalletOutlined,
   TeamOutlined,
+  UserAddOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -121,8 +122,14 @@ export default function AdminLayout() {
   {
     key: '/admin/users',
     icon: <TeamOutlined className="text-xl" />,
-    label: 'User Management',
+    label: 'Active Users',
     onClick: () => navigate('/admin/users'),
+  },
+  {
+    key: '/admin/pending-users',
+    icon: <UserAddOutlined className="text-xl" />,
+    label: 'Pending Users',
+    onClick: () => navigate('/admin/pending-users'),
   },
   {
     key: '/admin/wallet-requests',

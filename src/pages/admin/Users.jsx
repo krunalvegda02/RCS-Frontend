@@ -61,6 +61,7 @@ function UserManagement() {
   const [isEditUserModalVisible, setIsEditUserModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [walletAmount, setWalletAmount] = useState('');
+  const [walletOperation, setWalletOperation] = useState('add');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [createUserForm] = Form.useForm();
@@ -77,6 +78,7 @@ function UserManagement() {
   const openWalletModal = (user) => {
     setSelectedUser(user);
     setWalletAmount('');
+    setWalletOperation('add');
     setIsWalletModalVisible(true);
   };
 
@@ -111,17 +113,24 @@ function UserManagement() {
       return;
     }
     
+    if (walletOperation === 'deduct' && walletAmount > (selectedUser?.wallet?.balance || 0)) {
+      message.error('Deduct amount cannot exceed current balance');
+      return;
+    }
+    
     try {
+      const backendOperation = walletOperation === 'deduct' ? 'subtract' : 'add';
       await dispatch(updateWallet({
         userId: selectedUser._id,
         amount: Number(walletAmount),
-        operation: 'add'
+        operation: backendOperation
       })).unwrap();
       
-      message.success('Wallet balance added successfully!');
+      message.success(`Wallet balance ${walletOperation === 'add' ? 'added' : 'deducted'} successfully!`);
       setIsWalletModalVisible(false);
+      dispatch(getAllUsers({ page: 1, limit: 50 }));
     } catch (error) {
-      message.error(error || 'Error adding wallet balance');
+      message.error(error || `Error ${walletOperation === 'add' ? 'adding' : 'deducting'} wallet balance`);
     }
   };
 
@@ -166,18 +175,23 @@ function UserManagement() {
   };
 
   const openEditModal = (user) => {
+    console.log('User data:', user);
+    console.log('Jio Config:', user.jioConfig);
     setSelectedUser(user);
-    editUserForm.setFieldsValue({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      companyname: user.companyname || '',
-      isActive: user.isActive,
-      clientId: user.jioConfig?.clientId || '',
-      clientSecret: user.jioConfig?.clientSecret || '',
-      assistantId: user.jioConfig?.assistantId || ''
-    });
     setIsEditUserModalVisible(true);
+    setTimeout(() => {
+      const formValues = {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        companyname: user.companyname || '',
+        clientId: user.jioConfig?.clientId || '',
+        clientSecret: user.jioConfig?.clientSecret || '',
+        assistantId: user.jioConfig?.assistantId || ''
+      };
+      console.log('Setting form values:', formValues);
+      editUserForm.setFieldsValue(formValues);
+    }, 100);
   };
 
   const handleEditUser = async () => {
@@ -489,7 +503,7 @@ function UserManagement() {
                 <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Admin</span>
               </Breadcrumb.Item>
               <Breadcrumb.Item>
-                <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>User Management</span>
+                <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>Active User Management</span>
               </Breadcrumb.Item>
             </Breadcrumb>
 
@@ -857,7 +871,7 @@ function UserManagement() {
       </Modal>
 
       <Modal
-        title="Add Wallet Balance"
+        title="Manage Wallet Balance"
         open={isWalletModalVisible}
         onCancel={() => setIsWalletModalVisible(false)}
         onOk={handleAddWallet}
@@ -879,9 +893,42 @@ function UserManagement() {
               prefix={<DollarOutlined />}
             />
           </Form.Item>
-          <Form.Item label="Amount to Add *">
+          <Form.Item label="Operation *">
+            <Space.Compact style={{ width: '100%' }}>
+              <Button
+                type={walletOperation === 'add' ? 'primary' : 'default'}
+                icon={<ArrowUpOutlined />}
+                onClick={() => setWalletOperation('add')}
+                style={{ 
+                  width: '50%',
+                  height: '44px',
+                  fontWeight: 600,
+                  background: walletOperation === 'add' ? THEME_CONSTANTS.colors.success : undefined,
+                  borderColor: walletOperation === 'add' ? THEME_CONSTANTS.colors.success : undefined
+                }}
+              >
+                Add Balance
+              </Button>
+              <Button
+                type={walletOperation === 'deduct' ? 'primary' : 'default'}
+                icon={<ArrowDownOutlined />}
+                onClick={() => setWalletOperation('deduct')}
+                style={{ 
+                  width: '50%',
+                  height: '44px',
+                  fontWeight: 600,
+                  background: walletOperation === 'deduct' ? THEME_CONSTANTS.colors.danger : undefined,
+                  borderColor: walletOperation === 'deduct' ? THEME_CONSTANTS.colors.danger : undefined
+                }}
+              >
+                Deduct Balance
+              </Button>
+            </Space.Compact>
+          </Form.Item>
+          <Form.Item label={`Amount to ${walletOperation === 'add' ? 'Add' : 'Deduct'} *`}>
             <InputNumber
               min={1}
+              max={walletOperation === 'deduct' ? (selectedUser?.wallet?.balance || 0) : undefined}
               value={walletAmount}
               onChange={setWalletAmount}
               placeholder="Enter amount"
@@ -890,6 +937,19 @@ function UserManagement() {
               parser={(value) => value.replace(/₹\s?|(,*)/g, '')}
             />
           </Form.Item>
+          {walletOperation === 'deduct' && (
+            <div style={{ 
+              padding: '12px', 
+              background: '#fff7e6', 
+              border: '1px solid #ffd591',
+              borderRadius: THEME_CONSTANTS.radius.sm,
+              marginTop: '-8px'
+            }}>
+              <span style={{ color: '#d46b08', fontSize: '13px' }}>
+                ⚠️ Maximum deductible: {formatCurrency(selectedUser?.wallet?.balance || 0)}
+              </span>
+            </div>
+          )}
         </Form>
       </Modal>
 

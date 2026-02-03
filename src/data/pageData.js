@@ -18,6 +18,7 @@ const WalletRequests = lazy(() => import('../pages/admin/WalletRequests.jsx'))
 const AdminProfile = lazy(() => import('../pages/admin/AdminProfile.jsx'))
 const AdminReports = lazy(() => import('../pages/admin/AdminReports.jsx'))
 const DemoRequests = lazy(() => import('../pages/admin/DemoRequests.jsx'))
+const PendingUsers = lazy(() => import('../pages/admin/PendingUsers.jsx'))
 const Login = lazy(() => import('../pages/Login.jsx'))
 const Register = lazy(() => import('../pages/Register.jsx'))
 const Onboarding = lazy(() => import('../pages/Onboarding.jsx'))
@@ -126,7 +127,7 @@ export const pageData = {
         },
         {
           path: 'all-campaigns',
-          component: AllCampaigns
+          component: AdminReports 
         },
         {
           path: 'user-report/:userId',
@@ -135,6 +136,10 @@ export const pageData = {
         {
           path: 'demo-requests',
           component: DemoRequests
+        },
+        {
+          path: 'pending-users',
+          component: PendingUsers
         }
       ]
     }

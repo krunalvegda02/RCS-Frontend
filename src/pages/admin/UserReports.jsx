@@ -80,7 +80,7 @@ const UserReports = () => {
       if (!date) return 'N/A';
       try {
         const d = new Date(date);
-        return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return isNaN(d.getTime()) ? 'N/A'   : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       } catch {
         return 'N/A';
       }
@@ -328,20 +328,7 @@ const UserReports = () => {
               >
                 Back
               </Button>
-              {/* <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                onClick={exportToExcel}
-                style={{
-                  borderRadius: THEME_CONSTANTS.radius.md,
-                  fontWeight: 600,
-                  height: '44px',
-                  padding: '0 24px',
-                  boxShadow: `0 4px 12px ${THEME_CONSTANTS.colors.primary}30`
-                }}
-              >
-                Export Report
-              </Button> */}
+             
             </Space>
           </div>
         </div>
@@ -478,6 +465,7 @@ const UserReports = () => {
               { title: 'Type', dataIndex: 'type', key: 'type', render: (type) => <Tag style={{ fontSize: '12px' }}>{type}</Tag> },
               { title: 'Status', dataIndex: 'status', key: 'status', render: (status) => { const colors = { completed: THEME_CONSTANTS.colors.success, running: THEME_CONSTANTS.colors.warning, failed: THEME_CONSTANTS.colors.danger }; return <Tag color={colors[status] || THEME_CONSTANTS.colors.primary} style={{ fontWeight: 600 }}>{status.toUpperCase()}</Tag>; } },
               { title: 'Recipients', dataIndex: 'recipients', key: 'recipients', align: 'center', render: (val) => <span style={{ fontWeight: 600 }}>{val}</span> },
+              { title: 'RCS Capable', dataIndex: 'rcsCapable', key: 'rcsCapable', align: 'center', render: (val) => <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.primary }}>{val || 0}</span> },
               { title: 'Delivered', dataIndex: 'delivered', key: 'delivered', align: 'center', render: (val) => <span style={{ color: THEME_CONSTANTS.colors.success, fontWeight: 600 }}>{val}</span> },
               { title: 'Read', dataIndex: 'read', key: 'read', align: 'center', render: (val) => <span style={{ color: '#8b5cf6', fontWeight: 600 }}>{val || 0}</span> },
               { title: 'Replied', dataIndex: 'replied', key: 'replied', align: 'center', render: (val) => <span style={{ color: THEME_CONSTANTS.colors.primary, fontWeight: 600 }}>{val || 0}</span> },
