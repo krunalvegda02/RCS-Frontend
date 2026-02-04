@@ -22,6 +22,7 @@ const PendingUsers = lazy(() => import('../pages/admin/PendingUsers.jsx'))
 const Login = lazy(() => import('../pages/Login.jsx'))
 const Register = lazy(() => import('../pages/Register.jsx'))
 const Onboarding = lazy(() => import('../pages/Onboarding.jsx'))
+const PendingApproval = lazy(() => import('../pages/PendingApproval.jsx'))
 
 // Layouts
 const Layout = lazy(() => import('../layout/layout.jsx'))
@@ -47,8 +48,20 @@ export const pageData = {
     },
     {
       path: '/register',
-      component: Onboarding,
+      component: Register,
       requiresAuth: false
+    },
+    {
+      path: '/onboarding',
+      component: Onboarding,
+      requiresAuth: true,
+      skipOnboardingCheck: true // Special flag to allow access without full verification
+    },
+    {
+      path: '/pending-approval',
+      component: PendingApproval,
+      requiresAuth: true,
+      skipOnboardingCheck: true
     }
   ],
 
@@ -92,7 +105,7 @@ export const pageData = {
           path: 'profile',
           component: Profile
         },
-       
+
       ]
     }
   ],
@@ -127,7 +140,7 @@ export const pageData = {
         },
         {
           path: 'all-campaigns',
-          component: AdminReports 
+          component: AdminReports
         },
         {
           path: 'user-report/:userId',

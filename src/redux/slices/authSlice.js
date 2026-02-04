@@ -94,7 +94,7 @@ const getInitialAuthState = () => {
   try {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
-    
+
     if (token && userStr) {
       const user = JSON.parse(userStr);
       return {
@@ -140,7 +140,7 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.jioConfig = null;
-      
+
       // Clear localStorage
       try {
         localStorage.removeItem('token');
@@ -175,19 +175,23 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
-        
+
         const token = action.payload.access_token || action.payload.token;
         const user = action.payload.user;
-        
+        const onboardingStatus = action.payload.onboardingStatus || user?.onboardingStatus;
+
         if (token && user) {
+          // Ensure onboardingStatus is included in user object
+          const userWithStatus = { ...user, onboardingStatus };
+
           state.isAuthenticated = true;
-          state.user = user;
+          state.user = userWithStatus;
           state.token = token;
-          
+
           // Persist to localStorage
           try {
             localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('user', JSON.stringify(userWithStatus));
           } catch (error) {
             console.error('Error saving to localStorage:', error);
           }
@@ -199,7 +203,7 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
-        
+
         // Clear localStorage on login failure
         try {
           localStorage.removeItem('token');
@@ -207,7 +211,7 @@ const authSlice = createSlice({
         } catch (error) {
           console.error('Error clearing localStorage:', error);
         }
-        
+
         // Check if account is deactivated
         if (action.payload?.deactivated) {
           state.error = 'Account is deactivated. Please contact administrator.';
@@ -223,19 +227,23 @@ const authSlice = createSlice({
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
-        
+
         const token = action.payload.access_token || action.payload.token;
         const user = action.payload.user;
-        
+        const onboardingStatus = action.payload.onboardingStatus || 'PENDING_ONBOARDING';
+
         if (token && user) {
+          // Ensure onboardingStatus is included in user object
+          const userWithStatus = { ...user, onboardingStatus };
+
           state.isAuthenticated = true;
-          state.user = user;
+          state.user = userWithStatus;
           state.token = token;
-          
+
           // Persist to localStorage
           try {
             localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('user', JSON.stringify(userWithStatus));
           } catch (error) {
             console.error('Error saving to localStorage:', error);
           }

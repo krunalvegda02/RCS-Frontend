@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Button, Row, Col, Card, Typography, Grid, Statistic } from 'antd';
+import { Layout, Button, Row, Col, Card, Typography, Grid, Statistic, Select, Input, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import RCSLogo from '../assets/RCS.png';
+import { sendLandingMessage } from '../services/landingMessage.service';
 import {
   ThunderboltOutlined,
   CheckCircleOutlined,
@@ -35,7 +36,11 @@ import {
   ArrowUpOutlined,
   MailOutlined,
   SettingOutlined,
-  ApiOutlined
+  ApiOutlined,
+  CalendarOutlined,
+  ArrowLeftOutlined,
+  SendOutlined,
+  PhoneOutlined
 } from '@ant-design/icons';
 
 const { Header, Content } = Layout;
@@ -96,6 +101,10 @@ const LandingPage = () => {
 
   const [statsVisible, setStatsVisible] = useState(false);
   const statsRef = React.useRef(null);
+
+  const [messageType, setMessageType] = useState('richCard');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [sending, setSending] = useState(false);
 
 
   const plans = [
@@ -411,47 +420,70 @@ const LandingPage = () => {
                 {/* CTA Buttons */}
                 <div style={{
                   display: 'flex',
-                  gap: screens.xs ? '12px' : '16px',
+                  gap: screens.xs ? '8px' : '10px',
                   flexWrap: 'wrap',
-                  marginBottom: screens.xs ? '32px' : '48px'
+                  marginBottom: screens.xs ? '32px' : '48px',
+                  maxWidth: screens.lg ? '650px' : '100%'
                 }}>
                   <Button
                     type="primary"
                     size={screens.xs ? 'middle' : 'large'}
                     style={{
                       height: screens.xs ? '44px' : '56px',
-                      fontSize: screens.xs ? '14px' : '16px',
+                      fontSize: screens.xs ? '13px' : screens.md ? '14px' : '16px',
                       fontWeight: 700,
-                      padding: screens.xs ? '0 24px' : '0 32px',
+                      padding: screens.xs ? '0 16px' : screens.md ? '0 20px' : '0 28px',
                       background: `linear-gradient(135deg, ${professionalColors.primary} 0%, ${professionalColors.primaryDark} 100%)`,
                       border: 'none',
                       borderRadius: '12px',
                       boxShadow: `0 8px 32px ${professionalColors.primary}40`,
-                      flex: screens.xs ? '1' : 'none'
+                      flex: screens.xs ? '1 1 100%' : '1 1 auto',
+                      minWidth: screens.xs ? 'auto' : '180px'
                     }}
                     onClick={() => navigate('/register')}
                   >
                     Start Messaging
-                    <ArrowRightOutlined style={{ marginLeft: '8px' }} />
+                    <ArrowRightOutlined style={{ marginLeft: '6px' }} />
                   </Button>
 
                   <Button
                     size={screens.xs ? 'middle' : 'large'}
                     style={{
                       height: screens.xs ? '44px' : '56px',
-                      fontSize: screens.xs ? '14px' : '16px',
+                      fontSize: screens.xs ? '13px' : screens.md ? '14px' : '16px',
                       fontWeight: 600,
-                      padding: screens.xs ? '0 24px' : '0 32px',
+                      padding: screens.xs ? '0 14px' : screens.md ? '0 18px' : '0 24px',
                       borderRadius: '12px',
                       border: `2px solid ${professionalColors.border}`,
                       background: 'transparent',
                       color: professionalColors.text,
-                      flex: screens.xs ? '1' : 'none'
+                      flex: screens.xs ? '1 1 calc(50% - 4px)' : '1 1 auto',
+                      minWidth: screens.xs ? 'auto' : '160px'
                     }}
                     onClick={() => navigate('/schedule-demo')}
                   >
-                    <PlayCircleOutlined style={{ marginRight: '8px' }} />
-                    Watch Demo
+                    <CalendarOutlined style={{ marginRight: '6px' }} />
+                    {screens.md ? 'Schedule' : 'Schedule Demo'}
+                  </Button>
+
+                  <Button
+                    size={screens.xs ? 'middle' : 'large'}
+                    style={{
+                      height: screens.xs ? '44px' : '56px',
+                      fontSize: screens.xs ? '13px' : screens.md ? '14px' : '16px',
+                      fontWeight: 600,
+                      padding: screens.xs ? '0 14px' : screens.md ? '0 18px' : '0 24px',
+                      borderRadius: '12px',
+                      border: `2px solid ${professionalColors.border}`,
+                      background: 'transparent',
+                      color: professionalColors.text,
+                      flex: screens.xs ? '1 1 calc(50% - 4px)' : '1 1 auto',
+                      minWidth: screens.xs ? 'auto' : '160px'
+                    }}
+                    onClick={() => window.open('https://www.youtube.com/watch?v=demo', '_blank')}
+                  >
+                    <PlayCircleOutlined style={{ marginRight: '6px' }} />
+                    {screens.md ? 'Watch' : 'Watch Demo'}
                   </Button>
                 </div>
 
@@ -507,11 +539,11 @@ const LandingPage = () => {
               </Col>
 
               {/* Dashboard Preview */}
-              <Col xs={24} lg={12} style={{ display: screens.xs ? 'none' : 'block' }}>
+              <Col xs={24} lg={12}>
                 <div style={{
                   position: 'relative',
                   padding: '0',
-                  margin: screens.xs ? '0 -16px' : '0'
+                  margin: screens.xs ? '0' : '0'
                 }}>
                   <div style={{
                     width: '100%',
@@ -654,18 +686,429 @@ const LandingPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Try RCS Message Section */}
+                  <div style={{
+                    marginTop: screens.xs ? '24px' : '32px',
+                    padding: screens.xs ? '24px' : '32px',
+                    background: professionalColors.surface,
+                    borderRadius: '20px',
+                    border: `1px solid ${professionalColors.border}`,
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)'
+                  }}>
+                    <div style={{
+                      textAlign: 'center',
+                      marginBottom: screens.xs ? '20px' : '24px'
+                    }}>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 16px',
+                        background: `${professionalColors.primary}12`,
+                        borderRadius: '30px',
+                        border: `1px solid ${professionalColors.primary}30`,
+                        marginBottom: '12px'
+                      }}>
+                        <SendOutlined style={{ color: professionalColors.primary, fontSize: '14px' }} />
+                        <span style={{
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: professionalColors.primary,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          Try RCS Now
+                        </span>
+                      </div>
+                      <div style={{
+                        fontSize: screens.xs ? '18px' : '20px',
+                        fontWeight: 700,
+                        color: professionalColors.text,
+                        marginBottom: '8px'
+                      }}>
+                        Send a Test Message
+                      </div>
+                      <div style={{
+                        fontSize: screens.xs ? '13px' : '14px',
+                        color: professionalColors.textSecondary
+                      }}>
+                        Experience RCS messaging in action
+                      </div>
+                    </div>
+
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      alignItems: 'stretch'
+                    }}>
+                      <Select
+                        value={messageType}
+                        onChange={setMessageType}
+                        style={{ flex: '1 1 200px' }}
+                        size="large"
+                        placeholder="Select Type"
+                        options={[
+                          {
+                            value: 'plainText',
+                            label: (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FileTextOutlined style={{ color: professionalColors.info }} />
+                                Plain Text
+                              </span>
+                            )
+                          },
+                          {
+                            value: 'richCard',
+                            label: (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <LayoutOutlined style={{ color: professionalColors.primary }} />
+                                Rich Card
+                              </span>
+                            )
+                          },
+                          {
+                            value: 'carousel',
+                            label: (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <PictureOutlined style={{ color: professionalColors.success }} />
+                                Carousel
+                              </span>
+                            )
+                          },
+                          {
+                            value: 'textWithAction',
+                            label: (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <ThunderboltOutlined style={{ color: professionalColors.warning }} />
+                                Action Button
+                              </span>
+                            )
+                          }
+                        ]}
+                      />
+
+                      <Input
+                        size="large"
+                        placeholder="Enter 10-digit number"
+                        prefix={<PhoneOutlined style={{ color: professionalColors.textSecondary }} />}
+                        value={phoneNumber}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          if (val.length <= 10) setPhoneNumber(val);
+                        }}
+                        style={{ flex: '1 1 200px' }}
+                        maxLength={10}
+                      />
+
+                      <Button
+                        type="primary"
+                        size="large"
+                        loading={sending}
+                        icon={<SendOutlined />}
+                        onClick={async () => {
+                          if (!phoneNumber || phoneNumber.length !== 10) {
+                            message.error('Please enter a valid 10-digit phone number');
+                            return;
+                          }
+                          setSending(true);
+                          try {
+                            await sendLandingMessage(phoneNumber, messageType);
+                            message.success(`Message sent to ${phoneNumber}!`);
+                            setPhoneNumber('');
+                          } catch (error) {
+                            message.error(error.message || 'Failed to send message. Please try again.');
+                          } finally {
+                            setSending(false);
+                          }
+                        }}
+                        style={{
+                          background: `linear-gradient(135deg, ${professionalColors.primary} 0%, ${professionalColors.primaryDark} 100%)`,
+                          border: 'none',
+                          flex: screens.xs ? '1 1 100%' : '0 0 auto',
+                          minWidth: screens.xs ? '100%' : '100%',
+                          fontWeight: 600,
+                          boxShadow: `0 4px 12px ${professionalColors.primary}40`
+                        }}
+                      >
+                        Send
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </Col>
             </Row>
           </div>
         </section>
 
+        {/* ================= PRICING SECTION ================= */}
+        <section
+          style={{
+            ...sectionStyle,
+            background: professionalColors.surface,
+            borderTop: `1px solid ${professionalColors.border}`,
+            borderBottom: `1px solid ${professionalColors.border}`,
+            position: 'relative',
+          }}
+        >
+          <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+            {/* ===== Pricing Header ===== */}
+            <div
+              style={{
+                textAlign: 'center',
+                marginBottom: screens.xs ? '48px' : '64px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 26px',
+                  background: `${professionalColors.warning}15`,
+                  borderRadius: 999,
+                  border: `1px solid ${professionalColors.warning}30`,
+                  marginBottom: 28,
+                }}
+              >
+                <CreditCardOutlined style={{ color: professionalColors.warning }} />
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: professionalColors.warning,
+                    letterSpacing: '1.2px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Credits Pricing
+                </span>
+              </div>
+
+              <Title
+                level={2}
+                style={{
+                  fontSize: screens.xs ? 34 : 46,
+                  fontWeight: 900,
+                  marginBottom: 16,
+                }}
+              >
+                Simple, predictable pricing
+              </Title>
+
+              <Paragraph
+                style={{
+                  fontSize: screens.xs ? 16 : 19,
+                  color: professionalColors.textSecondary,
+                  maxWidth: 720,
+                  margin: '0 auto',
+                  lineHeight: 1.7,
+                }}
+              >
+                Buy RCS credits in bulk and pay <strong>only for delivered messages</strong>.
+                No setup fees. No lock-in. Built for scale.
+              </Paragraph>
+            </div>
+
+            {/* ===== Pricing Cards with Arrow Navigation ===== */}
+            <div
+              style={{
+                position: 'relative',
+                height: screens.xs ? 'auto' : 580,
+                minHeight: screens.xs ? 600 : 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                padding: screens.xs ? '60px 20px' : '0'
+              }}
+            >
+              {/* Left Arrow */}
+              <Button
+                type="text"
+                size="large"
+                onClick={prev}
+                style={{
+                  position: 'absolute',
+                  left: screens.xs ? 10 : 20,
+                  zIndex: 10,
+                  width: screens.xs ? 40 : 48,
+                  height: screens.xs ? 40 : 48,
+                  borderRadius: '50%',
+                  background: professionalColors.surface,
+                  border: `2px solid ${professionalColors.border}`,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <ArrowLeftOutlined style={{ fontSize: screens.xs ? 16 : 20, color: professionalColors.primary }} />
+              </Button>
+
+              {/* Right Arrow */}
+              <Button
+                type="text"
+                size="large"
+                onClick={next}
+                style={{
+                  position: 'absolute',
+                  right: screens.xs ? 10 : 20,
+                  zIndex: 10,
+                  width: screens.xs ? 40 : 48,
+                  height: screens.xs ? 40 : 48,
+                  borderRadius: '50%',
+                  background: professionalColors.surface,
+                  border: `2px solid ${professionalColors.border}`,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <ArrowRightOutlined style={{ fontSize: screens.xs ? 16 : 20, color: professionalColors.primary }} />
+              </Button>
+              {plans.map((plan, i) => {
+                const diff = i - activeIndex;
+                const position =
+                  diff > plans.length / 2
+                    ? diff - plans.length
+                    : diff < -plans.length / 2
+                      ? diff + plans.length
+                      : diff;
+
+                const isCenter = position === 0;
+
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      width: screens.xs ? 'calc(100% - 40px)' : 440,
+                      maxWidth: screens.xs ? '340px' : '440px',
+                      padding: screens.xs ? '36px 28px' : '48px 44px',
+                      background: professionalColors.surface,
+                      borderRadius: screens.xs ? 24 : 32,
+                      border: `1px solid ${plan.color}`,
+                      transform: `
+                translateX(${position * (screens.xs ? 0 : 460)}px)
+                scale(${isCenter ? 1 : screens.xs ? 0.85 : 0.9})
+              `,
+                      filter: isCenter ? 'none' : 'blur(1px)',
+                      opacity: isCenter ? 1 : screens.xs ? 0.3 : 0.75,
+                      zIndex: isCenter ? 5 : 2,
+                      pointerEvents: isCenter ? 'auto' : 'none',
+                      transition: 'all 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                  >
+                    {plan.tag && isCenter && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -18,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          padding: '6px 22px',
+                          background: plan.color,
+                          color: '#fff',
+                          fontSize: 12,
+                          fontWeight: 800,
+                          borderRadius: 999,
+                        }}
+                      >
+                        {plan.tag}
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        padding: 14,
+                        borderRadius: 20,
+                        background: `${plan.color}15`,
+                        border: `1px solid ${plan.color}30`,
+                        fontWeight: 800,
+                        color: plan.color,
+                        marginBottom: 32,
+                      }}
+                    >
+                      {plan.credits} MESSAGE CREDITS
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                      <div style={{ fontSize: 56, fontWeight: 900 }}>
+                        {plan.price}
+                      </div>
+                      <div style={{ color: professionalColors.textSecondary }}>
+                        per delivered message
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        padding: 16,
+                        borderRadius: 16,
+                        background: professionalColors.background,
+                        marginBottom: 36,
+                        border: `1px solid ${professionalColors.border}`,
+                        fontWeight: 800,
+                        fontSize: 18,
+                        color: professionalColors.primary,
+                      }}
+                    >
+                      Total: {plan.total}
+                    </div>
+
+                    {[
+                      'Pay only for delivered messages',
+                      'Verified RCS branding',
+                      'Advanced analytics',
+                      'Enterprise-grade security',
+                    ].map((f, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          marginBottom: 14,
+                          fontSize: 14,
+                        }}
+                      >
+                        <CheckCircleFilled style={{ color: plan.color }} />
+                        {f}
+                      </div>
+                    ))}
+
+                    <Button
+                      type={isCenter ? 'primary' : 'default'}
+                      size="large"
+                      style={{
+                        width: '100%',
+                        marginTop: 40,
+                        borderRadius: 14,
+                        fontWeight: 700,
+                        height: 54,
+                        background: isCenter ? plan.color : 'transparent',
+                        borderColor: plan.color,
+                      }}
+                      onClick={() => navigate('/register')}
+                    >
+                      Get Start with us
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+        {/* ================= END PRICING SECTION ================= */}
         {/* Message Types Section */}
         <section style={{
           ...sectionStyle,
-          background: professionalColors.surface,
-          borderTop: `1px solid ${professionalColors.border}`,
-          borderBottom: `1px solid ${professionalColors.border}`
+          background: professionalColors.background
         }}>
           <div style={containerStyle}>
             <div style={sectionHeaderStyle}>
@@ -797,7 +1240,9 @@ const LandingPage = () => {
         {/* Features Section */}
         <section style={{
           ...sectionStyle,
-          background: professionalColors.background
+          background: professionalColors.surface,
+          borderTop: `1px solid ${professionalColors.border}`,
+          borderBottom: `1px solid ${professionalColors.border}`
         }}>
           <div style={containerStyle}>
             <div style={sectionHeaderStyle}>
@@ -1171,226 +1616,6 @@ const LandingPage = () => {
         </section>
 
 
-        {/* ================= PRICING SECTION ================= */}
-        <section
-          style={{
-            ...sectionStyle,
-            background: professionalColors.background,
-            position: 'relative',
-          }}
-        >
-          <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-            {/* ===== Pricing Header ===== */}
-            <div
-              style={{
-                textAlign: 'center',
-                marginBottom: screens.xs ? '48px' : '64px',
-              }}
-            >
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 26px',
-                  background: `${professionalColors.warning}15`,
-                  borderRadius: 999,
-                  border: `1px solid ${professionalColors.warning}30`,
-                  marginBottom: 28,
-                }}
-              >
-                <CreditCardOutlined style={{ color: professionalColors.warning }} />
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 800,
-                    color: professionalColors.warning,
-                    letterSpacing: '1.2px',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Credits Pricing
-                </span>
-              </div>
-
-              <Title
-                level={2}
-                style={{
-                  fontSize: screens.xs ? 34 : 46,
-                  fontWeight: 900,
-                  marginBottom: 16,
-                }}
-              >
-                Simple, predictable pricing
-              </Title>
-
-              <Paragraph
-                style={{
-                  fontSize: screens.xs ? 16 : 19,
-                  color: professionalColors.textSecondary,
-                  maxWidth: 720,
-                  margin: '0 auto',
-                  lineHeight: 1.7,
-                }}
-              >
-                Buy RCS credits in bulk and pay <strong>only for delivered messages</strong>.
-                No setup fees. No lock-in. Built for scale.
-              </Paragraph>
-            </div>
-
-            {/* ===== Infinite Carousel ===== */}
-            <div
-              style={{
-                position: 'relative',
-                height: screens.xs ? 520 : 580,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: screens.xs ? 'visible' : 'hidden',
-                padding: screens.xs ? '0 20px' : '0'
-              }}
-              onWheel={(e) => {
-                e.preventDefault();
-                if (e.deltaY > 0 || e.deltaX > 0) next();
-                else prev();
-              }}
-            >
-              {plans.map((plan, i) => {
-                const diff = i - activeIndex;
-                const position =
-                  diff > plans.length / 2
-                    ? diff - plans.length
-                    : diff < -plans.length / 2
-                      ? diff + plans.length
-                      : diff;
-
-                const isCenter = position === 0;
-
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      position: 'absolute',
-                      width: screens.xs ? 'calc(100% - 40px)' : 440,
-                      maxWidth: screens.xs ? '340px' : '440px',
-                      padding: screens.xs ? '36px 28px' : '48px 44px',
-                      background: professionalColors.surface,
-                      borderRadius: screens.xs ? 24 : 32,
-                      border: `1px solid ${plan.color}`,
-                      transform: `
-                translateX(${position * (screens.xs ? 0 : 460)}px)
-                scale(${isCenter ? 1 : screens.xs ? 0.85 : 0.9})
-              `,
-                      filter: isCenter ? 'none' : 'blur(1px)',
-                      opacity: isCenter ? 1 : screens.xs ? 0.3 : 0.75,
-                      zIndex: isCenter ? 5 : 2,
-                      pointerEvents: isCenter ? 'auto' : 'none',
-                      transition: 'all 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  >
-                    {plan.tag && isCenter && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: -18,
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          padding: '6px 22px',
-                          background: plan.color,
-                          color: '#fff',
-                          fontSize: 12,
-                          fontWeight: 800,
-                          borderRadius: 999,
-                        }}
-                      >
-                        {plan.tag}
-                      </div>
-                    )}
-
-                    <div
-                      style={{
-                        textAlign: 'center',
-                        padding: 14,
-                        borderRadius: 20,
-                        background: `${plan.color}15`,
-                        border: `1px solid ${plan.color}30`,
-                        fontWeight: 800,
-                        color: plan.color,
-                        marginBottom: 32,
-                      }}
-                    >
-                      {plan.credits} MESSAGE CREDITS
-                    </div>
-
-                    <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                      <div style={{ fontSize: 56, fontWeight: 900 }}>
-                        {plan.price}
-                      </div>
-                      <div style={{ color: professionalColors.textSecondary }}>
-                        per delivered message
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        textAlign: 'center',
-                        padding: 16,
-                        borderRadius: 16,
-                        background: professionalColors.background,
-                        marginBottom: 36,
-                        border: `1px solid ${professionalColors.border}`,
-                        fontWeight: 800,
-                        fontSize: 18,
-                        color: professionalColors.primary,
-                      }}
-                    >
-                      Total: {plan.total}
-                    </div>
-
-                    {[
-                      'Pay only for delivered messages',
-                      'Verified RCS branding',
-                      'Advanced analytics',
-                      'Enterprise-grade security',
-                    ].map((f, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 12,
-                          marginBottom: 14,
-                          fontSize: 14,
-                        }}
-                      >
-                        <CheckCircleFilled style={{ color: plan.color }} />
-                        {f}
-                      </div>
-                    ))}
-
-                    <Button
-                      type={isCenter ? 'primary' : 'default'}
-                      size="large"
-                      style={{
-                        width: '100%',
-                        marginTop: 40,
-                        borderRadius: 14,
-                        fontWeight: 700,
-                        height: 54,
-                        background: isCenter ? plan.color : 'transparent',
-                        borderColor: plan.color,
-                      }}
-                      onClick={() => navigate('/register')}
-                    >
-                      Get Start with us
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-        {/* ================= END PRICING SECTION ================= */}
 
 
 

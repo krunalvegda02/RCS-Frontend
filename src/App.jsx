@@ -15,23 +15,23 @@ function App() {
         <AuthChecker />
         <Routes>
           {/* Public routes */}
-          {pageData.public.map(({ path, component: Component }) => (
-            <Route 
-              key={path} 
-              path={path} 
+          {pageData.public.map(({ path, component: Component, requiresAuth = false, skipOnboardingCheck = false }) => (
+            <Route
+              key={path}
+              path={path}
               element={
-                <AppRoute requiresAuth={false}>
+                <AppRoute requiresAuth={requiresAuth} skipOnboardingCheck={skipOnboardingCheck}>
                   <Component />
                 </AppRoute>
-              } 
+              }
             />
           ))}
 
           {/* User routes */}
           {pageData.user.map(({ path, layout: Layout, allowedRoles, children }) => (
-            <Route 
-              key={path} 
-              path={path} 
+            <Route
+              key={path}
+              path={path}
               element={
                 <AppRoute allowedRoles={allowedRoles}>
                   <Layout />
@@ -39,10 +39,10 @@ function App() {
               }
             >
               {children.map(({ path: childPath, component: Component, index }) => (
-                <Route 
+                <Route
                   key={index ? 'index' : childPath}
                   {...(index ? { index: true } : { path: childPath })}
-                  element={<Component />} 
+                  element={<Component />}
                 />
               ))}
             </Route>
@@ -50,9 +50,9 @@ function App() {
 
           {/* Admin routes */}
           {pageData.admin.map(({ path, layout: Layout, allowedRoles, children }) => (
-            <Route 
-              key={path} 
-              path={path} 
+            <Route
+              key={path}
+              path={path}
               element={
                 <AppRoute allowedRoles={allowedRoles}>
                   <Layout />
@@ -60,10 +60,10 @@ function App() {
               }
             >
               {children.map(({ path: childPath, component: Component, index }) => (
-                <Route 
+                <Route
                   key={index ? 'index' : childPath}
                   {...(index ? { index: true } : { path: childPath })}
-                  element={<Component />} 
+                  element={<Component />}
                 />
               ))}
             </Route>

@@ -25,6 +25,7 @@ import {
   WalletOutlined,
   TeamOutlined,
   UserAddOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -132,6 +133,12 @@ export default function AdminLayout() {
     onClick: () => navigate('/admin/pending-users'),
   },
   {
+    key: '/admin/demo-requests',
+    icon: <CalendarOutlined className="text-xl" />,
+    label: 'Demo Requests',
+    onClick: () => navigate('/admin/demo-requests'),
+  },
+  {
     key: '/admin/wallet-requests',
     icon: <WalletOutlined className="text-xl" />,
     label: 'Wallet Requests',
@@ -143,12 +150,6 @@ export default function AdminLayout() {
     label: 'All Campaigns',
     onClick: () => navigate('/admin/all-campaigns'),
   },
-  // {
-  //   key: '/admin/reports',
-  //   icon: <FileTextOutlined className="text-xl" />,
-  //   label: 'Reports',
-  //   onClick: () => navigate('/admin/reports'),
-  // },
   ];
 
   const userMenuItems = [

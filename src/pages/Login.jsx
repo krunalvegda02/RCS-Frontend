@@ -178,12 +178,12 @@ export default function Login() {
             </Form.Item>
           </Form>
 
-          {/* <div style={{ textAlign: 'center', marginTop: THEME_CONSTANTS.spacing.md }}>
+          <div style={{ textAlign: 'center', marginTop: THEME_CONSTANTS.spacing.md }}>
             <Text style={{ color: THEME_CONSTANTS.colors.textSecondary, fontSize: '14px' }}>
               Don't have an account?{' '}
               <a href="/register" style={{ color: THEME_CONSTANTS.colors.primary, textDecoration: 'none', fontWeight: 600 }}>Sign Up</a>
             </Text>
-          </div> */}
+          </div>
         </Card>
       </div>
     );
@@ -448,14 +448,14 @@ export default function Login() {
               </Form.Item>
             </Form>
 
-            {/* <div style={{ textAlign: 'center', marginTop: THEME_CONSTANTS.spacing.xl }}>
+            <div style={{ textAlign: 'center', marginTop: THEME_CONSTANTS.spacing.xl }}>
               <Text style={{ color: THEME_CONSTANTS.colors.textSecondary, fontSize: '15px' }}>
                 Don't have an account?{' '}
                 <a href="/register" style={{ color: THEME_CONSTANTS.colors.primary, textDecoration: 'none', fontWeight: 600 }}>
                   Sign Up
                 </a>
               </Text>
-            </div> */}
+            </div>
           </div>
         </div>
       </div>

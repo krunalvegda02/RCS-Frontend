@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, Form, Input, Button, Typography, Alert, Row, Col, Grid } from 'antd';
 import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone, MailOutlined, PhoneOutlined, CheckCircleOutlined, MessageOutlined, BarChartOutlined, SendOutlined } from '@ant-design/icons';
-import ApiService from '../helper/apiClient';
+import { useDispatch } from 'react-redux';
+import { registerUser } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import { THEME_CONSTANTS } from '../theme';
 
@@ -13,30 +14,33 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const screens = useBreakpoint();
+  const dispatch = useDispatch();
 
   const onFinish = async (values) => {
     try {
       setLoading(true);
       setError('');
-      
+
+      // Normalize phone number: remove +, spaces, and take last 10 digits
+      const normalizedPhone = values.phone.replace(/[^0-9]/g, '').slice(-10);
+
       const userData = {
         name: values.name,
         email: values.email,
         password: values.password,
-        phone: values.phone
+        phone: normalizedPhone
       };
-      
-      const response = await ApiService.registerUser(userData);
-      
-      if (response.message === 'User registered successfully') {
-        toast.success('Account created successfully!');
-        form.resetFields();
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 1500);
-      }
+
+      const result = await dispatch(registerUser(userData)).unwrap();
+
+      toast.success('Account created successfully! Proceeding to onboarding...');
+      form.resetFields();
+
+      setTimeout(() => {
+        window.location.href = '/onboarding';
+      }, 1500);
     } catch (error) {
-      const errorMsg = error.response?.data?.message || 'Registration failed';
+      const errorMsg = error?.message || 'Registration failed';
       toast.error(errorMsg);
       setError(errorMsg);
     } finally {
@@ -173,7 +177,7 @@ export default function Register() {
           }}>
             <MessageOutlined style={{ fontSize: '32px', color: 'white' }} />
           </div>
-          
+
           <Title level={1} style={{
             color: 'white',
             marginBottom: THEME_CONSTANTS.spacing.lg,
@@ -183,7 +187,7 @@ export default function Register() {
           }}>
             RCS Business Platform
           </Title>
-          
+
           <Text style={{
             color: 'rgba(255,255,255,0.9)',
             fontSize: '18px',
