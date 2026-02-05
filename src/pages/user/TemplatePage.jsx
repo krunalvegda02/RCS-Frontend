@@ -242,23 +242,23 @@ export default function TemplatePage() {
         </Tag>
       )
     },
-    {
-      title: 'Usage',
-      dataIndex: 'usageCount',
-      key: 'usage',
-      width: 90,
-      align: 'center',
-      render: (count) => (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '18px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>
-            {count || 0}
-          </span>
-          <span style={{ fontSize: '10px', color: THEME_CONSTANTS.colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            times
-          </span>
-        </div>
-      )
-    },
+    // {
+    //   title: 'Usage',
+    //   dataIndex: 'usageCount',
+    //   key: 'usage',
+    //   width: 90,
+    //   align: 'center',
+    //   render: (count) => (
+    //     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+    //       <span style={{ fontSize: '18px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>
+    //         {count || 0}
+    //       </span>
+    //       <span style={{ fontSize: '10px', color: THEME_CONSTANTS.colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+    //         times
+    //       </span>
+    //     </div>
+    //   )
+    // },
     {
       title: 'Created',
       dataIndex: 'createdAt',

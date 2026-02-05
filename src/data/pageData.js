@@ -102,6 +102,10 @@ export const pageData = {
           component: WalletRequests
         },
         {
+          path: 'my-reports',
+          component: UserReports
+        },
+        {
           path: 'profile',
           component: Profile
         },

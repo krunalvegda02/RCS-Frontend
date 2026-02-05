@@ -21,6 +21,8 @@ import {
   HomeOutlined,
   MailOutlined,
   WalletOutlined,
+  PieChartOutlined,
+  FileExcelOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -135,8 +137,14 @@ export default function UserLayout() {
     {
       key: '/dashboard/reports',
       icon: <BarChartOutlined className="text-xl" />,
-      label: 'Reports',
+      label: 'Campaign Reports',
       onClick: () => navigate('/dashboard/reports'),
+    },
+      {
+      key: '/dashboard/my-reports',
+      icon: <FileExcelOutlined className="text-xl" />,
+      label: 'My Reports',
+      onClick: () => navigate('/dashboard/my-reports'),
     },
     {
       key: '/dashboard/wallet',

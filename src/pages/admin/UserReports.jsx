@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { useAuth } from '../../context/AuthContext';
 import {
   Card,
   Row,
@@ -38,22 +39,31 @@ import {
 import { THEME_CONSTANTS } from '../../theme';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-import { getUserReport } from '../../redux/slices/userReportSlice';
+import { getUserReport, getMyReport } from '../../redux/slices/userReportSlice';
 
 const UserReports = () => {
   const { userId } = useParams();
+  const { user: currentUser } = useAuth();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  
+  // Use userId from params (admin view) or current user's ID (user view)
+  const targetUserId = userId || currentUser?._id;
+  const isAdminView = !!userId;
   
   const { reportData, loading, error } = useSelector(state => state.userReport);
   const [campaignPage, setCampaignPage] = useState(1);
   const [transactionPage, setTransactionPage] = useState(1);
 
   useEffect(() => {
-    if (userId) {
-      dispatch(getUserReport({ userId, campaignPage, transactionPage }));
+    if (targetUserId) {
+      if (isAdminView) {
+        dispatch(getUserReport({ userId: targetUserId, campaignPage, transactionPage }));
+      } else {
+        dispatch(getMyReport({ campaignPage, transactionPage }));
+      }
     }
-  }, [dispatch, userId, campaignPage, transactionPage]);
+  }, [dispatch, targetUserId, campaignPage, transactionPage, isAdminView]);
 
   useEffect(() => {
     if (error) {
@@ -267,15 +277,28 @@ const UserReports = () => {
           borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`
         }}>
           <Breadcrumb style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
-            <Breadcrumb.Item>
-              <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Admin</span>
-            </Breadcrumb.Item>
-            <Breadcrumb.Item onClick={() => navigate('/admin/users')} style={{ cursor: 'pointer' }}>
-              <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Users</span>
-            </Breadcrumb.Item>
-            <Breadcrumb.Item>
-              <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>User Report</span>
-            </Breadcrumb.Item>
+            {isAdminView ? (
+              <>
+                <Breadcrumb.Item>
+                  <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Admin</span>
+                </Breadcrumb.Item>
+                <Breadcrumb.Item onClick={() => navigate('/admin/users')} style={{ cursor: 'pointer' }}>
+                  <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Users</span>
+                </Breadcrumb.Item>
+                <Breadcrumb.Item>
+                  <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>User Report</span>
+                </Breadcrumb.Item>
+              </>
+            ) : (
+              <>
+                <Breadcrumb.Item onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
+                  <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Dashboard</span>
+                </Breadcrumb.Item>
+                <Breadcrumb.Item>
+                  <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>My Reports</span>
+                </Breadcrumb.Item>
+              </>
+            )}
           </Breadcrumb>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.lg, flexWrap: 'wrap' }}>
@@ -323,12 +346,11 @@ const UserReports = () => {
             <Space>
               <Button
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/admin/users')}
+                onClick={() => navigate(isAdminView ? '/admin/users' : '/dashboard')}
                 style={{ borderRadius: THEME_CONSTANTS.radius.md, height: '44px' }}
               >
                 Back
               </Button>
-             
             </Space>
           </div>
         </div>

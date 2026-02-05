@@ -1025,11 +1025,60 @@ export default function Onboarding() {
       return Upload.LIST_IGNORE;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      message.error('File size must be less than 5MB');
+    // Size validation based on file type
+    const maxSize = fileType === 'brandLogo' ? 50 * 1024 : // 50KB for logo
+                    fileType === 'companyBanner' ? 200 * 1024 : // 200KB for banner
+                    5 * 1024 * 1024; // 5MB for certificate
+
+    if (file.size > maxSize) {
+      const maxSizeMB = maxSize / (1024 * 1024);
+      const maxSizeKB = maxSize / 1024;
+      message.error(`File size must be less than ${maxSizeMB >= 1 ? `${maxSizeMB}MB` : `${maxSizeKB}KB`}`);
       return Upload.LIST_IGNORE;
     }
 
+    // Image dimension validation for logo and banner
+    if (file.type.startsWith('image/') && (fileType === 'brandLogo' || fileType === 'companyBanner')) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = async () => {
+            let isValidDimension = false;
+            let errorMessage = '';
+
+            if (fileType === 'brandLogo') {
+              // Logo: 224x224 pixels (1:1 ratio)
+              isValidDimension = img.width === 224 && img.height === 224;
+              errorMessage = 'Logo must be exactly 224×224 pixels (square format)';
+            } else if (fileType === 'companyBanner') {
+              // Banner: 1440x448 pixels (3.21:1 ratio)
+              isValidDimension = img.width === 1440 && img.height === 448;
+              errorMessage = 'Banner must be exactly 1440×448 pixels';
+            }
+
+            if (!isValidDimension) {
+              message.error(errorMessage);
+              resolve(Upload.LIST_IGNORE);
+              return;
+            }
+
+            // Proceed with upload
+            await uploadFile(file, fileType);
+            resolve(false);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // For PDF files, proceed directly
+    await uploadFile(file, fileType);
+    return false;
+  };
+
+  const uploadFile = async (file, fileType) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -1060,8 +1109,6 @@ export default function Onboarding() {
       console.error('Upload error:', error);
       message.error({ content: error.message || 'Upload failed. Please try again.', key: fileType });
     }
-
-    return false;
   };
 
   const validateGST = (rule, value) => {
@@ -1476,7 +1523,7 @@ export default function Onboarding() {
                   extra={<Text type="secondary">Required</Text>}
                 >
                   <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                    Upload your official brand logo in high quality. This logo will be displayed in the verified badge on RCS messages.
+                    Upload your official brand logo. Must be exactly 224×224 pixels in JPEG or PNG format (max 50KB). Will be displayed as circular image.
                   </Paragraph>
 
                   <Form.Item
@@ -1492,10 +1539,10 @@ export default function Onboarding() {
                       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
                         <UploadOutlined style={{ fontSize: 48, color: THEME_CONSTANTS.colors.primary, marginBottom: 16 }} />
                         <Paragraph style={{ marginBottom: 8 }}>
-                          <Text strong>Upload High-Quality Logo</Text>
+                          <Text strong>Upload Brand Logo</Text>
                         </Paragraph>
                         <Paragraph type="secondary">
-                          JPG, PNG up to 5MB • Minimum 400×400 pixels
+                          224×224 pixels • JPEG/PNG • Max 50KB
                         </Paragraph>
                       </div>
                     </Dragger>
@@ -1574,7 +1621,7 @@ export default function Onboarding() {
                   extra={<Text type="secondary">Required</Text>}
                 >
                   <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                    Upload your company banner image for profile display. Recommended size: 1200×400 pixels for best results.
+                    Upload your company banner. Must be exactly 1440×448 pixels in JPEG format (max 200KB).
                   </Paragraph>
 
                   <Form.Item
@@ -1584,7 +1631,7 @@ export default function Onboarding() {
                     <Dragger
                       beforeUpload={(file) => handleFileUpload(file, 'companyBanner')}
                       maxCount={1}
-                      accept=".jpg,.jpeg,.png"
+                      accept=".jpg,.jpeg"
                       showUploadList={false}
                     >
                       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
@@ -1593,7 +1640,7 @@ export default function Onboarding() {
                           <Text strong>Upload Company Banner</Text>
                         </Paragraph>
                         <Paragraph type="secondary">
-                          JPG, PNG up to 5MB • Recommended 1200×400 pixels
+                          1440×448 pixels • JPEG • Max 200KB
                         </Paragraph>
                       </div>
                     </Dragger>

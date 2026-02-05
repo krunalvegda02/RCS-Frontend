@@ -16,6 +16,20 @@ export const getUserReport = createAsyncThunkHandler(
   }
 );
 
+export const getMyReport = createAsyncThunkHandler(
+  'userReport/getMy',
+  _get,
+  (payload) => {
+    const { campaignPage = 1, transactionPage = 1 } = payload;
+    const params = new URLSearchParams();
+    params.append('campaignPage', campaignPage);
+    params.append('transactionPage', transactionPage);
+    params.append('campaignLimit', '5');
+    params.append('transactionLimit', '5');
+    return `auth/user/my-report?${params.toString()}`;
+  }
+);
+
 const userReportSlice = createSlice({
   name: 'userReport',
   initialState: {
@@ -40,6 +54,18 @@ const userReportSlice = createSlice({
         state.reportData = action.payload.data;
       })
       .addCase(getUserReport.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(getMyReport.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getMyReport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.reportData = action.payload.data;
+      })
+      .addCase(getMyReport.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

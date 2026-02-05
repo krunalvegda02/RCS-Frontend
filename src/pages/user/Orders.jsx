@@ -1487,6 +1487,35 @@ export default function Orders() {
                       <div style={{
                         width: '48px',
                         height: '48px',
+                        background: '#e6f4ff',
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <PhoneOutlined style={{ fontSize: '20px', color: THEME_CONSTANTS.colors.primary }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
+                          {selectedOrder?.rcsCapableCount || 0}
+                        </div>
+                        <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>RCS Capable</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                  <Card style={{
+                    borderRadius: THEME_CONSTANTS.radius.lg,
+                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                    boxShadow: THEME_CONSTANTS.shadow.sm,
+                    background: THEME_CONSTANTS.colors.surface
+                  }} bodyStyle={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
                         background: '#e6f7ff',
                         borderRadius: THEME_CONSTANTS.radius.md,
                         display: 'flex',
