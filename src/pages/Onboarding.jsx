@@ -1026,8 +1026,8 @@ export default function Onboarding() {
     }
 
     // Size validation based on file type
-    const maxSize = fileType === 'brandLogo' ? 50 * 1024 : // 50KB for logo
-                    fileType === 'companyBanner' ? 200 * 1024 : // 200KB for banner
+    const maxSize = fileType === 'brandLogo' ? 200 * 1024 : // 200KB for logo
+                    fileType === 'companyBanner' ? 500 * 1024 : // 500KB for banner
                     5 * 1024 * 1024; // 5MB for certificate
 
     if (file.size > maxSize) {

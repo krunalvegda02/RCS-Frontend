@@ -285,7 +285,7 @@ const LandingPage = () => {
               }}
               onClick={() => navigate('/register')}
             >
-              Get Started
+              Sign Up
             </Button>
           </div>
         </div>
@@ -1615,6 +1615,220 @@ const LandingPage = () => {
           </div>
         </section>
 
+
+{/* ================= CONTACT US SECTION ================= */}
+<section
+  style={{
+    ...sectionStyle,
+    background: professionalColors.surface,
+    borderTop: `1px solid ${professionalColors.border}`,
+    borderBottom: `1px solid ${professionalColors.border}`,
+  }}
+>
+  <div style={containerStyle}>
+    {/* Section Header */}
+    <div style={sectionHeaderStyle}>
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '10px 26px',
+          background: `${professionalColors.primary}15`,
+          borderRadius: 999,
+          border: `1px solid ${professionalColors.primary}30`,
+          marginBottom: 24,
+        }}
+      >
+        <CustomerServiceOutlined style={{ color: professionalColors.primary }} />
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            color: professionalColors.primary,
+            letterSpacing: '1.2px',
+            textTransform: 'uppercase',
+          }}
+        >
+          Contact Us
+        </span>
+      </div>
+
+      <Title level={2} style={headingStyle(2)}>
+        Talk to Our RCS Experts
+      </Title>
+
+      <Paragraph
+        style={{
+          fontSize: screens.xs ? 16 : 18,
+          color: professionalColors.textSecondary,
+          maxWidth: 720,
+          margin: '0 auto',
+          lineHeight: 1.7,
+        }}
+      >
+        Have questions about onboarding, pricing, or enterprise integrations?
+        Our team is ready to help you make the right decision.
+      </Paragraph>
+    </div>
+
+    {/* Contact Cards */}
+    <Row gutter={screens.xs ? [24, 24] : [32, 32]} justify="center">
+      {/* Email Card */}
+      <Col xs={24} md={12}>
+        <Card
+          hoverable
+          style={{
+            ...cardStyle,
+            height: '100%',
+          }}
+          onMouseEnter={(e) => handleCardHover(e, professionalColors.primary)}
+          onMouseLeave={handleCardLeave}
+          bodyStyle={{
+            padding: screens.xs ? '28px' : '36px',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 20,
+              background: `${professionalColors.primary}15`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+              border: `2px solid ${professionalColors.primary}30`,
+            }}
+          >
+            <MailOutlined
+              style={{ fontSize: 34, color: professionalColors.primary }}
+            />
+          </div>
+
+          <Title level={4} style={{ fontWeight: 700 }}>
+            Email Support
+          </Title>
+
+          <Paragraph
+            style={{
+              color: professionalColors.textSecondary,
+              fontSize: 15,
+              lineHeight: 1.6,
+              marginBottom: 16,
+            }}
+          >
+            Reach out to us for onboarding help, integrations, or enterprise
+            queries.
+          </Paragraph>
+
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: professionalColors.primary,
+            }}
+          >
+            info@rcssender.com
+          </Text>
+
+          <div style={{ marginTop: 12, fontSize: 13, color: professionalColors.textSecondary }}>
+            Typical response time: under 2 business hours
+          </div>
+        </Card>
+      </Col>
+
+      {/* Phone Card */}
+      <Col xs={24} md={12}>
+        <Card
+          hoverable
+          style={{
+            ...cardStyle,
+            height: '100%',
+          }}
+          onMouseEnter={(e) => handleCardHover(e, professionalColors.success)}
+          onMouseLeave={handleCardLeave}
+          bodyStyle={{
+            padding: screens.xs ? '28px' : '36px',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 20,
+              background: `${professionalColors.success}15`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+              border: `2px solid ${professionalColors.success}30`,
+            }}
+          >
+            <CustomerServiceOutlined
+              style={{ fontSize: 34, color: professionalColors.success }}
+            />
+          </div>
+
+          <Title level={4} style={{ fontWeight: 700 }}>
+            Phone Support
+          </Title>
+
+          <Paragraph
+            style={{
+              color: professionalColors.textSecondary,
+              fontSize: 15,
+              lineHeight: 1.6,
+              marginBottom: 16,
+            }}
+          >
+            Speak directly with our support team for immediate assistance.
+          </Paragraph>
+
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: professionalColors.success,
+            }}
+          >
+            +91 94628 10993
+          </Text>
+
+          <div style={{ marginTop: 12, fontSize: 13, color: professionalColors.textSecondary }}>
+            Available Mon–Sat • 10:00 AM – 7:00 PM IST
+          </div>
+        </Card>
+      </Col>
+    </Row>
+
+    {/* Trust Footer */}
+    <div
+      style={{
+        marginTop: screens.xs ? 48 : 64,
+        padding: screens.xs ? 20 : 28,
+        background: professionalColors.background,
+        borderRadius: 16,
+        border: `1px solid ${professionalColors.border}`,
+        textAlign: 'center',
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: professionalColors.textSecondary,
+        }}
+      >
+        Trusted by growing businesses and enterprises for secure, verified RCS
+        messaging.
+      </Text>
+    </div>
+  </div>
+</section>
+{/* ================= END CONTACT US SECTION ================= */}
 
 
 
