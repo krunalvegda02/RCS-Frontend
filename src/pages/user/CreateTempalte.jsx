@@ -1157,7 +1157,7 @@ export default function CreateTemplatePage() {
         onCropComplete={handleCropComplete}
         imageUrl={cropperImageUrl}
         loading={cropperLoading}
-        messageType={messageType === 'rcs' ? 'richCard' : messageType === 'carousel' ? 'carousel' : 'richCard'}
+        messageType={cropperTarget.type === 'rich_card' ? 'richCard' : cropperTarget.type === 'carousel' ? 'carousel' : 'richCard'}
       />
 
       {/* Full Preview Modal */}

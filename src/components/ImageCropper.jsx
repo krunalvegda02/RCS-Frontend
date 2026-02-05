@@ -10,6 +10,7 @@ import {
   Spin,
   message,
   Select,
+  Alert,
 } from 'antd';
 import {
   ZoomInOutlined,
@@ -34,6 +35,24 @@ import {
  */
 
 const RCS_ASPECT_RATIOS = {
+  logo: {
+    ratio: 1,
+    label: 'Brand Logo - 1:1',
+    description: 'Square 224×224 pixels',
+    optimalWidth: 224,
+    optimalHeight: 224,
+    minWidth: 224,
+    minHeight: 224,
+  },
+  banner: {
+    ratio: 1440 / 448,
+    label: 'Company Banner - 1440:448',
+    description: 'Wide 1440×448 pixels',
+    optimalWidth: 1440,
+    optimalHeight: 448,
+    minWidth: 1440,
+    minHeight: 448,
+  },
   richCard: {
     ratio: 16 / 9,
     label: 'Rich Card - 16:9',
@@ -76,7 +95,7 @@ export default function RCSImageCropper({
   onCropComplete,
   imageUrl,
   loading = false,
-  messageType = 'richCard',
+  messageType = 'logo',
 }) {
   const imageRef = useRef(null);
   const containerRef = useRef(null);
@@ -90,14 +109,14 @@ export default function RCSImageCropper({
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [selectedRatioKey, setSelectedRatioKey] = useState(messageType);
   const [lockAspectRatio, setLockAspectRatio] = useState(true);
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
   const [displayDimensions, setDisplayDimensions] = useState({ width: 0, height: 0 });
   const [showGrid, setShowGrid] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
 
-  // COMPUTED VALUES
+  // Auto-select format based on messageType prop
+  const selectedRatioKey = messageType;
   const selectedRatio = RCS_ASPECT_RATIOS[selectedRatioKey];
 
   const cropInfo = useMemo(() => {
@@ -391,27 +410,6 @@ const previewCanvasRef = useRef(null);
   }, [open, imageLoading, displayDimensions]);
 
   // CONTROL ACTIONS
-  const handleRatioChange = (key) => {
-    setSelectedRatioKey(key);
-    const ratio = RCS_ASPECT_RATIOS[key].ratio;
-
-    setLockAspectRatio(key !== 'freeform');
-
-    if (ratio) {
-      setCrop((prev) => {
-        const newHeight = prev.width / ratio;
-        const maxHeight = displayDimensions.height - prev.y;
-
-        if (newHeight <= maxHeight) {
-          return { ...prev, height: newHeight };
-        } else {
-          const newWidth = maxHeight * ratio;
-          return { ...prev, width: newWidth, height: maxHeight };
-        }
-      });
-    }
-  };
-
   const handleCenterCrop = () => {
     setCrop((prev) => ({
       ...prev,
@@ -463,9 +461,9 @@ const previewCanvasRef = useRef(null);
       const actualCropWidth = Math.round(crop.width * scaleX);
       const actualCropHeight = Math.round(crop.height * scaleY);
 
-      const maxOutputWidth = selectedRatioKey === 'richCard' ? 1440 : 960;
-      const outputWidth = Math.min(actualCropWidth, maxOutputWidth);
-      const outputHeight = Math.round(outputWidth / (crop.width / crop.height));
+      // Use exact optimal dimensions for output
+      const outputWidth = selectedRatio.optimalWidth;
+      const outputHeight = selectedRatio.optimalHeight;
 
       canvas.width = outputWidth;
       canvas.height = outputHeight;
@@ -517,7 +515,7 @@ const previewCanvasRef = useRef(null);
               },
             });
 
-            message.success('Image cropped successfully! ✂️');
+            message.success(`Image cropped to ${outputWidth}×${outputHeight} pixels! ✂️`);
           }
         },
         'image/jpeg',
@@ -558,9 +556,10 @@ const previewCanvasRef = useRef(null);
       }
       open={open}
       onCancel={onCancel}
-      width={1400}
+      width="95%"
+      style={{ maxWidth: '1400px' }}
       footer={
-        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+        <Space style={{ width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Button onClick={onCancel} size="large">
             Cancel
           </Button>
@@ -569,71 +568,33 @@ const previewCanvasRef = useRef(null);
             size="large"
             loading={loading}
             onClick={handleCropComplete}
-            style={{ minWidth: '150px' }}
+            style={{ minWidth: '120px' }}
             icon={<ScissorOutlined />}
           >
             {loading ? 'Processing...' : 'Crop & Use'}
           </Button>
         </Space>
       }
-      bodyStyle={{ padding: '24px', maxHeight: '90vh', overflowY: 'auto' }}
+      bodyStyle={{ padding: window.innerWidth < 768 ? '12px' : '24px', maxHeight: '90vh', overflowY: 'auto' }}
       destroyOnClose
       maskClosable={false}
       centered
     >
       <Spin spinning={imageLoading} tip="Loading image...">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
-          {/* FORMAT SELECTOR - ENHANCED */}
-          <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', borderRadius: '12px', padding: '16px', border: '1px solid #e0e7ff' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '4px', height: '16px', background: '#1890ff', borderRadius: '2px' }} />
-              <span>Select Format</span>
-            </div>
-            <Row gutter={12}>
-              {Object.entries(RCS_ASPECT_RATIOS).map(([key, value]) => {
-                const isSelected = selectedRatioKey === key;
-                return (
-                  <Col span={12} key={key}>
-                    <button
-                      onClick={() => handleRatioChange(key)}
-                      style={{
-                        width: '100%',
-                        padding: '16px',
-                        border: isSelected ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                        borderRadius: '10px',
-                        background: isSelected ? 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)' : '#fff',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        textAlign: 'center',
-                        boxShadow: isSelected ? '0 4px 12px rgba(24, 144, 255, 0.25)' : '0 2px 4px rgba(0,0,0,0.06)',
-                        transform: isSelected ? 'translateY(-2px)' : 'translateY(0)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)';
-                        }
-                      }}
-                    >
-                      <div style={{ fontSize: '15px', fontWeight: 700, color: isSelected ? '#fff' : '#1e293b', marginBottom: '4px', letterSpacing: '-0.01em' }}>{value.label}</div>
-                      <div style={{ fontSize: '11px', color: isSelected ? 'rgba(255,255,255,0.85)' : '#64748b', fontWeight: 500 }}>{value.description}</div>
-                    </button>
-                  </Col>
-                );
-              })}
-            </Row>
-          </div>
+          {/* Format Info Banner */}
+          <Alert
+            message={`Cropping for ${selectedRatio.label}`}
+            description={`Output: ${selectedRatio.optimalWidth}×${selectedRatio.optimalHeight} pixels`}
+            type="info"
+            showIcon
+            style={{ marginBottom: 0 }}
+          />
 
-          {/* MAIN CONTENT - 60/40 SPLIT */}
-          <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
-            {/* LEFT SIDE - IMAGE EDITOR (60%) */}
-            <div style={{ flex: '1.5', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          {/* MAIN CONTENT - RESPONSIVE */}
+          <div style={{ display: 'flex', flexDirection: window.innerWidth < 992 ? 'column' : 'row', gap: '16px', flex: 1, minHeight: 0 }}>
+            {/* LEFT SIDE - IMAGE EDITOR */}
+            <div style={{ flex: window.innerWidth < 992 ? '1' : '1.5', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
               <Card
                 size="small"
                 style={{ borderColor: '#f0f0f0', flex: 1, display: 'flex', flexDirection: 'column' }}
@@ -645,6 +606,7 @@ const previewCanvasRef = useRef(null);
                     position: 'relative',
                     width: '100%',
                     flex: 1,
+                    minHeight: window.innerWidth < 768 ? '300px' : '400px',
                     background: '#0a0a0a',
                     overflow: 'hidden',
                     cursor: isDragging ? 'grabbing' : isResizing ? 'crosshair' : 'default',
@@ -762,19 +724,19 @@ const previewCanvasRef = useRef(null);
               </Card>
             </div>
 
-            {/* RIGHT SIDE - CONTROLS PANEL (40%) - STICKY */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px', position: 'sticky', top: '0', alignSelf: 'flex-start' }}>
+            {/* RIGHT SIDE - CONTROLS PANEL - RESPONSIVE */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px', position: window.innerWidth < 992 ? 'relative' : 'sticky', top: '0', alignSelf: 'flex-start' }}>
               <Card size="small" title={<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ fontSize: '18px' }}></span><span style={{ fontWeight: 600 }}>Live Preview</span></div>} style={{ borderRadius: '12px', border: '1px solid #e0e7ff', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '12px', background: 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)' }}>
-                <div style={{ width: '100%', maxWidth: '360px', margin: '0 auto', position: 'relative', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                <div style={{ width: '100%', maxWidth: window.innerWidth < 768 ? '100%' : '360px', margin: '0 auto', position: 'relative', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                   <canvas ref={previewCanvasRef} style={{ width: '100%', display: 'block', background: '#000' }} />
                   <GridLines showGrid={showGrid} />
                 </div>
               </Card>
 
-              {/* Zoom Control */}
+              {/* Zoom Control
               <Card size="small" title={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ZoomInOutlined style={{ fontSize: '14px', color: '#1890ff' }} /><span style={{ fontWeight: 600 }}>Zoom</span></div><span style={{ fontSize: '12px', fontWeight: 700, color: '#1890ff', background: '#e6f7ff', padding: '2px 8px', borderRadius: '4px' }}>{Math.round(zoom * 100)}%</span></div>} style={{ borderRadius: '10px', border: '1px solid #e8e8e8' }} bodyStyle={{ padding: '12px 16px' }}>
                 <Slider min={0.5} max={3} step={0.1} value={zoom} onChange={handleZoomChange} marks={{ 0.5: '50%', 1: '100%', 3: '300%' }} trackStyle={{ background: 'linear-gradient(90deg, #1890ff 0%, #096dd9 100%)', height: '6px' }} railStyle={{ background: '#e8e8e8', height: '6px' }} handleStyle={{ borderColor: '#1890ff', height: '18px', width: '18px', marginTop: '-6px', boxShadow: '0 2px 6px rgba(24, 144, 255, 0.3)' }} />
-              </Card>
+              </Card> */}
 
               {/* Rotation Control */}
               <Card size="small" title={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><RotateRightOutlined style={{ fontSize: '14px', color: '#1890ff' }} /><span style={{ fontWeight: 600 }}>Rotate</span></div><span style={{ fontSize: '12px', fontWeight: 700, color: '#1890ff', background: '#e6f7ff', padding: '2px 8px', borderRadius: '4px' }}>{rotation}°</span></div>} style={{ borderRadius: '10px', border: '1px solid #e8e8e8' }} bodyStyle={{ padding: '12px 16px' }}>
@@ -796,35 +758,35 @@ const previewCanvasRef = useRef(null);
             </div>
           </div>
 
-          {/* Crop Info - Bottom */}
-          <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', borderRadius: '12px', padding: '16px', border: '1px solid #e0e7ff' }}>
+          {/* Crop Info - Bottom - RESPONSIVE */}
+          <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', borderRadius: '12px', padding: window.innerWidth < 768 ? '12px' : '16px', border: '1px solid #e0e7ff' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
 
               <span>Crop Information</span>
             </div>
-            <Row gutter={16}>
-              <Col span={6}>
-                <div style={{ textAlign: 'center', padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
+            <Row gutter={window.innerWidth < 768 ? [8, 8] : 16}>
+              <Col xs={12} sm={6}>
+                <div style={{ textAlign: 'center', padding: window.innerWidth < 768 ? '8px' : '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
                   <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Display</div>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{cropInfo.displayWidth} × {cropInfo.displayHeight}</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: window.innerWidth < 768 ? '12px' : '14px' }}>{cropInfo.displayWidth} × {cropInfo.displayHeight}</div>
                 </div>
               </Col>
-              <Col span={6}>
-                <div style={{ textAlign: 'center', padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
+              <Col xs={12} sm={6}>
+                <div style={{ textAlign: 'center', padding: window.innerWidth < 768 ? '8px' : '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
                   <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Output</div>
-                  <div style={{ fontWeight: 700, color: '#1890ff', fontSize: '14px' }}>{cropInfo.actualWidth} × {cropInfo.actualHeight}</div>
+                  <div style={{ fontWeight: 700, color: '#1890ff', fontSize: window.innerWidth < 768 ? '12px' : '14px' }}>{cropInfo.actualWidth} × {cropInfo.actualHeight}</div>
                 </div>
               </Col>
-              <Col span={6}>
-                <div style={{ textAlign: 'center', padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
+              <Col xs={12} sm={6}>
+                <div style={{ textAlign: 'center', padding: window.innerWidth < 768 ? '8px' : '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
                   <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Aspect</div>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{cropInfo.currentAspect}</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: window.innerWidth < 768 ? '12px' : '14px' }}>{cropInfo.currentAspect}</div>
                 </div>
               </Col>
-              <Col span={6}>
-                <div style={{ textAlign: 'center', padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
+              <Col xs={12} sm={6}>
+                <div style={{ textAlign: 'center', padding: window.innerWidth < 768 ? '8px' : '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
                   <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Coverage</div>
-                  <div style={{ fontWeight: 700, color: '#10b981', fontSize: '14px' }}>{cropInfo.coverage}%</div>
+                  <div style={{ fontWeight: 700, color: '#10b981', fontSize: window.innerWidth < 768 ? '12px' : '14px' }}>{cropInfo.coverage}%</div>
                 </div>
               </Col>
             </Row>

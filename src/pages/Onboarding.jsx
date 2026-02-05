@@ -926,13 +926,15 @@ import {
   CloudServerOutlined,
   SecurityScanOutlined,
   LogoutOutlined,
-  EyeOutlined
+  EyeOutlined,
+  ScissorOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { THEME_CONSTANTS } from '../theme';
 import { _post, _get } from '../helper/apiClient';
 import { logout } from '../redux/slices/authSlice';
+import RCSImageCropper from '../components/ImageCropper';
 
 const { Title, Text, Paragraph } = Typography;
 const { useBreakpoint } = Grid;
@@ -953,6 +955,12 @@ export default function Onboarding() {
   });
   const [certificateType, setCertificateType] = useState('gst');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [cropperState, setCropperState] = useState({
+    open: false,
+    imageUrl: null,
+    fileType: null,
+    targetDimensions: null
+  });
   const screens = useBreakpoint();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -1025,52 +1033,23 @@ export default function Onboarding() {
       return Upload.LIST_IGNORE;
     }
 
-    // Size validation based on file type
-    const maxSize = fileType === 'brandLogo' ? 200 * 1024 : // 200KB for logo
-                    fileType === 'companyBanner' ? 500 * 1024 : // 500KB for banner
-                    5 * 1024 * 1024; // 5MB for certificate
-
-    if (file.size > maxSize) {
-      const maxSizeMB = maxSize / (1024 * 1024);
-      const maxSizeKB = maxSize / 1024;
-      message.error(`File size must be less than ${maxSizeMB >= 1 ? `${maxSizeMB}MB` : `${maxSizeKB}KB`}`);
-      return Upload.LIST_IGNORE;
-    }
-
-    // Image dimension validation for logo and banner
+    // For logo and banner, open cropper
     if (file.type.startsWith('image/') && (fileType === 'brandLogo' || fileType === 'companyBanner')) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = async () => {
-            let isValidDimension = false;
-            let errorMessage = '';
-
-            if (fileType === 'brandLogo') {
-              // Logo: 224x224 pixels (1:1 ratio)
-              isValidDimension = img.width === 224 && img.height === 224;
-              errorMessage = 'Logo must be exactly 224×224 pixels (square format)';
-            } else if (fileType === 'companyBanner') {
-              // Banner: 1440x448 pixels (3.21:1 ratio)
-              isValidDimension = img.width === 1440 && img.height === 448;
-              errorMessage = 'Banner must be exactly 1440×448 pixels';
-            }
-
-            if (!isValidDimension) {
-              message.error(errorMessage);
-              resolve(Upload.LIST_IGNORE);
-              return;
-            }
-
-            // Proceed with upload
-            await uploadFile(file, fileType);
-            resolve(false);
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const targetDimensions = fileType === 'brandLogo' 
+          ? { width: 224, height: 224 }
+          : { width: 1440, height: 448 };
+        
+        setCropperState({
+          open: true,
+          imageUrl: e.target.result,
+          fileType,
+          targetDimensions
+        });
+      };
+      reader.readAsDataURL(file);
+      return Upload.LIST_IGNORE;
     }
 
     // For PDF files, proceed directly
@@ -1078,8 +1057,26 @@ export default function Onboarding() {
     return false;
   };
 
+  const handleCropComplete = async (croppedFile, cropData) => {
+    setCropperState({ open: false, imageUrl: null, fileType: null, targetDimensions: null });
+    await uploadFile(croppedFile, cropperState.fileType);
+  };
+
+  const handleCropperCancel = () => {
+    setCropperState({ open: false, imageUrl: null, fileType: null, targetDimensions: null });
+  };
+
   const uploadFile = async (file, fileType) => {
     try {
+      // Delete old file from Cloudinary if exists
+      if (uploadedFiles[fileType]?.url) {
+        try {
+          await _post('/uploads/deleteFile', { url: uploadedFiles[fileType].url });
+        } catch (deleteError) {
+          console.warn('Failed to delete old file:', deleteError);
+        }
+      }
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('type', 'kyc');
@@ -1328,387 +1325,213 @@ export default function Onboarding() {
       case 1:
         return (
           <>
-            <Title level={4} style={{ marginBottom: 24, color: THEME_CONSTANTS.colors.text }}>
-              <FileProtectOutlined style={{ marginRight: 12, color: THEME_CONSTANTS.colors.primary }} />
-              Document Verification & Authentication
-            </Title>
+            <div style={{ marginBottom: 32 }}>
+              <Title level={3} style={{ marginBottom: 8, color: THEME_CONSTANTS.colors.text, fontSize: '24px' }}>
+                📄 Upload Required Documents
+              </Title>
+              <Text type="secondary" style={{ fontSize: '15px' }}>
+                Please upload the following 3 documents to verify your business
+              </Text>
+            </div>
 
-            <Alert
-              message="Document Submission Guidelines"
-              description="All documents must be clear, readable, recent (within last 6 months), and match the business information provided. Files must be in PDF, JPG, or PNG format, maximum 5MB each."
-              type="info"
-              showIcon
-              style={{ marginBottom: 24 }}
-            />
+            <Space direction="vertical" size={24} style={{ width: '100%' }}>
+              {/* Step 1: Registration Type */}
+              <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '2px solid #e9ecef' }}>
+                <div style={{ marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: '16px', color: THEME_CONSTANTS.colors.text }}>Step 1: Select Registration Type</Text>
+                </div>
+                <Select
+                  value={certificateType}
+                  onChange={(value) => {
+                    setCertificateType(value);
+                    form.setFieldsValue({ gstNumber: undefined, msmeNumber: undefined });
+                  }}
+                  size="large"
+                  style={{ width: '100%' }}
+                  options={[
+                    { value: 'gst', label: '🏢 GST Registered Business' },
+                    { value: 'msme', label: '🏭 MSME/Udyam Registered Business' }
+                  ]}
+                />
+              </div>
 
-            <Row gutter={[24, 24]}>
-              <Col xs={24}>
-                <Form.Item
-                  label="Business Registration Type"
-                  required
-                  style={{ marginBottom: 16 }}
-                >
-                  <Select
-                    value={certificateType}
-                    onChange={(value) => {
-                      setCertificateType(value);
-                      form.setFieldsValue({ gstNumber: undefined, msmeNumber: undefined });
-                    }}
-                    size="large"
-                    options={[
-                      { value: 'gst', label: 'GST Registered Business' },
-                      { value: 'msme', label: 'MSME/Udyam Registered Business' }
-                    ]}
-                  />
-                </Form.Item>
-              </Col>
-
-              {certificateType === 'gst' && (
-                <Col xs={24}>
+              {/* Step 2: Registration Number */}
+              <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '2px solid #e9ecef' }}>
+                <div style={{ marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: '16px', color: THEME_CONSTANTS.colors.text }}>
+                    Step 2: Enter {certificateType === 'gst' ? 'GST' : 'MSME'} Number
+                  </Text>
+                </div>
+                {certificateType === 'gst' ? (
                   <Form.Item
                     name="gstNumber"
-                    label="GST Registration Number"
                     rules={[{ validator: validateGST }]}
-                    tooltip="15-digit GSTIN format (e.g., 22AAAAA0000A1Z5)"
+                    style={{ marginBottom: 0 }}
                   >
                     <Input
                       prefix={<VerifiedOutlined />}
-                      placeholder="22AAAAA0000A1Z5"
+                      placeholder="Example: 22AAAAA0000A1Z5"
                       size="large"
                       allowClear
                       maxLength={15}
                     />
                   </Form.Item>
-                </Col>
-              )}
-
-              {certificateType === 'msme' && (
-                <Col xs={24}>
+                ) : (
                   <Form.Item
                     name="msmeNumber"
-                    label="MSME/Udyam Registration Number"
                     rules={[{ validator: validateMSME }]}
-                    tooltip="Enter your MSME/Udyam registration number"
+                    style={{ marginBottom: 0 }}
                   >
                     <Input
                       prefix={<VerifiedOutlined />}
-                      placeholder="UDYAM-XX-00-0000000"
+                      placeholder="Example: UDYAM-XX-00-0000000"
                       size="large"
                       allowClear
                     />
                   </Form.Item>
-                </Col>
-              )}
+                )}
+              </div>
 
-              <Col xs={24}>
-                <Card
-                  title={
-                    <span>
-                      <FileTextOutlined style={{ marginRight: 8, color: THEME_CONSTANTS.colors.primary }} />
-                      {certificateType === 'gst' ? 'GST Registration Certificate' : 'MSME/Udyam Registration Certificate'}
-                    </span>
-                  }
-                  style={{ marginBottom: 16 }}
-                  bodyStyle={{ padding: 24 }}
-                  extra={<Text type="secondary">Required</Text>}
+              {/* Step 3: Upload Certificate */}
+              <div style={{ background: '#fff7e6', padding: '20px', borderRadius: '12px', border: '2px solid #ffd591' }}>
+                <div style={{ marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: '16px', color: THEME_CONSTANTS.colors.text }}>
+                    Step 3: Upload {certificateType === 'gst' ? 'GST' : 'MSME'} Certificate (PDF/Image)
+                  </Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Text type="secondary" style={{ fontSize: '13px' }}>Accepted: PDF, JPG, PNG • Max size: 5MB</Text>
+                  </div>
+                </div>
+                <Form.Item
+                  name="registrationCertificate"
+                  rules={[{ required: true, message: 'Certificate is required' }]}
+                  style={{ marginBottom: 0 }}
                 >
-                  <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                    {certificateType === 'gst' 
-                      ? 'Upload your GST registration certificate issued by the GST department.'
-                      : 'Upload your MSME/Udyam registration certificate issued by the Ministry of MSME.'}
-                  </Paragraph>
-
-                  <Form.Item
-                    name="registrationCertificate"
-                    rules={[{ required: true, message: 'Registration certificate is mandatory' }]}
+                  <Dragger
+                    beforeUpload={(file) => handleFileUpload(file, 'registrationCertificate')}
+                    maxCount={1}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    showUploadList={false}
+                    style={{ background: '#fff', borderColor: '#ffa940' }}
                   >
-                    <Dragger
-                      beforeUpload={(file) => handleFileUpload(file, 'registrationCertificate')}
-                      maxCount={1}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      showUploadList={false}
-                    >
-                      <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                        <UploadOutlined style={{ fontSize: 48, color: THEME_CONSTANTS.colors.primary, marginBottom: 16 }} />
-                        <Paragraph style={{ marginBottom: 8 }}>
-                          <Text strong>Click or drag file to upload</Text>
-                        </Paragraph>
-                        <Paragraph type="secondary">
-                          PDF, JPG, PNG up to 5MB • Clear and legible
-                        </Paragraph>
-                      </div>
-                    </Dragger>
-                  </Form.Item>
-
-                  {uploadedFiles.registrationCertificate && (
-                    <div style={{ 
-                      marginTop: 16, 
-                      padding: 16, 
-                      border: `2px solid ${THEME_CONSTANTS.colors.success}`, 
-                      borderRadius: '12px', 
-                      background: `${THEME_CONSTANTS.colors.success}08`
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <Space>
-                          <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: 20 }} />
-                          <Text strong style={{ color: THEME_CONSTANTS.colors.success }}>File Uploaded Successfully</Text>
-                        </Space>
-                        <Button 
-                          type="text" 
-                          size="small" 
-                          danger 
-                          onClick={() => setUploadedFiles(prev => ({ ...prev, registrationCertificate: null }))}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                      
-                      {uploadedFiles.registrationCertificate.file.type === 'application/pdf' ? (
-                        <div style={{ 
-                          textAlign: 'center', 
-                          padding: '32px', 
-                          background: 'white', 
-                          borderRadius: '8px',
-                          border: `1px solid ${THEME_CONSTANTS.colors.border}`
-                        }}>
-                          <FileTextOutlined style={{ fontSize: 64, color: THEME_CONSTANTS.colors.primary, marginBottom: 16 }} />
-                          <div style={{ marginBottom: 12 }}>
-                            <Text strong style={{ fontSize: 16 }}>{uploadedFiles.registrationCertificate.file.name}</Text>
-                          </div>
-                          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-                            Size: {(uploadedFiles.registrationCertificate.file.size / 1024).toFixed(2)} KB
-                          </Text>
-                          <a href={uploadedFiles.registrationCertificate.url} target="_blank" rel="noopener noreferrer">
-                            <Button type="primary" icon={<EyeOutlined />}>View PDF Document</Button>
-                          </a>
-                        </div>
-                      ) : (
-                        <div style={{ 
-                          background: 'white', 
-                          borderRadius: '8px', 
-                          padding: 12,
-                          border: `1px solid ${THEME_CONSTANTS.colors.border}`
-                        }}>
-                          <img 
-                            src={uploadedFiles.registrationCertificate.url} 
-                            alt="Certificate" 
-                            style={{ 
-                              width: '100%', 
-                              maxHeight: '400px', 
-                              objectFit: 'contain', 
-                              borderRadius: '8px',
-                              cursor: 'pointer'
-                            }}
-                            onClick={() => window.open(uploadedFiles.registrationCertificate.url, '_blank')}
-                          />
-                          <div style={{ marginTop: 12, textAlign: 'center' }}>
-                            <Text type="secondary">{uploadedFiles.registrationCertificate.file.name}</Text>
-                          </div>
-                        </div>
-                      )}
+                    <div style={{ padding: '30px 20px' }}>
+                      <FileTextOutlined style={{ fontSize: 48, color: '#fa8c16', marginBottom: 12 }} />
+                      <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: 8 }}>Click or Drag Certificate Here</div>
+                      <Text type="secondary">Upload your business registration certificate</Text>
                     </div>
-                  )}
-                </Card>
-              </Col>
+                  </Dragger>
+                </Form.Item>
+                {uploadedFiles.registrationCertificate && (
+                  <Alert
+                    message="✓ Certificate Uploaded Successfully"
+                    description={uploadedFiles.registrationCertificate.file.name}
+                    type="success"
+                    showIcon
+                    closable
+                    onClose={() => setUploadedFiles(prev => ({ ...prev, registrationCertificate: null }))}
+                    style={{ marginTop: 16 }}
+                  />
+                )}
+              </div>
 
-              <Col xs={24}>
-                <Card
-                  title={
-                    <span>
-                      <IdcardOutlined style={{ marginRight: 8, color: THEME_CONSTANTS.colors.primary }} />
-                      Official Brand Logo
-                    </span>
-                  }
-                  bodyStyle={{ padding: 24 }}
-                  extra={<Text type="secondary">Required</Text>}
+              {/* Step 4: Upload Logo */}
+              <div style={{ background: '#e6f7ff', padding: '20px', borderRadius: '12px', border: '2px solid #91d5ff' }}>
+                <div style={{ marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: '16px', color: THEME_CONSTANTS.colors.text }}>
+                    Step 4: Upload Brand Logo (Square Image)
+                  </Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Text type="secondary" style={{ fontSize: '13px' }}>Required size: 224×224 pixels • Format: JPG or PNG</Text>
+                  </div>
+                </div>
+                <Form.Item
+                  name="brandLogo"
+                  rules={[{ required: true, message: 'Logo is required' }]}
+                  style={{ marginBottom: 0 }}
                 >
-                  <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                    Upload your official brand logo. Must be exactly 224×224 pixels in JPEG or PNG format (max 200KB). Will be displayed as circular image.
-                  </Paragraph>
-
-                  <Form.Item
-                    name="brandLogo"
-                    rules={[{ required: true, message: 'Brand logo is required for verification' }]}
+                  <Dragger
+                    beforeUpload={(file) => handleFileUpload(file, 'brandLogo')}
+                    maxCount={1}
+                    accept=".jpg,.jpeg,.png"
+                    showUploadList={false}
+                    style={{ background: '#fff', borderColor: '#40a9ff' }}
                   >
-                    <Dragger
-                      beforeUpload={(file) => handleFileUpload(file, 'brandLogo')}
-                      maxCount={1}
-                      accept=".jpg,.jpeg,.png"
-                      showUploadList={false}
-                    >
-                      <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                        <UploadOutlined style={{ fontSize: 48, color: THEME_CONSTANTS.colors.primary, marginBottom: 16 }} />
-                        <Paragraph style={{ marginBottom: 8 }}>
-                          <Text strong>Upload Brand Logo</Text>
-                        </Paragraph>
-                        <Paragraph type="secondary">
-                          224×224 pixels • JPEG/PNG • Max 2000KB
-                        </Paragraph>
-                      </div>
-                    </Dragger>
-                  </Form.Item>
-
-                  {uploadedFiles.brandLogo && (
-                    <div style={{ 
-                      marginTop: 16, 
-                      padding: 16, 
-                      border: `2px solid ${THEME_CONSTANTS.colors.success}`, 
-                      borderRadius: '12px', 
-                      background: `${THEME_CONSTANTS.colors.success}08`
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <Space>
-                          <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: 20 }} />
-                          <Text strong style={{ color: THEME_CONSTANTS.colors.success }}>Logo Uploaded Successfully</Text>
-                        </Space>
-                        <Button 
-                          type="text" 
-                          size="small" 
-                          danger 
-                          onClick={() => setUploadedFiles(prev => ({ ...prev, brandLogo: null }))}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                      
-                      <div style={{ 
-                        background: 'white', 
-                        borderRadius: '8px', 
-                        padding: 24,
-                        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ 
-                          display: 'inline-block',
-                          padding: 20,
-                          background: '#f5f5f5',
-                          borderRadius: '8px',
-                          marginBottom: 12
-                        }}>
-                          <img 
-                            src={uploadedFiles.brandLogo.url} 
-                            alt="Brand Logo" 
-                            style={{ 
-                              maxWidth: '200px', 
-                              maxHeight: '200px', 
-                              objectFit: 'contain',
-                              cursor: 'pointer'
-                            }}
-                            onClick={() => window.open(uploadedFiles.brandLogo.url, '_blank')}
-                          />
-                        </div>
-                        <div>
-                          <Text type="secondary" style={{ display: 'block' }}>{uploadedFiles.brandLogo.file.name}</Text>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {(uploadedFiles.brandLogo.file.size / 1024).toFixed(2)} KB
-                          </Text>
-                        </div>
-                      </div>
+                    <div style={{ padding: '30px 20px' }}>
+                      <IdcardOutlined style={{ fontSize: 48, color: '#1890ff', marginBottom: 12 }} />
+                      <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: 8 }}>Click or Drag Logo Here</div>
+                      <Text type="secondary">You'll be able to crop after upload</Text>
                     </div>
-                  )}
-                </Card>
-              </Col>
+                  </Dragger>
+                </Form.Item>
+                {uploadedFiles.brandLogo && (
+                  <div style={{ marginTop: 16, textAlign: 'center', padding: 16, background: '#f6ffed', borderRadius: 8, border: '1px solid #b7eb8f' }}>
+                    <img src={uploadedFiles.brandLogo.url} alt="Logo" style={{ width: 100, height: 100, objectFit: 'contain', borderRadius: 8, marginBottom: 12 }} />
+                    <div>
+                      <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, marginRight: 8, fontSize: '16px' }} />
+                      <Text strong style={{ color: THEME_CONSTANTS.colors.success }}>Logo Uploaded (224×224px)</Text>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-              <Col xs={24}>
-                <Card
-                  title={
-                    <span>
-                      <GlobalOutlined style={{ marginRight: 8, color: THEME_CONSTANTS.colors.primary }} />
-                      Company Banner Image
-                    </span>
-                  }
-                  bodyStyle={{ padding: 24 }}
-                  extra={<Text type="secondary">Required</Text>}
+              {/* Step 5: Upload Banner */}
+              <div style={{ background: '#f9f0ff', padding: '20px', borderRadius: '12px', border: '2px solid #d3adf7' }}>
+                <div style={{ marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: '16px', color: THEME_CONSTANTS.colors.text }}>
+                    Step 5: Upload Company Banner (Wide Image)
+                  </Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Text type="secondary" style={{ fontSize: '13px' }}>Required size: 1440×448 pixels • Format: JPG or PNG</Text>
+                  </div>
+                </div>
+                <Form.Item
+                  name="companyBanner"
+                  rules={[{ required: true, message: 'Banner is required' }]}
+                  style={{ marginBottom: 0 }}
                 >
-                  <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                    Upload your company banner. Must be exactly 1440×448 pixels in JPEG format (max 500KB).
-                  </Paragraph>
-
-                  <Form.Item
-                    name="companyBanner"
-                    rules={[{ required: true, message: 'Company banner is required' }]}
+                  <Dragger
+                    beforeUpload={(file) => handleFileUpload(file, 'companyBanner')}
+                    maxCount={1}
+                    accept=".jpg,.jpeg,.png"
+                    showUploadList={false}
+                    style={{ background: '#fff', borderColor: '#b37feb' }}
                   >
-                    <Dragger
-                      beforeUpload={(file) => handleFileUpload(file, 'companyBanner')}
-                      maxCount={1}
-                      accept=".jpg,.jpeg"
-                      showUploadList={false}
-                    >
-                      <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                        <UploadOutlined style={{ fontSize: 48, color: THEME_CONSTANTS.colors.primary, marginBottom: 16 }} />
-                        <Paragraph style={{ marginBottom: 8 }}>
-                          <Text strong>Upload Company Banner</Text>
-                        </Paragraph>
-                        <Paragraph type="secondary">
-                          1440×448 pixels • JPEG • Max 500KB
-                        </Paragraph>
-                      </div>
-                    </Dragger>
-                  </Form.Item>
-
-                  {uploadedFiles.companyBanner && (
-                    <div style={{ 
-                      marginTop: 16, 
-                      padding: 16, 
-                      border: `2px solid ${THEME_CONSTANTS.colors.success}`, 
-                      borderRadius: '12px', 
-                      background: `${THEME_CONSTANTS.colors.success}08`
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <Space>
-                          <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: 20 }} />
-                          <Text strong style={{ color: THEME_CONSTANTS.colors.success }}>Banner Uploaded Successfully</Text>
-                        </Space>
-                        <Button 
-                          type="text" 
-                          size="small" 
-                          danger 
-                          onClick={() => setUploadedFiles(prev => ({ ...prev, companyBanner: null }))}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                      
-                      <div style={{ 
-                        background: 'white', 
-                        borderRadius: '8px', 
-                        padding: 12,
-                        border: `1px solid ${THEME_CONSTANTS.colors.border}`
-                      }}>
-                        <img 
-                          src={uploadedFiles.companyBanner.url} 
-                          alt="Company Banner" 
-                          style={{ 
-                            width: '100%', 
-                            maxHeight: '250px', 
-                            objectFit: 'cover', 
-                            borderRadius: '8px',
-                            cursor: 'pointer'
-                          }}
-                          onClick={() => window.open(uploadedFiles.companyBanner.url, '_blank')}
-                        />
-                        <div style={{ marginTop: 12, textAlign: 'center' }}>
-                          <Text type="secondary">{uploadedFiles.companyBanner.file.name}</Text>
-                          <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-                            {(uploadedFiles.companyBanner.file.size / 1024).toFixed(2)} KB
-                          </Text>
-                        </div>
-                      </div>
+                    <div style={{ padding: '30px 20px' }}>
+                      <GlobalOutlined style={{ fontSize: 48, color: '#722ed1', marginBottom: 12 }} />
+                      <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: 8 }}>Click or Drag Banner Here</div>
+                      <Text type="secondary">You'll be able to crop after upload</Text>
                     </div>
-                  )}
-                </Card>
-              </Col>
-
-              <Col xs={24}>
-                <Alert
-                  message="Data Security & Privacy"
-                  description="All uploaded documents and information are encrypted and stored securely. We comply with data protection regulations and your information will only be used for verification purposes."
-                  type="success"
-                  showIcon
-                  style={{ marginTop: 16 }}
-                />
-              </Col>
-            </Row>
+                  </Dragger>
+                </Form.Item>
+                {uploadedFiles.companyBanner && (
+                  <div style={{ marginTop: 16, padding: 16, background: '#f6ffed', borderRadius: 8, border: '1px solid #b7eb8f' }}>
+                    <div style={{ 
+                      width: '100%', 
+                      aspectRatio: '1440/448',
+                      overflow: 'hidden', 
+                      borderRadius: 8, 
+                      marginBottom: 12,
+                      background: '#f0f0f0'
+                    }}>
+                      <img 
+                        src={uploadedFiles.companyBanner.url} 
+                        alt="Banner" 
+                        style={{ 
+                          width: '100%', 
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block'
+                        }} 
+                      />
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success, marginRight: 8, fontSize: '16px' }} />
+                      <Text strong style={{ color: THEME_CONSTANTS.colors.success }}>Banner Uploaded (1440×448px)</Text>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Space>
           </>
         );
       case 2:
@@ -2232,6 +2055,15 @@ export default function Onboarding() {
             </div>
           </div>
         </Modal>
+
+        {/* Image Cropper Modal */}
+        <RCSImageCropper
+          open={cropperState.open}
+          onCancel={handleCropperCancel}
+          onCropComplete={handleCropComplete}
+          imageUrl={cropperState.imageUrl}
+          messageType={cropperState.fileType === 'brandLogo' ? 'logo' : 'banner'}
+        />
       </div>
     </div>
   );
