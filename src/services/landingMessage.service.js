@@ -4,7 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const TEMPLATE_IDS = {
   plainText: '696a4cc00d59dce3c88c480f',     // Replace with actual plainText template ID
   richCard: '69833c303669bcef064628ad',      // Replace with actual richCard template ID
-  carousel: '69834561f9162a0e6d34a806',      // Replace with actual carousel template ID
+  carousel: '6984899f9dfe31f0b1de1de5',      // Replace with actual carousel template ID
   textWithAction: '696a4ce20d59dce3c88c4814' // Replace with actual textWithAction template ID
 };
 

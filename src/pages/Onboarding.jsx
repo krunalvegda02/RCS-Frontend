@@ -1523,7 +1523,7 @@ export default function Onboarding() {
                   extra={<Text type="secondary">Required</Text>}
                 >
                   <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                    Upload your official brand logo. Must be exactly 224×224 pixels in JPEG or PNG format (max 50KB). Will be displayed as circular image.
+                    Upload your official brand logo. Must be exactly 224×224 pixels in JPEG or PNG format (max 200KB). Will be displayed as circular image.
                   </Paragraph>
 
                   <Form.Item
@@ -1542,7 +1542,7 @@ export default function Onboarding() {
                           <Text strong>Upload Brand Logo</Text>
                         </Paragraph>
                         <Paragraph type="secondary">
-                          224×224 pixels • JPEG/PNG • Max 50KB
+                          224×224 pixels • JPEG/PNG • Max 2000KB
                         </Paragraph>
                       </div>
                     </Dragger>
@@ -1621,7 +1621,7 @@ export default function Onboarding() {
                   extra={<Text type="secondary">Required</Text>}
                 >
                   <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                    Upload your company banner. Must be exactly 1440×448 pixels in JPEG format (max 200KB).
+                    Upload your company banner. Must be exactly 1440×448 pixels in JPEG format (max 500KB).
                   </Paragraph>
 
                   <Form.Item
@@ -1640,7 +1640,7 @@ export default function Onboarding() {
                           <Text strong>Upload Company Banner</Text>
                         </Paragraph>
                         <Paragraph type="secondary">
-                          1440×448 pixels • JPEG • Max 200KB
+                          1440×448 pixels • JPEG • Max 500KB
                         </Paragraph>
                       </div>
                     </Dragger>
