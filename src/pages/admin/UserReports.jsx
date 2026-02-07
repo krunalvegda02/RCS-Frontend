@@ -46,11 +46,11 @@ const UserReports = () => {
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  
+
   // Use userId from params (admin view) or current user's ID (user view)
   const targetUserId = userId || currentUser?._id;
   const isAdminView = !!userId;
-  
+
   const { reportData, loading, error } = useSelector(state => state.userReport);
   const [campaignPage, setCampaignPage] = useState(1);
   const [transactionPage, setTransactionPage] = useState(1);
@@ -90,7 +90,7 @@ const UserReports = () => {
       if (!date) return 'N/A';
       try {
         const d = new Date(date);
-        return isNaN(d.getTime()) ? 'N/A'   : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       } catch {
         return 'N/A';
       }
@@ -114,7 +114,7 @@ const UserReports = () => {
     const walletInfo = [{
       'Current Balance': wallet.balance || 0,
       'Blocked Balance': wallet.blockedBalance || 0,
-      'Available Balance': wallet.availableBalance || 0,
+      'Available Balance': wallet.balance || 0,
       'Currency': wallet.currency || 'INR',
       'Total Transactions': wallet.totalTransactions || 0
     }];
@@ -178,17 +178,17 @@ const UserReports = () => {
     }];
 
     const workbook = XLSX.utils.book_new();
-    
+
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(userInfo), 'User Info');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(walletInfo), 'Wallet Summary');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(messageStatsData), 'Message Statistics');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(campaignStatsData), 'Campaign Statistics');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(userStatsData), 'User Statistics');
-    
+
     if (campaignsData.length > 0) {
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(campaignsData), 'All Campaigns');
     }
-    
+
     if (transactionsData.length > 0) {
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(transactionsData), 'All Transactions');
     }
@@ -369,7 +369,7 @@ const UserReports = () => {
             <StatCard
               icon={DollarOutlined}
               title="Available Balance"
-              value={`${wallet.availableBalance.toLocaleString('en-IN')} Credits`}
+              value={`${wallet.balance.toLocaleString('en-IN')} Credits`}
               color={THEME_CONSTANTS.colors.primary}
             />
           </Col>
