@@ -385,8 +385,10 @@ export default function UserLayout() {
           {/* Header */}
           <Header
             style={{
-              position: 'sticky',
+              position: 'fixed',
               top: 0,
+              right: 0,
+              left: isDesktop ? '280px' : 0,
               zIndex: 999,
               background: THEME_CONSTANTS.colors.surface,
               boxShadow: THEME_CONSTANTS.shadow.sm,
@@ -532,6 +534,7 @@ export default function UserLayout() {
           {/* Content */}
           <Content
             style={{
+              marginTop: '80px',
               padding: isMobile
                 ? THEME_CONSTANTS.spacing.lg
                 : THEME_CONSTANTS.spacing.xl,

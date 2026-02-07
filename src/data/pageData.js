@@ -14,7 +14,7 @@ const WalletTransaction = lazy(() => import('../pages/user/WalletTransaction.jsx
 const Profile = lazy(() => import('../pages/Profile.jsx'))
 const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard.jsx'))
 const Users = lazy(() => import('../pages/admin/Users.jsx'))
-const WalletRequests = lazy(() => import('../pages/admin/WalletRequests.jsx'))
+const WalletTransactions = lazy(() => import('../pages/admin/WalletTransactions.jsx'))
 const AdminProfile = lazy(() => import('../pages/admin/AdminProfile.jsx'))
 const AdminReports = lazy(() => import('../pages/admin/AdminReports.jsx'))
 const DemoRequests = lazy(() => import('../pages/admin/DemoRequests.jsx'))
@@ -98,10 +98,6 @@ export const pageData = {
           component: WalletTransaction
         },
         {
-          path: 'wallet-requests',
-          component: WalletRequests
-        },
-        {
           path: 'my-reports',
           component: UserReports
         },
@@ -132,7 +128,7 @@ export const pageData = {
         },
         {
           path: 'wallet-requests',
-          component: WalletRequests
+          component: WalletTransactions
         },
         {
           path: 'profile',

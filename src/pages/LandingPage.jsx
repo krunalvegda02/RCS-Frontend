@@ -106,28 +106,34 @@ const LandingPage = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [sending, setSending] = useState(false);
 
-
-  const plans = [
+  const pricingPlans = [
     {
-      credits: '1,00,000',
-      price: '₹0.50',
-      total: '₹50,000',
+      title: 'Starter',
+      credits: '10,000',
+      pricePerMsg: '₹0.30',
+      total: '₹3,000',
+      highlight: false,
       color: professionalColors.info,
     },
     {
-      credits: '2,50,000',
-      price: '₹0.40',
-      total: '₹1,00,000',
+      title: 'Growth',
+      credits: '50,000',
+      pricePerMsg: '₹0.28',
+      total: '₹14,000',
+      highlight: true,
+      badge: 'MOST POPULAR',
       color: professionalColors.primary,
-      tag: 'MOST POPULAR',
     },
     {
-      credits: '5,00,000',
-      price: '₹0.30',
-      total: '₹1,50,000',
+      title: 'Enterprise',
+      credits: '1,00,000',
+      pricePerMsg: '₹0.25',
+      total: '₹25,000',
+      highlight: false,
       color: professionalColors.success,
     },
   ];
+
 
 
   const next = () =>
@@ -842,269 +848,368 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* ================= PRICING SECTION ================= */}
+        {/* ================= ENTERPRISE PRICING ================= */}
         <section
           style={{
             ...sectionStyle,
             background: professionalColors.surface,
             borderTop: `1px solid ${professionalColors.border}`,
             borderBottom: `1px solid ${professionalColors.border}`,
-            position: 'relative',
+            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+            transform: screens.xs ? 'scale(1.02)' : 'none'
           }}
         >
-          <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-            {/* ===== Pricing Header ===== */}
-            <div
-              style={{
-                textAlign: 'center',
-                marginBottom: screens.xs ? '48px' : '64px',
-              }}
-            >
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: 80 }}>
               <div
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 10,
-                  padding: '10px 26px',
-                  background: `${professionalColors.warning}15`,
+                  padding: '8px 22px',
                   borderRadius: 999,
-                  border: `1px solid ${professionalColors.warning}30`,
-                  marginBottom: 28,
+                  border: `1px solid ${professionalColors.primary}30`,
+                  background: `${professionalColors.primary}10`,
+                  marginBottom: 24,
                 }}
               >
-                <CreditCardOutlined style={{ color: professionalColors.warning }} />
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 800,
-                    color: professionalColors.warning,
-                    letterSpacing: '1.2px',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Credits Pricing
-                </span>
+                <CreditCardOutlined style={{ color: professionalColors.primary }} />
+                <Text style={{ fontWeight: 700, color: professionalColors.primary }}>
+                  PRICING & BILLING
+                </Text>
               </div>
 
-              <Title
-                level={2}
-                style={{
-                  fontSize: screens.xs ? 34 : 46,
-                  fontWeight: 900,
-                  marginBottom: 16,
-                }}
-              >
-                Simple, predictable pricing
+              <Title level={2} style={{ fontWeight: 900 }}>
+                Send Verified RCS Messages at Enterprise Scale
               </Title>
 
               <Paragraph
                 style={{
-                  fontSize: screens.xs ? 16 : 19,
+                  fontSize: 18,
                   color: professionalColors.textSecondary,
-                  maxWidth: 720,
-                  margin: '0 auto',
+                  maxWidth: 900,
+                  margin: ' auto 0',
                   lineHeight: 1.7,
                 }}
               >
-                Buy RCS credits in bulk and pay <strong>only for delivered messages</strong>.
-                No setup fees. No lock-in. Built for scale.
+                Launch secure, verified RCS campaigns with rich media, action buttons, and guaranteed delivery at scale.
               </Paragraph>
             </div>
 
-            {/* ===== Pricing Cards with Arrow Navigation ===== */}
+            {/* Pricing Cards */}
             <div
               style={{
-                position: 'relative',
-                height: screens.xs ? 'auto' : 580,
-                minHeight: screens.xs ? 600 : 'auto',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                padding: screens.xs ? '60px 20px' : '0'
+                gap: 24,
+                overflowX: screens.xs ? 'auto' : 'visible',
+                paddingBottom: screens.xs ? 24 : 0,
+                paddingTop: screens.xs ? 20 : 0, // IMPORTANT: prevents badge cut
+                scrollSnapType: screens.xs ? 'x mandatory' : 'none',
+                WebkitOverflowScrolling: 'touch',
+                justifyContent: screens.xs ? 'flex-start' : 'center',
               }}
             >
-              {/* Left Arrow */}
-              <Button
-                type="text"
-                size="large"
-                onClick={prev}
+              {/* Starter */}
+              <div
                 style={{
-                  position: 'absolute',
-                  left: screens.xs ? 10 : 20,
-                  zIndex: 10,
-                  width: screens.xs ? 40 : 48,
-                  height: screens.xs ? 40 : 48,
-                  borderRadius: '50%',
-                  background: professionalColors.surface,
-                  border: `2px solid ${professionalColors.border}`,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  minWidth: screens.xs ? '85%' : 360,
+                  maxWidth: screens.xs ? '85%' : 360,
+                  scrollSnapAlign: 'center',
+                  flexShrink: 0,
                 }}
               >
-                <ArrowLeftOutlined style={{ fontSize: screens.xs ? 16 : 20, color: professionalColors.primary }} />
-              </Button>
+                <Card
+                  hoverable
+                  style={{
+                    height: '100%',
+                    borderRadius: 20,
+                    border: `1px solid ${professionalColors.primaryDark}`,
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.06)',
+                    overflow: 'visible',
+                  }}
+                  bodyStyle={{ padding: 40 }}
+                >
+                  <Text type="secondary" style={{ fontSize: 13, fontWeight: 600 }}>
+                    STARTER
+                  </Text>
 
-              {/* Right Arrow */}
-              <Button
-                type="text"
-                size="large"
-                onClick={next}
-                style={{
-                  position: 'absolute',
-                  right: screens.xs ? 10 : 20,
-                  zIndex: 10,
-                  width: screens.xs ? 40 : 48,
-                  height: screens.xs ? 40 : 48,
-                  borderRadius: '50%',
-                  background: professionalColors.surface,
-                  border: `2px solid ${professionalColors.border}`,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <ArrowRightOutlined style={{ fontSize: screens.xs ? 16 : 20, color: professionalColors.primary }} />
-              </Button>
-              {plans.map((plan, i) => {
-                const diff = i - activeIndex;
-                const position =
-                  diff > plans.length / 2
-                    ? diff - plans.length
-                    : diff < -plans.length / 2
-                      ? diff + plans.length
-                      : diff;
+                  <Title level={3} style={{ marginTop: 8, fontWeight: 800 }}>
+                    ₹0.30
+                  </Title>
 
-                const isCenter = position === 0;
+                  <Text type="secondary">per delivered message</Text>
 
-                return (
                   <div
-                    key={i}
                     style={{
-                      position: 'absolute',
-                      width: screens.xs ? 'calc(100% - 40px)' : 440,
-                      maxWidth: screens.xs ? '340px' : '440px',
-                      padding: screens.xs ? '36px 28px' : '48px 44px',
-                      background: professionalColors.surface,
-                      borderRadius: screens.xs ? 24 : 32,
-                      border: `1px solid ${plan.color}`,
-                      transform: `
-                translateX(${position * (screens.xs ? 0 : 460)}px)
-                scale(${isCenter ? 1 : screens.xs ? 0.85 : 0.9})
-              `,
-                      filter: isCenter ? 'none' : 'blur(1px)',
-                      opacity: isCenter ? 1 : screens.xs ? 0.3 : 0.75,
-                      zIndex: isCenter ? 5 : 2,
-                      pointerEvents: isCenter ? 'auto' : 'none',
-                      transition: 'all 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+                      marginTop: 24,
+                      padding: 16,
+                      borderRadius: 12,
+                      background: professionalColors.background,
+                      textAlign: 'center',
+                      fontWeight: 700,
                     }}
                   >
-                    {plan.tag && isCenter && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: -18,
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          padding: '6px 22px',
-                          background: plan.color,
-                          color: '#fff',
-                          fontSize: 12,
-                          fontWeight: 800,
-                          borderRadius: 999,
-                        }}
-                      >
-                        {plan.tag}
-                      </div>
-                    )}
+                    10,000 Credits · ₹3,000
+                  </div>
 
-                    <div
-                      style={{
-                        textAlign: 'center',
-                        padding: 14,
-                        borderRadius: 20,
-                        background: `${plan.color}15`,
-                        border: `1px solid ${plan.color}30`,
-                        fontWeight: 800,
-                        color: plan.color,
-                        marginBottom: 32,
-                      }}
-                    >
-                      {plan.credits} MESSAGE CREDITS
-                    </div>
-
-                    <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                      <div style={{ fontSize: 56, fontWeight: 900 }}>
-                        {plan.price}
-                      </div>
-                      <div style={{ color: professionalColors.textSecondary }}>
-                        per delivered message
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        textAlign: 'center',
-                        padding: 16,
-                        borderRadius: 16,
-                        background: professionalColors.background,
-                        marginBottom: 36,
-                        border: `1px solid ${professionalColors.border}`,
-                        fontWeight: 800,
-                        fontSize: 18,
-                        color: professionalColors.primary,
-                      }}
-                    >
-                      Total: {plan.total}
-                    </div>
-
+                  <div style={{ marginTop: 32 }}>
                     {[
-                      'Pay only for delivered messages',
                       'Verified RCS branding',
-                      'Advanced analytics',
-                      'Enterprise-grade security',
-                    ].map((f, idx) => (
+                      'Delivery-based billing',
+                      'GST invoice (18%)',
+                      'No hidden fees',
+                    ].map((item, i) => (
                       <div
-                        key={idx}
+                        key={i}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 12,
+                          gap: 10,
                           marginBottom: 14,
-                          fontSize: 14,
                         }}
                       >
-                        <CheckCircleFilled style={{ color: plan.color }} />
-                        {f}
+                        <CheckCircleOutlined style={{ color: professionalColors.success }} />
+                        <Text>{item}</Text>
                       </div>
                     ))}
-
-                    <Button
-                      type={isCenter ? 'primary' : 'default'}
-                      size="large"
-                      style={{
-                        width: '100%',
-                        marginTop: 40,
-                        borderRadius: 14,
-                        fontWeight: 700,
-                        height: 54,
-                        background: isCenter ? plan.color : 'transparent',
-                        borderColor: plan.color,
-                      }}
-                      onClick={() => navigate('/register')}
-                    >
-                      Get Start with us
-                    </Button>
                   </div>
-                );
-              })}
+
+                  <Button
+                    block
+                    size="large"
+                    style={{
+                      marginTop: 32,
+                      height: 52,
+                      fontWeight: 700,
+                      borderRadius: 12,
+                    }}
+                    onClick={() => navigate('/register')}
+                  >
+                    Get Started
+                  </Button>
+                </Card>
+              </div>
+
+              {/* Most Popular */}
+              <div
+                style={{
+                  minWidth: screens.xs ? '85%' : 360,
+                  maxWidth: screens.xs ? '85%' : 360,
+                  scrollSnapAlign: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Card
+                  hoverable
+                  style={{
+                    height: '100%',
+                    borderRadius: 20,
+                    border: `2px solid ${professionalColors.primary}`,
+                    boxShadow: `0 24px 64px ${professionalColors.primary}25`,
+                    position: 'relative',
+                    overflow: 'visible',
+                  }}
+                  bodyStyle={{ padding: 44 }}
+                >
+                  {/* Badge */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -14,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: '6px 18px',
+                      borderRadius: 999,
+                      background: professionalColors.primary,
+                      color: '#fff',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    MOST POPULAR
+                  </div>
+
+                  <Text style={{ fontSize: 13, fontWeight: 700, color: professionalColors.primary }}>
+                    GROWTH
+                  </Text>
+
+                  <Title level={3} style={{ marginTop: 8, fontWeight: 900 }}>
+                    ₹0.28
+                  </Title>
+
+                  <Text type="secondary">per delivered message</Text>
+
+                  <div
+                    style={{
+                      marginTop: 24,
+                      padding: 18,
+                      borderRadius: 14,
+                      background: `${professionalColors.primary}10`,
+                      textAlign: 'center',
+                      fontWeight: 800,
+                      color: professionalColors.primary,
+                    }}
+                  >
+                    50,000 Credits · ₹14,000
+                  </div>
+
+                  <div style={{ marginTop: 32 }}>
+                    {[
+                      'Priority delivery routing',
+                      'Advanced analytics',
+                      'GST invoice (18%)',
+                      'Credits never expire',
+                    ].map((item, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          marginBottom: 14,
+                        }}
+                      >
+                        <CheckCircleOutlined style={{ color: professionalColors.primary }} />
+                        <Text>{item}</Text>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    type="primary"
+                    block
+                    size="large"
+                    style={{
+                      marginTop: 36,
+                      height: 54,
+                      fontWeight: 800,
+                      borderRadius: 12,
+                      background: `linear-gradient(135deg, ${professionalColors.primary}, ${professionalColors.primaryDark})`,
+                      border: 'none',
+                    }}
+                    onClick={() => navigate('/register')}
+                  >
+                    Start with Growth
+                  </Button>
+                </Card>
+              </div>
+
+              {/* Enterprise */}
+              <div
+                style={{
+                  minWidth: screens.xs ? '85%' : 360,
+                  maxWidth: screens.xs ? '85%' : 360,
+                  scrollSnapAlign: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Card
+                  hoverable
+                  style={{
+                    height: '100%',
+                    // borderColor: professionalColors.primaryLight,
+                    borderRadius: 20,
+                    border: `1px solid ${professionalColors.primaryDark}`,
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.06)',
+                    overflow: 'visible',
+                  }}
+                  bodyStyle={{ padding: 40 }}
+                >
+                  <Text type="secondary" style={{ fontSize: 13, fontWeight: 600 }}>
+                    ENTERPRISE
+                  </Text>
+
+                  <Title level={3} style={{ marginTop: 8, fontWeight: 800 }}>
+                    ₹0.25
+                  </Title>
+
+                  <Text type="secondary">per delivered message</Text>
+
+                  <div
+                    style={{
+                      marginTop: 24,
+                      padding: 16,
+                      borderRadius: 12,
+                      background: professionalColors.background,
+                      textAlign: 'center',
+                      fontWeight: 700,
+                    }}
+                  >
+                    1,00,000 Credits · ₹25,000
+                  </div>
+
+                  <div style={{ marginTop: 32 }}>
+                    {[
+                      'Dedicated account support',
+                      'High throughput campaigns',
+                      'GST invoice (18%)',
+                      'Enterprise SLA',
+                    ].map((item, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          marginBottom: 14,
+                        }}
+                      >
+                        <CheckCircleOutlined style={{ color: professionalColors.success }} />
+                        <Text>{item}</Text>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    block
+                    size="large"
+                    style={{
+                      marginTop: 32,
+                      height: 52,
+                      fontWeight: 700,
+                      borderRadius: 12,
+                    }}
+                    onClick={() => navigate('/register')}
+                  >
+                    Contact Sales
+                  </Button>
+                </Card>
+              </div>
+            </div>
+
+            {screens.xs && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  fontSize: 12,
+                  color: professionalColors.textSecondary,
+                  marginTop: 8,
+                }}
+              >
+                Swipe to compare plans →
+              </div>
+            )}
+
+            {/* Trust Footer */}
+            <div
+              style={{
+                marginTop: 56,
+                paddingTop: 24,
+                borderTop: `1px solid ${professionalColors.border}`,
+                textAlign: 'center',
+                color: professionalColors.textSecondary,
+                fontSize: 14,
+              }}
+            >
+              Trusted by growing businesses • GST-compliant billing • 99%+ delivery success
             </div>
           </div>
         </section>
-        {/* ================= END PRICING SECTION ================= */}
+        {/* ================= END PRICING ================= */}
+
+
         {/* Message Types Section */}
         <section style={{
           ...sectionStyle,
@@ -1616,219 +1721,219 @@ const LandingPage = () => {
         </section>
 
 
-{/* ================= CONTACT US SECTION ================= */}
-<section
-  style={{
-    ...sectionStyle,
-    background: professionalColors.surface,
-    borderTop: `1px solid ${professionalColors.border}`,
-    borderBottom: `1px solid ${professionalColors.border}`,
-  }}
->
-  <div style={containerStyle}>
-    {/* Section Header */}
-    <div style={sectionHeaderStyle}>
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '10px 26px',
-          background: `${professionalColors.primary}15`,
-          borderRadius: 999,
-          border: `1px solid ${professionalColors.primary}30`,
-          marginBottom: 24,
-        }}
-      >
-        <CustomerServiceOutlined style={{ color: professionalColors.primary }} />
-        <span
+        {/* ================= CONTACT US SECTION ================= */}
+        <section
           style={{
-            fontSize: 13,
-            fontWeight: 800,
-            color: professionalColors.primary,
-            letterSpacing: '1.2px',
-            textTransform: 'uppercase',
+            ...sectionStyle,
+            background: professionalColors.surface,
+            borderTop: `1px solid ${professionalColors.border}`,
+            borderBottom: `1px solid ${professionalColors.border}`,
           }}
         >
-          Contact Us
-        </span>
-      </div>
+          <div style={containerStyle}>
+            {/* Section Header */}
+            <div style={sectionHeaderStyle}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 26px',
+                  background: `${professionalColors.primary}15`,
+                  borderRadius: 999,
+                  border: `1px solid ${professionalColors.primary}30`,
+                  marginBottom: 24,
+                }}
+              >
+                <CustomerServiceOutlined style={{ color: professionalColors.primary }} />
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: professionalColors.primary,
+                    letterSpacing: '1.2px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Contact Us
+                </span>
+              </div>
 
-      <Title level={2} style={headingStyle(2)}>
-        Talk to Our RCS Experts
-      </Title>
+              <Title level={2} style={headingStyle(2)}>
+                Talk to Our RCS Experts
+              </Title>
 
-      <Paragraph
-        style={{
-          fontSize: screens.xs ? 16 : 18,
-          color: professionalColors.textSecondary,
-          maxWidth: 720,
-          margin: '0 auto',
-          lineHeight: 1.7,
-        }}
-      >
-        Have questions about onboarding, pricing, or enterprise integrations?
-        Our team is ready to help you make the right decision.
-      </Paragraph>
-    </div>
+              <Paragraph
+                style={{
+                  fontSize: screens.xs ? 16 : 18,
+                  color: professionalColors.textSecondary,
+                  maxWidth: 720,
+                  margin: '0 auto',
+                  lineHeight: 1.7,
+                }}
+              >
+                Have questions about onboarding, pricing, or enterprise integrations?
+                Our team is ready to help you make the right decision.
+              </Paragraph>
+            </div>
 
-    {/* Contact Cards */}
-    <Row gutter={screens.xs ? [24, 24] : [32, 32]} justify="center">
-      {/* Email Card */}
-      <Col xs={24} md={12}>
-        <Card
-          hoverable
-          style={{
-            ...cardStyle,
-            height: '100%',
-          }}
-          onMouseEnter={(e) => handleCardHover(e, professionalColors.primary)}
-          onMouseLeave={handleCardLeave}
-          bodyStyle={{
-            padding: screens.xs ? '28px' : '36px',
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 20,
-              background: `${professionalColors.primary}15`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              border: `2px solid ${professionalColors.primary}30`,
-            }}
-          >
-            <MailOutlined
-              style={{ fontSize: 34, color: professionalColors.primary }}
-            />
+            {/* Contact Cards */}
+            <Row gutter={screens.xs ? [24, 24] : [32, 32]} justify="center">
+              {/* Email Card */}
+              <Col xs={24} md={12}>
+                <Card
+                  hoverable
+                  style={{
+                    ...cardStyle,
+                    height: '100%',
+                  }}
+                  onMouseEnter={(e) => handleCardHover(e, professionalColors.primary)}
+                  onMouseLeave={handleCardLeave}
+                  bodyStyle={{
+                    padding: screens.xs ? '28px' : '36px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 20,
+                      background: `${professionalColors.primary}15`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 24px',
+                      border: `2px solid ${professionalColors.primary}30`,
+                    }}
+                  >
+                    <MailOutlined
+                      style={{ fontSize: 34, color: professionalColors.primary }}
+                    />
+                  </div>
+
+                  <Title level={4} style={{ fontWeight: 700 }}>
+                    Email Support
+                  </Title>
+
+                  <Paragraph
+                    style={{
+                      color: professionalColors.textSecondary,
+                      fontSize: 15,
+                      lineHeight: 1.6,
+                      marginBottom: 16,
+                    }}
+                  >
+                    Reach out to us for onboarding help, integrations, or enterprise
+                    queries.
+                  </Paragraph>
+
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: professionalColors.primary,
+                    }}
+                  >
+                    info@rcssender.com
+                  </Text>
+
+                  <div style={{ marginTop: 12, fontSize: 13, color: professionalColors.textSecondary }}>
+                    Typical response time: under 2 business hours
+                  </div>
+                </Card>
+              </Col>
+
+              {/* Phone Card */}
+              <Col xs={24} md={12}>
+                <Card
+                  hoverable
+                  style={{
+                    ...cardStyle,
+                    height: '100%',
+                  }}
+                  onMouseEnter={(e) => handleCardHover(e, professionalColors.success)}
+                  onMouseLeave={handleCardLeave}
+                  bodyStyle={{
+                    padding: screens.xs ? '28px' : '36px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 20,
+                      background: `${professionalColors.success}15`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 24px',
+                      border: `2px solid ${professionalColors.success}30`,
+                    }}
+                  >
+                    <CustomerServiceOutlined
+                      style={{ fontSize: 34, color: professionalColors.success }}
+                    />
+                  </div>
+
+                  <Title level={4} style={{ fontWeight: 700 }}>
+                    Phone Support
+                  </Title>
+
+                  <Paragraph
+                    style={{
+                      color: professionalColors.textSecondary,
+                      fontSize: 15,
+                      lineHeight: 1.6,
+                      marginBottom: 16,
+                    }}
+                  >
+                    Speak directly with our support team for immediate assistance.
+                  </Paragraph>
+
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 800,
+                      color: professionalColors.success,
+                    }}
+                  >
+                    +91 94628 10993
+                  </Text>
+
+                  <div style={{ marginTop: 12, fontSize: 13, color: professionalColors.textSecondary }}>
+                    Available Mon–Sat • 10:00 AM – 7:00 PM IST
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+
+            {/* Trust Footer */}
+            <div
+              style={{
+                marginTop: screens.xs ? 48 : 64,
+                padding: screens.xs ? 20 : 28,
+                background: professionalColors.background,
+                borderRadius: 16,
+                border: `1px solid ${professionalColors.border}`,
+                textAlign: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: professionalColors.textSecondary,
+                }}
+              >
+                Trusted by growing businesses and enterprises for secure, verified RCS
+                messaging.
+              </Text>
+            </div>
           </div>
-
-          <Title level={4} style={{ fontWeight: 700 }}>
-            Email Support
-          </Title>
-
-          <Paragraph
-            style={{
-              color: professionalColors.textSecondary,
-              fontSize: 15,
-              lineHeight: 1.6,
-              marginBottom: 16,
-            }}
-          >
-            Reach out to us for onboarding help, integrations, or enterprise
-            queries.
-          </Paragraph>
-
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: professionalColors.primary,
-            }}
-          >
-            info@rcssender.com
-          </Text>
-
-          <div style={{ marginTop: 12, fontSize: 13, color: professionalColors.textSecondary }}>
-            Typical response time: under 2 business hours
-          </div>
-        </Card>
-      </Col>
-
-      {/* Phone Card */}
-      <Col xs={24} md={12}>
-        <Card
-          hoverable
-          style={{
-            ...cardStyle,
-            height: '100%',
-          }}
-          onMouseEnter={(e) => handleCardHover(e, professionalColors.success)}
-          onMouseLeave={handleCardLeave}
-          bodyStyle={{
-            padding: screens.xs ? '28px' : '36px',
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 20,
-              background: `${professionalColors.success}15`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              border: `2px solid ${professionalColors.success}30`,
-            }}
-          >
-            <CustomerServiceOutlined
-              style={{ fontSize: 34, color: professionalColors.success }}
-            />
-          </div>
-
-          <Title level={4} style={{ fontWeight: 700 }}>
-            Phone Support
-          </Title>
-
-          <Paragraph
-            style={{
-              color: professionalColors.textSecondary,
-              fontSize: 15,
-              lineHeight: 1.6,
-              marginBottom: 16,
-            }}
-          >
-            Speak directly with our support team for immediate assistance.
-          </Paragraph>
-
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: 800,
-              color: professionalColors.success,
-            }}
-          >
-            +91 94628 10993
-          </Text>
-
-          <div style={{ marginTop: 12, fontSize: 13, color: professionalColors.textSecondary }}>
-            Available Mon–Sat • 10:00 AM – 7:00 PM IST
-          </div>
-        </Card>
-      </Col>
-    </Row>
-
-    {/* Trust Footer */}
-    <div
-      style={{
-        marginTop: screens.xs ? 48 : 64,
-        padding: screens.xs ? 20 : 28,
-        background: professionalColors.background,
-        borderRadius: 16,
-        border: `1px solid ${professionalColors.border}`,
-        textAlign: 'center',
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: professionalColors.textSecondary,
-        }}
-      >
-        Trusted by growing businesses and enterprises for secure, verified RCS
-        messaging.
-      </Text>
-    </div>
-  </div>
-</section>
-{/* ================= END CONTACT US SECTION ================= */}
+        </section>
+        {/* ================= END CONTACT US SECTION ================= */}
 
 
 

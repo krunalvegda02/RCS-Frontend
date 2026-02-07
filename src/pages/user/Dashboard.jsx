@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Card,
@@ -8,11 +8,7 @@ import {
   Tag,
   Space,
   Button,
-  Avatar,
   Progress,
-  Divider,
-  Modal,
-  Tooltip,
   Breadcrumb,
   Input,
   InputNumber,
@@ -47,7 +43,10 @@ import { THEME_CONSTANTS } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { fetchDashboardStats, fetchRecentOrders, addWalletRequest } from '../../redux/slices/dashboardSlice';
+import AddCreditsModal from '../../components/AddCreditsModal';
+import { _post } from '../../helper/apiClient';
+import { getUserProfile, createPaymentOrder, verifyPayment } from '../../redux/slices/walletSlice';
+import { fetchDashboardStats, fetchRecentOrders } from '../../redux/slices/dashboardSlice';
 
 const { useBreakpoint } = Grid;
 
@@ -58,12 +57,15 @@ export default function Dashboard() {
   const dispatch = useDispatch();
 
   const { stats, recentOrders, loading, error } = useSelector(state => state.dashboard);
+  const { perMessageCharge } = useSelector(state => state.wallet);
   
   const isLoading = loading.stats || loading.orders;
 
   const [refreshing, setRefreshing] = useState(false);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addAmount, setAddAmount] = useState('');
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [calculatedCredits, setCalculatedCredits] = useState(0);
 
   const [userProfile] = useState({
     name: user?.companyname,
@@ -82,26 +84,139 @@ export default function Dashboard() {
       });
       dispatch(fetchDashboardStats(user._id));
       dispatch(fetchRecentOrders(user._id));
-      // Refresh user data to get latest wallet info
+      dispatch(getUserProfile());
       refreshUser();
     }
   }, [user?._id, dispatch]);
 
-  const handleAddMoney = async () => {
-    if (addAmount && Number.parseFloat(addAmount) > 0) {
-      try {
-        const result = await dispatch(addWalletRequest({
-          amount: Number.parseFloat(addAmount),
-          userId: user._id,
-        })).unwrap();
+  const baseAmount = Number(addAmount || 0);
+  const gstAmount = baseAmount * 0.18;
+  const totalPayable = baseAmount + gstAmount;
+  const creditsToReceive = perMessageCharge && perMessageCharge > 0
+    ? Math.floor(baseAmount / perMessageCharge)
+    : baseAmount === 3000 ? 10000
+    : baseAmount === 14000 ? 50000
+    : baseAmount === 25000 ? 100000
+    : baseAmount;
 
-        toast.success(`Wallet recharge request of ${addAmount} Credits submitted for admin approval!`);
-        setAddAmount('');
-        setShowAddMoney(false);
-        refreshUser();
-      } catch (error) {
-        toast.error('Error submitting request: ' + error);
+  const loadRazorpayScript = useCallback(() => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
       }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }, []);
+
+  const handleAddMoney = async () => {
+    if (!addAmount) {
+      toast.error('Please select a package');
+      return;
+    }
+
+    setProcessingPayment(true);
+
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error('Failed to load payment gateway. Please try again.');
+        setProcessingPayment(false);
+        return;
+      }
+
+      // Determine package type or custom amount
+      let payload;
+      if (!perMessageCharge) {
+        // Standard pricing - send package type only
+        const packageType = addAmount === 3000 ? 'starter'
+          : addAmount === 14000 ? 'growth'
+          : addAmount === 25000 ? 'enterprise'
+          : null;
+        
+        if (!packageType) {
+          toast.error('Invalid package selected');
+          setProcessingPayment(false);
+          return;
+        }
+        
+        payload = { packageType };
+      } else {
+        // Custom pricing - send custom amount
+        if (addAmount < 100000) {
+          toast.error('Minimum amount is ₹1,00,000');
+          setProcessingPayment(false);
+          return;
+        }
+        payload = { customAmount: Number(addAmount) };
+      }
+
+      const orderResponse = await dispatch(createPaymentOrder(payload)).unwrap();
+
+      if (!orderResponse.success) {
+        throw new Error(orderResponse.message || 'Failed to create order');
+      }
+
+      const { orderId, amount, currency, keyId, prefill, creditsToAdd } = orderResponse.data;
+      setCalculatedCredits(creditsToAdd || creditsToReceive);
+
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency,
+        name: 'RCS Sender',
+        description: 'Wallet Recharge',
+        order_id: orderId,
+        prefill: prefill,
+        theme: {
+          color: THEME_CONSTANTS.colors.primary,
+        },
+        handler: async function (response) {
+          try {
+            const verifyResponse = await dispatch(verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            })).unwrap();
+
+            if (verifyResponse.success) {
+              toast.success(`Payment successful! ₹${verifyResponse.data.credits} credits added to your wallet.`);
+              setShowAddMoney(false);
+              setAddAmount('');
+              refreshUser();
+              dispatch(fetchDashboardStats(user._id));
+              dispatch(getUserProfile());
+            } else {
+              toast.error(verifyResponse.message || 'Payment verification failed');
+            }
+          } catch (error) {
+            toast.error(error?.message || 'Payment verification failed. Please contact support.');
+          }
+          setProcessingPayment(false);
+        },
+        modal: {
+          ondismiss: function () {
+            setProcessingPayment(false);
+            toast.error('Payment cancelled');
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', function (response) {
+        toast.error(`Payment failed: ${response.error.description}`);
+        setProcessingPayment(false);
+      });
+      razorpay.open();
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error(error?.message || 'Failed to initiate payment');
+      setProcessingPayment(false);
     }
   };
 
@@ -468,7 +583,7 @@ export default function Dashboard() {
                         borderRadius: THEME_CONSTANTS.radius.md,
                       }}
                     >
-                      Add Money
+                      Add Credit
                     </Button>
                   </Col>
 
@@ -1300,67 +1415,20 @@ export default function Dashboard() {
         }
       `}</style>
 
-      {/* Add Money Modal */}
-      <Modal
-        title={
-          <div style={{ fontSize: '18px', fontWeight: 700, color: THEME_CONSTANTS.colors.textPrimary }}>
-            Add Money to Wallet
-          </div>
-        }
+      {/* Add Credits Modal */}
+      <AddCreditsModal
         open={showAddMoney}
         onCancel={() => setShowAddMoney(false)}
-        footer={null}
-        bodyStyle={{ padding: '24px' }}
-      >
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, marginBottom: '8px', display: 'block' }}>
-            Amount
-          </label>
-          <InputNumber
-            value={addAmount}
-            onChange={setAddAmount}
-            placeholder="Enter amount"
-            style={{ width: '100%' }}
-            min={0}
-        
-            size="large"
-          />
-        </div>
-
-        <div style={{ marginBottom: '24px' }}>
-          <p style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, marginBottom: '12px' }}>
-            Quick Select
-          </p>
-          <Row gutter={[12, 12]}>
-            {[100000, 250000, 500000].map((amount) => (
-              <Col xs={8} key={amount}>
-                <Button
-                  block
-                  onClick={() => setAddAmount(amount)}
-                  style={{
-                    border: `1px solid ${THEME_CONSTANTS.colors.borderLight}`,
-                    color: THEME_CONSTANTS.colors.primary,
-                  }}
-                >
-                  {amount}
-                </Button>
-              </Col>
-            ))}
-          </Row>
-        </div>
-
-        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-          <Button onClick={() => setShowAddMoney(false)}>Cancel</Button>
-          <Button
-            type="primary"
-            onClick={handleAddMoney}
-            disabled={!addAmount || Number.parseFloat(addAmount) <= 0}
-            style={{ background: THEME_CONSTANTS.colors.primary }}
-          >
-            Add Money
-          </Button>
-        </Space>
-      </Modal>
+        onPay={handleAddMoney}
+        addAmount={addAmount}
+        setAddAmount={setAddAmount}
+        perMessageCharge={perMessageCharge}
+        processingPayment={processingPayment}
+        baseAmount={baseAmount}
+        gstAmount={gstAmount}
+        totalPayable={totalPayable}
+        creditsToReceive={creditsToReceive}
+      />
 
       <style>{`
         @keyframes spin {

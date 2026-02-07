@@ -18,7 +18,7 @@ apiClient.interceptors.request.use(
         if (token && !config.headers.Authorization) {
             config.headers.Authorization = `Bearer ${token}`;
         }
-        
+
         // If data is FormData, remove Content-Type header to let axios set it automatically with boundary
         if (config.data instanceof FormData) {
             // Delete Content-Type from headers to allow axios to set it with proper boundary
@@ -41,74 +41,74 @@ apiClient.interceptors.response.use(
     async (error) => {
         const currentPath = window.location.pathname;
         const isAuthPage = currentPath.includes('/login');
-        
+
         // Check for deactivated account in any error response
         const errorMessage = error.response?.data?.message || '';
         const isDeactivated = errorMessage.toLowerCase().includes('deactivated');
-        
+
         if (isDeactivated && !isAuthPage && !isHandlingAuth) {
             isHandlingAuth = true;
             console.log('Deactivated account detected, clearing auth and redirecting...');
-            
+
             // Clear auth data
             localStorage.clear();
-            
+
             // Dispatch logout to Redux store
             if (window.__REDUX_STORE__) {
                 window.__REDUX_STORE__.dispatch({ type: 'auth/logout' });
             }
-            
+
             // Force redirect
             setTimeout(() => {
                 isHandlingAuth = false;
                 window.location.href = '/login?reason=deactivated';
             }, 100);
-            
+
             return Promise.reject(error);
         }
-        
+
         const originalRequest = error.config;
-        
+
         // Handle 401 errors (Unauthorized)
         if (error.response?.status === 401 && !originalRequest._isRetry) {
             originalRequest._isRetry = true;
-            
+
             // Don't redirect if it's a password update error (wrong current password)
-            const isPasswordUpdateError = originalRequest.url?.includes('update-password') || 
-                                         originalRequest.url?.includes('change-password');
-            
+            const isPasswordUpdateError = originalRequest.url?.includes('update-password') ||
+                originalRequest.url?.includes('change-password');
+
             // Don't redirect if already on auth page or already handling auth or password update error
             if (!isAuthPage && !isHandlingAuth && !isPasswordUpdateError) {
                 isHandlingAuth = true;
-                
+
                 // Determine redirect reason
                 let reason = 'unauthorized';
-                
+
                 if (errorMessage.toLowerCase().includes('expired')) {
                     reason = 'session_expired';
                 } else if (errorMessage.toLowerCase().includes('invalid')) {
                     reason = 'token_invalid';
                 }
-                
+
                 // Clear auth data
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
-                
+
                 // Dispatch logout to Redux store
                 if (window.__REDUX_STORE__) {
                     window.__REDUX_STORE__.dispatch({ type: 'auth/logout' });
                 }
-                
+
                 // Reset flag after a delay
                 setTimeout(() => {
                     isHandlingAuth = false;
                 }, 1000);
-                
+
                 // Redirect to login with reason
                 window.location.replace(`/login?reason=${reason}`);
             }
         }
-        
+
         return Promise.reject(error);
     }
 );
@@ -165,10 +165,22 @@ const apiService = {
     adminsummry: () => _get('admin/summary'),
     getUserMessages: (userId) => _get(`messages/user/${userId}`),
     getProfileWithTransactions: (userId, limit) => _get(`profile/${userId}/transactions?limit=${limit}`),
+
+    // Invoice
+    downloadInvoice: async (orderId) => {
+        const response = await apiClient.get(`v1/payment/invoice/${orderId}`, {
+            responseType: 'blob', // Important for file download
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        return response;
+    },
+
     addWalletRequest: (data) => _post('wallet/request', data),
     updateProfile: (userId, data) => _put(`profile/${userId}`, data),
     changePassword: (data) => _post('auth/change-password', data),
-    
+
     // Wallet request methods
     getWalletRequests: () => _get('wallet/admin/requests'),
     approveWalletRequest: (requestId, adminNote) => _put(`wallet/admin/approve/${requestId}`, { adminNote }),

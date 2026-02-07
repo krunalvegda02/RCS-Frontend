@@ -94,7 +94,8 @@ export default function RCSTimeWarning() {
   return (
     <div
       style={{
-        position: 'sticky',
+        position: 'fixed',
+        width: '100%',
         top: 0,
         zIndex: 1001,
         background: 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)',

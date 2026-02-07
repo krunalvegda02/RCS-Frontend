@@ -189,7 +189,7 @@ const PendingUsers = () => {
         color: '#faad14',
         bgColor: '#fff7e6',
         icon: <ClockCircleOutlined />,
-        label: 'Submitted',
+        label: 'Onboarded',
         badge: 'warning'
       },
       'VERIFIED': {
@@ -601,7 +601,7 @@ const PendingUsers = () => {
               tab={
                 <span style={{ fontSize: '14px', fontWeight: 500 }}>
                   <SearchOutlined style={{ marginRight: 8 }} />
-                  Submitted
+                  Documents Submitted
                 </span>
               } 
               key="ONBOARDING_SUBMITTED" 

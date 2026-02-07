@@ -49,10 +49,10 @@ import { useNavigate } from 'react-router-dom';
 function UserManagement() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   // Redux state
   const { users, transactions, loading, error, stats } = useSelector(state => state.admin);
-  
+
   // Local state for modals
   const [isWalletModalVisible, setIsWalletModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
@@ -68,11 +68,11 @@ function UserManagement() {
   const [editUserForm] = Form.useForm();
 
   useEffect(() => {
-    dispatch(getAllUsers({ page: 1, limit: 50 }));
+    dispatch(getAllUsers({ page: 1, limit: 50, status: 'active', verified: true }));
   }, [dispatch]);
 
   const fetchUsers = () => {
-    dispatch(getAllUsers({ page: 1, limit: 50 }));
+    dispatch(getAllUsers({ page: 1, limit: 50, status: 'active', verified: true }));
   };
 
   const openWalletModal = (user) => {
@@ -87,7 +87,7 @@ function UserManagement() {
     setNewPassword('');
     setCurrentPassword('');
     setIsPasswordModalVisible(true);
-    
+
     try {
       const result = await dispatch(getUserPassword({ userId: user._id })).unwrap();
       setCurrentPassword(result.data?.currentPassword || '');
@@ -112,12 +112,12 @@ function UserManagement() {
       message.error('Please enter a valid amount');
       return;
     }
-    
+
     if (walletOperation === 'deduct' && walletAmount > (selectedUser?.wallet?.balance || 0)) {
       message.error('Deduct amount cannot exceed current balance');
       return;
     }
-    
+
     try {
       const backendOperation = walletOperation === 'deduct' ? 'subtract' : 'add';
       await dispatch(updateWallet({
@@ -125,10 +125,10 @@ function UserManagement() {
         amount: Number(walletAmount),
         operation: backendOperation
       })).unwrap();
-      
+
       message.success(`Wallet balance ${walletOperation === 'add' ? 'added' : 'deducted'} successfully!`);
       setIsWalletModalVisible(false);
-      dispatch(getAllUsers({ page: 1, limit: 50 }));
+      dispatch(getAllUsers({ page: 1, limit: 50, status: 'active', verified: true }));
     } catch (error) {
       message.error(error || `Error ${walletOperation === 'add' ? 'adding' : 'deducting'} wallet balance`);
     }
@@ -139,13 +139,13 @@ function UserManagement() {
       message.error('Password must be at least 6 characters long');
       return;
     }
-    
+
     try {
       await dispatch(updateUserPassword({
         userId: selectedUser._id,
         newPassword
       })).unwrap();
-      
+
       message.success('Password updated successfully!');
       setIsPasswordModalVisible(false);
     } catch (error) {
@@ -187,7 +187,8 @@ function UserManagement() {
         companyname: user.companyname || '',
         clientId: user.jioConfig?.clientId || '',
         clientSecret: user.jioConfig?.clientSecret || '',
-        assistantId: user.jioConfig?.assistantId || ''
+        assistantId: user.jioConfig?.assistantId || '',
+        perMessageCharge: user.perMessageCharge || 0
       };
       console.log('Setting form values:', formValues);
       editUserForm.setFieldsValue(formValues);
@@ -198,18 +199,18 @@ function UserManagement() {
     try {
       const values = await editUserForm.validateFields();
       const { clientId, clientSecret, assistantId, ...userData } = values;
-      
+
       // Validate Jio config - all 3 required if any is provided
       if ((clientId || clientSecret || assistantId) && (!clientId || !clientSecret || !assistantId)) {
         message.error('All 3 Jio config fields (Client ID, Client Secret, Assistant ID) are required if updating');
         return;
       }
-      
+
       const updatePayload = {
         userId: selectedUser._id,
         ...userData
       };
-      
+
       if (clientId && clientSecret && assistantId) {
         updatePayload.jioConfig = {
           clientId: clientId.trim(),
@@ -217,12 +218,12 @@ function UserManagement() {
           assistantId: assistantId.trim()
         };
       }
-      
+
       await dispatch(updateUser(updatePayload)).unwrap();
-      
+
       message.success('User updated successfully!');
       setIsEditUserModalVisible(false);
-      dispatch(getAllUsers({ page: 1, limit: 50 }));
+      dispatch(getAllUsers({ page: 1, limit: 50, status: 'active', verified: true }));
     } catch (error) {
       if (error.errorFields) {
         message.error('Please fill in all required fields');
@@ -245,7 +246,7 @@ function UserManagement() {
     message.info('Delete user functionality will be implemented soon');
   };
 
-  const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
+  const formatCurrency = (value) => `${Number(value || 0).toLocaleString('en-IN')}`;
   const formatDate = (d) => {
     if (!d) return '-';
     const now = new Date();
@@ -283,9 +284,9 @@ function UserManagement() {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.md }}>
         <div style={{ flex: 1 }}>
-          <div style={{ 
-            fontSize: THEME_CONSTANTS.typography.label.size, 
-            color: THEME_CONSTANTS.colors.textSecondary, 
+          <div style={{
+            fontSize: THEME_CONSTANTS.typography.label.size,
+            color: THEME_CONSTANTS.colors.textSecondary,
             marginBottom: THEME_CONSTANTS.spacing.sm,
             fontWeight: 500,
             textTransform: 'uppercase',
@@ -293,24 +294,24 @@ function UserManagement() {
           }}>
             {title}
           </div>
-          <div style={{ 
-            fontSize: '32px', 
-            fontWeight: 700, 
-            color: THEME_CONSTANTS.colors.text, 
+          <div style={{
+            fontSize: '32px',
+            fontWeight: 700,
+            color: THEME_CONSTANTS.colors.text,
             lineHeight: 1.2
           }}>
             {typeof value === 'number' ? value.toLocaleString('en-IN') : value}
           </div>
         </div>
-        <div style={{ 
-          width: 64, 
-          height: 64, 
-          borderRadius: THEME_CONSTANTS.radius.xl, 
+        <div style={{
+          width: 64,
+          height: 64,
+          borderRadius: THEME_CONSTANTS.radius.xl,
           background: `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          color: color, 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: color,
           fontSize: 28,
           flexShrink: 0
         }}>
@@ -330,7 +331,7 @@ function UserManagement() {
         <Space>
           <Avatar
             size={40}
-            style={{ background: THEME_CONSTANTS.colors.primaryLight , color: THEME_CONSTANTS.colors.primary }}
+            style={{ background: THEME_CONSTANTS.colors.primaryLight, color: THEME_CONSTANTS.colors.primary }}
           >
             {record.name?.charAt(0)?.toUpperCase()}
           </Avatar>
@@ -489,154 +490,174 @@ function UserManagement() {
 
   return (
     <>
-    <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', padding: THEME_CONSTANTS.spacing.xxl }}>
-      <div style={{ maxWidth: THEME_CONSTANTS.layout.maxContentWidth, margin: '0 auto' }}>
-        <Spin spinning={loading.users}>
-          {/* Header Section - Left Aligned */}
-          <div style={{
-            marginBottom: THEME_CONSTANTS.spacing.xxxl,
-            paddingBottom: THEME_CONSTANTS.spacing.xxl,
-            borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`
-          }}>
-            <Breadcrumb style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
-              <Breadcrumb.Item>
-                <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Admin</span>
-              </Breadcrumb.Item>
-              <Breadcrumb.Item>
-                <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>Active User Management</span>
-              </Breadcrumb.Item>
-            </Breadcrumb>
+      <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', padding: THEME_CONSTANTS.spacing.xxl }}>
+        <div style={{ maxWidth: THEME_CONSTANTS.layout.maxContentWidth, margin: '0 auto' }}>
+          <Spin spinning={loading.users}>
+            {/* Header Section - Left Aligned */}
+            <div style={{
+              marginBottom: THEME_CONSTANTS.spacing.xxxl,
+              paddingBottom: THEME_CONSTANTS.spacing.xxl,
+              borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}`
+            }}>
+              <Breadcrumb style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
+                <Breadcrumb.Item>
+                  <span style={{ color: THEME_CONSTANTS.colors.textMuted, fontSize: THEME_CONSTANTS.typography.caption.size }}>Admin</span>
+                </Breadcrumb.Item>
+                <Breadcrumb.Item>
+                  <span style={{ color: THEME_CONSTANTS.colors.primary, fontSize: THEME_CONSTANTS.typography.caption.size, fontWeight: 600 }}>Active User Management</span>
+                </Breadcrumb.Item>
+              </Breadcrumb>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.lg, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.lg }}>
-                <div style={{
-                  width: '72px',
-                  height: '72px',
-                  background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, ${THEME_CONSTANTS.colors.primaryLight} 100%)`,
-                  borderRadius: THEME_CONSTANTS.radius.xl,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.primary}40`,
-                  flexShrink: 0
-                }}>
-                  <UserOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '36px' }} />
-                </div>
-                <div>
-                  <h1 style={{
-                    fontSize: THEME_CONSTANTS.typography.h1.size,
-                    fontWeight: THEME_CONSTANTS.typography.h1.weight,
-                    color: THEME_CONSTANTS.colors.text,
-                    marginBottom: THEME_CONSTANTS.spacing.xs,
-                    lineHeight: 1.2,
-                    letterSpacing: '-0.02em'
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: THEME_CONSTANTS.spacing.lg, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.lg }}>
+                  <div style={{
+                    width: '72px',
+                    height: '72px',
+                    background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primaryLight} 0%, ${THEME_CONSTANTS.colors.primaryLight} 100%)`,
+                    borderRadius: THEME_CONSTANTS.radius.xl,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: `0 8px 16px -4px ${THEME_CONSTANTS.colors.primary}40`,
+                    flexShrink: 0
                   }}>
-                    User Management
-                  </h1>
-                  <p style={{
-                    color: THEME_CONSTANTS.colors.textSecondary,
-                    fontSize: THEME_CONSTANTS.typography.body.size,
-                    lineHeight: 1.5,
-                    margin: 0
-                  }}>
-                    Manage and monitor all platform users, accounts, and wallet balances.
-                  </p>
+                    <UserOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '36px' }} />
+                  </div>
+                  <div>
+                    <h1 style={{
+                      fontSize: THEME_CONSTANTS.typography.h1.size,
+                      fontWeight: THEME_CONSTANTS.typography.h1.weight,
+                      color: THEME_CONSTANTS.colors.text,
+                      marginBottom: THEME_CONSTANTS.spacing.xs,
+                      lineHeight: 1.2,
+                      letterSpacing: '-0.02em'
+                    }}>
+                      User Management
+                    </h1>
+                    <p style={{
+                      color: THEME_CONSTANTS.colors.textSecondary,
+                      fontSize: THEME_CONSTANTS.typography.body.size,
+                      lineHeight: 1.5,
+                      margin: 0
+                    }}>
+                      Manage and monitor all platform users, accounts, and wallet balances.
+                    </p>
+                  </div>
                 </div>
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<PlusOutlined />}
+                  onClick={() => setIsCreateUserModalVisible(true)}
+                  style={{
+                    borderRadius: THEME_CONSTANTS.radius.md,
+                    fontWeight: 600,
+                    height: '44px',
+                    padding: '0 24px',
+                    boxShadow: `0 4px 12px ${THEME_CONSTANTS.colors.primary}30`
+                  }}
+                >
+                  Create User
+                </Button>
               </div>
-              <Button
-                type="primary"
-                size="large"
-                icon={<PlusOutlined />}
-                onClick={() => setIsCreateUserModalVisible(true)}
-                style={{
-                  borderRadius: THEME_CONSTANTS.radius.md,
-                  fontWeight: 600,
-                  height: '44px',
-                  padding: '0 24px',
-                  boxShadow: `0 4px 12px ${THEME_CONSTANTS.colors.primary}30`
-                }}
-              >
-                Create User
-              </Button>
             </div>
-          </div>
 
-        <Row gutter={[20, 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
-          <Col xs={24} sm={12} lg={8}>
-            <StatCard
-              icon={UserOutlined}
-              title="Total Users"
-              value={calculatedStats.totalUsers}
-              color={THEME_CONSTANTS.colors.primary}
-              bgColor={`${THEME_CONSTANTS.colors.primary}15`}
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={8}>
-            <StatCard
-              icon={CheckOutlined}
-              title="Active Users"
-              value={calculatedStats.activeUsers}
-              color={THEME_CONSTANTS.colors.success}
-              bgColor={`${THEME_CONSTANTS.colors.success}15`}
-            />
-          </Col>
-          <Col xs={24} sm={24} lg={8}>
-            <StatCard
-              icon={DollarOutlined}
-              title="Total Wallet"
-              value={formatCurrency(calculatedStats.totalWallet)}
-              color={THEME_CONSTANTS.colors.warning}
-              bgColor={`${THEME_CONSTANTS.colors.warning}15`}
-            />
-          </Col>
-        </Row>
+            <Row gutter={[20, 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
+              <Col xs={24} sm={12} lg={8}>
+                <StatCard
+                  icon={UserOutlined}
+                  title="Total Users"
+                  value={calculatedStats.totalUsers}
+                  color={THEME_CONSTANTS.colors.primary}
+                  bgColor={`${THEME_CONSTANTS.colors.primary}15`}
+                />
+              </Col>
+              <Col xs={24} sm={12} lg={8}>
+                <StatCard
+                  icon={CheckOutlined}
+                  title="Active Users"
+                  value={calculatedStats.activeUsers}
+                  color={THEME_CONSTANTS.colors.success}
+                  bgColor={`${THEME_CONSTANTS.colors.success}15`}
+                />
+              </Col>
+              <Col xs={24} sm={24} lg={8}>
+                <StatCard
+                  icon={DollarOutlined}
+                  title="Total Wallet"
+                  value={formatCurrency(calculatedStats.totalWallet)}
+                  color={THEME_CONSTANTS.colors.warning}
+                  bgColor={`${THEME_CONSTANTS.colors.warning}15`}
+                />
+              </Col>
+            </Row>
 
-        <Card
-          title={
-            <Space size={8}>
-              <UserOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
-              <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>All Users</span>
-            </Space>
-          }
-          style={{
-            borderRadius: THEME_CONSTANTS.radius.lg,
-            border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-            boxShadow: THEME_CONSTANTS.shadow.base,
-            background: THEME_CONSTANTS.colors.surface
-          }}
-          extra={
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={fetchUsers}
-              loading={loading.users}
-              style={{ borderRadius: THEME_CONSTANTS.radius.md, fontWeight: 500 }}
+            <Card
+              title={
+                <Space size={8}>
+                  <UserOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
+                  <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>All Users</span>
+                </Space>
+              }
+              style={{
+                borderRadius: THEME_CONSTANTS.radius.lg,
+                border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                boxShadow: THEME_CONSTANTS.shadow.base,
+                background: THEME_CONSTANTS.colors.surface
+              }}
+              extra={
+                <Button
+                  type="primary"
+                  icon={<ReloadOutlined />}
+                  onClick={fetchUsers}
+                  loading={loading.users}
+                  style={{ borderRadius: THEME_CONSTANTS.radius.md, fontWeight: 500 }}
+                >
+                  Refresh
+                </Button>
+              }
+              bodyStyle={{ padding: 0 }}
             >
-              Refresh
-            </Button>
-          }
-          bodyStyle={{ padding: 0 }}
-        >
-          <Table
-            dataSource={users}
-            columns={userColumns}
-            rowKey="_id"
-            pagination={{ pageSize: 10, showSizeChanger: false }}
-            locale={{ emptyText: <Empty description="No users found" /> }}
-            scroll={{ x: 800 }}
-            onRow={(record) => ({
-              onClick: () => navigate(`/admin/user-report/${record._id}`),
-              style: { cursor: 'pointer' }
-            })}
-          />
-        </Card>
-        </Spin>
+              <Table
+                dataSource={users}
+                columns={userColumns}
+                rowKey="_id"
+                pagination={{ pageSize: 10, showSizeChanger: false }}
+                locale={{ emptyText: <Empty description="No users found" /> }}
+                scroll={{ x: 800 }}
+                onRow={(record) => ({
+                  onClick: () => navigate(`/admin/user-report/${record._id}`),
+                  style: { cursor: 'pointer' }
+                })}
+              />
+            </Card>
+          </Spin>
+        </div>
       </div>
-    </div>
 
       {/* Edit User Modal */}
       <Modal
-        title="Edit User Details"
+        title={<div className='flex justify-between items-center w-full'>
+          <div className='flex items-center gap-2 text-primary font-semibold text-xl'>
+            Edit User Details
+          </div>
+          <div className='pr-8'>
+            <Tag
+              icon={selectedUser?.isActive ? <CheckOutlined /> : <CloseOutlined />}
+              color={selectedUser?.isActive ? '#F6FFED' : '#FFF1F0'}
+              style={{
+                color: selectedUser?.isActive ? THEME_CONSTANTS.colors.success : '#FF4D4F',
+                border: `1px solid ${selectedUser?.isActive ? THEME_CONSTANTS.colors.success : '#FF4D4F'}`,
+                fontWeight: 500,
+                padding: '4px 12px',
+                borderRadius: THEME_CONSTANTS.radius.sm,
+              }}
+            >
+              {selectedUser?.isActive ? 'Active' : 'Inactive'}
+            </Tag>
+
+          </div>
+        </div>}
         open={isEditUserModalVisible}
         onCancel={() => {
           setIsEditUserModalVisible(false);
@@ -696,24 +717,22 @@ function UserManagement() {
               </Form.Item>
             </Col>
           </Row>
-          <Row gutter={16}>
+          <Row gutter={100}>
             <Col span={12}>
               <Form.Item
-                label="Status"
+                type="number"
+                label="Per Message Charge"
+                name="perMessageCharge"
+
               >
-                <Tag
-                  icon={selectedUser?.isActive ? <CheckOutlined /> : <CloseOutlined />}
-                  color={selectedUser?.isActive ? '#F6FFED' : '#FFF1F0'}
-                  style={{
-                    color: selectedUser?.isActive ? THEME_CONSTANTS.colors.success : '#FF4D4F',
-                    border: `1px solid ${selectedUser?.isActive ? THEME_CONSTANTS.colors.success : '#FF4D4F'}`,
-                    fontWeight: 500,
-                    padding: '4px 12px',
-                    borderRadius: THEME_CONSTANTS.radius.sm,
-                  }}
-                >
-                  {selectedUser?.isActive ? 'Active' : 'Inactive'}
-                </Tag>
+                <InputNumber
+                  placeholder="Per Message Charge"
+                  style={{ width: '100%' }}
+                  min={0}
+                  step={0.01}
+                  formatter={(value) => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  parser={(value) => value.replace(/₹\s?|(,*)/g, '')}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -746,16 +765,17 @@ function UserManagement() {
             </Col>
           </Row>
         </Form>
-      </Modal>
+      </Modal >
 
       {/* Create User Modal */}
-      <Modal
+      < Modal
         title="Create New User"
         open={isCreateUserModalVisible}
         onCancel={() => {
           setIsCreateUserModalVisible(false);
           createUserForm.resetFields();
-        }}
+        }
+        }
         onOk={handleCreateUser}
         confirmLoading={loading.createUser}
         width={window.innerWidth <= 768 ? '95vw' : 800}
@@ -823,10 +843,25 @@ function UserManagement() {
                 <Input placeholder="Enter company name (optional)" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={6}>
               <Form.Item
-                label="Initial Wallet Balance"
+                label="Initial Wallet Credits"
                 name="walletBalance"
+                initialValue={0}
+              >
+                <InputNumber
+                  min={0}
+                  placeholder="Enter initial Credits"
+                  style={{ width: '100%' }}
+                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  parser={(value) => value.replace(/₹\s?|(,*)/g, '')}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item
+                label="Per message charge"
+                name="perMessageCharge"
                 initialValue={0}
               >
                 <InputNumber
@@ -868,7 +903,7 @@ function UserManagement() {
             </Col>
           </Row>
         </Form>
-      </Modal>
+      </Modal >
 
       <Modal
         title="Manage Wallet Balance"
@@ -899,7 +934,7 @@ function UserManagement() {
                 type={walletOperation === 'add' ? 'primary' : 'default'}
                 icon={<ArrowUpOutlined />}
                 onClick={() => setWalletOperation('add')}
-                style={{ 
+                style={{
                   width: '50%',
                   height: '44px',
                   fontWeight: 600,
@@ -913,7 +948,7 @@ function UserManagement() {
                 type={walletOperation === 'deduct' ? 'primary' : 'default'}
                 icon={<ArrowDownOutlined />}
                 onClick={() => setWalletOperation('deduct')}
-                style={{ 
+                style={{
                   width: '50%',
                   height: '44px',
                   fontWeight: 600,
@@ -938,9 +973,9 @@ function UserManagement() {
             />
           </Form.Item>
           {walletOperation === 'deduct' && (
-            <div style={{ 
-              padding: '12px', 
-              background: '#fff7e6', 
+            <div style={{
+              padding: '12px',
+              background: '#fff7e6',
               border: '1px solid #ffd591',
               borderRadius: THEME_CONSTANTS.radius.sm,
               marginTop: '-8px'
@@ -1000,10 +1035,10 @@ function UserManagement() {
         width={window.innerWidth <= 768 ? '95vw' : 900}
       >
         <div style={{ marginTop: 24 }}>
-          <div style={{ 
-            marginBottom: 16, 
-            padding: 16, 
-            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', 
+          <div style={{
+            marginBottom: 16,
+            padding: 16,
+            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
             borderRadius: 8,
             border: `1px solid ${THEME_CONSTANTS.colors.border}`
           }}>
@@ -1043,7 +1078,7 @@ function UserManagement() {
               </Col>
             </Row>
           </div>
-          
+
           <Spin spinning={loading.transactions}>
             {transactions && transactions.length > 0 ? (
               <Table
@@ -1071,7 +1106,7 @@ function UserManagement() {
                     key: 'type',
                     width: '15%',
                     render: (type) => (
-                      <Tag 
+                      <Tag
                         icon={type === 'credit' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                         color={type === 'credit' ? 'green' : 'red'}
                         style={{ fontWeight: 500 }}
@@ -1086,7 +1121,7 @@ function UserManagement() {
                     key: 'amount',
                     width: '15%',
                     render: (amount, record) => (
-                      <span style={{ 
+                      <span style={{
                         color: record.type === 'credit' ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.error,
                         fontWeight: 600,
                         fontSize: 14
@@ -1117,7 +1152,7 @@ function UserManagement() {
                   },
                 ]}
                 rowKey={(record, index) => record._id || index}
-                pagination={{ 
+                pagination={{
                   pageSize: 8,
                   showSizeChanger: false,
                   showQuickJumper: window.innerWidth > 768,
@@ -1132,7 +1167,7 @@ function UserManagement() {
               />
             ) : (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <Empty 
+                <Empty
                   description={
                     <div>
                       <div style={{ marginBottom: 8, color: THEME_CONSTANTS.colors.text }}>

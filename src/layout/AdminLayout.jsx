@@ -141,7 +141,7 @@ export default function AdminLayout() {
   {
     key: '/admin/wallet-requests',
     icon: <WalletOutlined className="text-xl" />,
-    label: 'Wallet Requests',
+    label: 'Wallet Transactions',
     onClick: () => navigate('/admin/wallet-requests'),
   },
   {
@@ -414,8 +414,10 @@ export default function AdminLayout() {
           {/* Header */}
           <Header 
             style={{
-              position: 'sticky',
+              position: 'fixed',
               top: 0,
+              right: 0,
+              left: isDesktop ? '280px' : 0,
               zIndex: 999,
               background: THEME_CONSTANTS.colors.surface,
               boxShadow: THEME_CONSTANTS.shadow.sm,
@@ -527,6 +529,7 @@ export default function AdminLayout() {
           {/* Content */}
           <Content 
             style={{
+              marginTop: '72px',
               padding: isMobile ? THEME_CONSTANTS.spacing.lg : THEME_CONSTANTS.spacing.xxxl,
               background: THEME_CONSTANTS.colors.background,
               minHeight: 'calc(100vh - 144px)',

@@ -28,8 +28,10 @@ import {
   DollarOutlined,
   DashboardOutlined,
   RightOutlined,
+  ExperimentOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
-import { _get } from '../../helper/apiClient.jsx';
+import { _get, _post } from '../../helper/apiClient.jsx';
 import { THEME_CONSTANTS } from '../../theme';
 
 const { useBreakpoint } = Grid;
@@ -52,6 +54,8 @@ function AdminDashboard() {
   const [recentUsers, setRecentUsers] = useState([]);
   const [recentRequests, setRecentRequests] = useState([]);
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [demoRequests, setDemoRequests] = useState([]);
+  const [actionLoading, setActionLoading] = useState({});
 
   useEffect(() => {
     if (token) {
@@ -61,14 +65,20 @@ function AdminDashboard() {
 
   const fetchDashboard = async () => {
     try {
-      const res = await _get('v1/dashboard/admin', {}, {}, token);
-      if (res.data.success) {
-        console.log('Dashboard data:', res.data.dashboard.recentUsers); 
-        setStats(res.data.dashboard.stats);
-        setRecentUsers(res.data.dashboard.recentUsers || []);
-        setRecentRequests(res.data.dashboard.recentWalletRequests || []);
-        setRecentTransactions(res.data.dashboard.recentTransactions || []);
+      const [dashRes, demoRes] = await Promise.all([
+        _get('v1/dashboard/admin', {}, {}, token),
+        _get('demo-requests', {}, {}, token)
+      ]);
+      
+      if (dashRes.data.success) {
+        setStats(dashRes.data.dashboard.stats);
+        setRecentUsers(dashRes.data.dashboard.recentUsers || []);
+        setRecentRequests(dashRes.data.dashboard.recentWalletRequests || []);
+        setRecentTransactions(dashRes.data.dashboard.recentTransactions || []);
       }
+      
+      const demos = demoRes.data?.data || demoRes.data || [];
+      setDemoRequests(demos.slice(0, 5));
     } catch (err) {
       console.error('Dashboard error:', err);
     } finally {
@@ -81,13 +91,18 @@ function AdminDashboard() {
 
   const formatDate = (d) => {
     if (!d) return '-';
+    const date = new Date(d);
     const now = new Date();
-    const diffHours = Math.floor((now - new Date(d)) / (1000 * 60 * 60));
-    if (diffHours < 1) return 'Just now';
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
     if (diffDays < 7) return `${diffDays}d ago`;
-    return new Date(d).toLocaleDateString('en-IN', {
+    return date.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -299,8 +314,55 @@ function AdminDashboard() {
     },
   ];
 
-  // ================= WALLET REQUESTS TABLE =================
-  const walletColumns = [
+
+  // ================= DEMO REQUESTS TABLE =================
+  const demoColumns = [
+    {
+      title: 'User Details',
+      key: 'user',
+      render: (_, record) => (
+        <Space size={12}>
+          <Avatar size={40} style={{ background: THEME_CONSTANTS.colors.primaryLight, color: THEME_CONSTANTS.colors.primary }}>
+            {record.name?.charAt(0)?.toUpperCase() || 'G'}
+          </Avatar>
+          <div>
+            <div style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.textPrimary, fontSize: '14px' }}>{record.name || 'Guest'}</div>
+            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary }}>{record.email}</div>
+            {record.company && <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.primary, fontWeight: 500 }}>{record.company}</div>}
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: 'Contact',
+      dataIndex: 'phone',
+      render: (phone) => <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>{phone || '-'}</div>,
+      responsive: ['md'],
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (status) => {
+        const st = status?.toUpperCase() || 'SCHEDULED';
+        const config = { 
+          SCHEDULED: { color: THEME_CONSTANTS.colors.primary, bg: `${THEME_CONSTANTS.colors.primary}15`, icon: <ClockCircleOutlined /> },
+          COMPLETED: { color: THEME_CONSTANTS.colors.success, bg: '#F6FFED', icon: <CheckOutlined /> },
+          CANCELLED: { color: '#FF4D4F', bg: '#FFF1F0', icon: <CloseOutlined /> },
+          NO_SHOW: { color: '#FAAD14', bg: '#FFFBE6', icon: <CloseOutlined /> }
+        }[st] || { color: THEME_CONSTANTS.colors.primary, bg: `${THEME_CONSTANTS.colors.primary}15`, icon: <ClockCircleOutlined /> };
+        return <Tag icon={config.icon} color={config.bg} style={{ color: config.color, border: `1px solid ${config.color}`, fontWeight: 500, padding: '4px 12px', borderRadius: THEME_CONSTANTS.radius.sm }}>{st}</Tag>;
+      },
+    },
+    {
+      title: 'Date',
+      dataIndex: 'createdAt',
+      render: (date) => <Tooltip title={new Date(date).toLocaleDateString('en-IN')}><span style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>{formatDate(date)}</span></Tooltip>,
+      responsive: ['lg'],
+    },
+  ];
+
+  // ================= TRANSACTIONS TABLE =================
+  const transactionColumns = [
     {
       title: 'User',
       dataIndex: ['userId', 'name'],
@@ -310,7 +372,8 @@ function AdminDashboard() {
           <Avatar
             size={36}
             style={{
-              backgroundColor: '#FAAD14',
+              backgroundColor: THEME_CONSTANTS.colors.primaryLight,
+              color: THEME_CONSTANTS.colors.primary,
               fontWeight: 600,
             }}
             icon={<UserOutlined />}
@@ -356,116 +419,6 @@ function AdminDashboard() {
         </div>
       ),
       width: '20%',
-      responsive: ['md'],
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        let color, bgColor, icon;
-        switch (status) {
-          case 'pending':
-            color = '#FAAD14';
-            bgColor = '#FFFBE6';
-            icon = <ClockCircleOutlined />;
-            break;
-          case 'approved':
-            color = THEME_CONSTANTS.colors.success;
-            bgColor = '#F6FFED';
-            icon = <CheckOutlined />;
-            break;
-          case 'rejected':
-            color = '#FF4D4F';
-            bgColor = '#FFF1F0';
-            icon = <CloseOutlined />;
-            break;
-          default:
-            color = THEME_CONSTANTS.colors.primary;
-            bgColor = '#E6F7FF';
-        }
-        return (
-          <Tag
-            icon={icon}
-            color={bgColor}
-            style={{
-              color: color,
-              border: `1px solid ${color}`,
-              fontWeight: 500,
-              padding: '4px 12px',
-              borderRadius: THEME_CONSTANTS.radius.sm,
-            }}
-          >
-            {status?.charAt(0).toUpperCase() + status?.slice(1)}
-          </Tag>
-        );
-      },
-      width: '20%',
-    },
-    {
-      title: 'Requested',
-      dataIndex: 'requestedAt',
-      key: 'requested',
-      render: (date) => (
-        <Tooltip title={new Date(date).toLocaleDateString('en-IN')}>
-          <span
-            style={{
-              fontSize: '13px',
-              color: THEME_CONSTANTS.colors.textSecondary,
-            }}
-          >
-            {formatDate(date)}
-          </span>
-        </Tooltip>
-      ),
-      width: '25%',
-      responsive: ['md'],
-    },
-  ];
-
-  // ================= TRANSACTIONS TABLE =================
-  const transactionColumns = [
-    {
-      title: 'User',
-      dataIndex: ['userId', 'name'],
-      key: 'user',
-      render: (text, record) => (
-        <Space size={12}>
-          <Avatar
-            size={36}
-            style={{
-              backgroundColor:
-                record.type === 'credit'
-                  ? THEME_CONSTANTS.colors.success
-                  : '#FF4D4F',
-              fontWeight: 600,
-            }}
-            icon={<UserOutlined />}
-          >
-            {record.userId?.name?.charAt(0)?.toUpperCase()}
-          </Avatar>
-          <div>
-            <div
-              style={{
-                fontWeight: 600,
-                color: THEME_CONSTANTS.colors.textPrimary,
-                fontSize: '14px',
-              }}
-            >
-              {record.userId?.name}
-            </div>
-            <div
-              style={{
-                fontSize: '12px',
-                color: THEME_CONSTANTS.colors.textSecondary,
-              }}
-            >
-              {record.userId?.email}
-            </div>
-          </div>
-        </Space>
-      ),
-      width: '28%',
     },
     {
       title: 'Type',
@@ -475,13 +428,7 @@ function AdminDashboard() {
         const isCredit = type === 'credit';
         return (
           <Tag
-            icon={
-              isCredit ? (
-                <ArrowDownOutlined />
-              ) : (
-                <ArrowUpOutlined />
-              )
-            }
+            icon={isCredit ? <CheckOutlined /> : <CloseOutlined />}
             color={isCredit ? '#F6FFED' : '#FFF1F0'}
             style={{
               color: isCredit ? THEME_CONSTANTS.colors.success : '#FF4D4F',
@@ -495,46 +442,8 @@ function AdminDashboard() {
           </Tag>
         );
       },
-      width: '15%',
-    },
-    {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount, record) => (
-        <div
-          style={{
-            fontWeight: 600,
-            color:
-              record.type === 'credit'
-                ? THEME_CONSTANTS.colors.success
-                : '#FF4D4F',
-            fontSize: '14px',
-          }}
-        >
-          {record.type === 'credit' ? '+' : '-'}
-          {formatCurrency(amount)}
-        </div>
-      ),
       width: '20%',
     },
-    // {
-    //   title: 'Purpose',
-    //   dataIndex: 'purpose',
-    //   key: 'purpose',
-    //   render: (purpose) => (
-    //     <span
-    //       style={{
-    //         fontSize: '13px',
-    //         color: THEME_CONSTANTS.colors.textSecondary,
-    //       }}
-    //     >
-    //       {purpose}
-    //     </span>
-    //   ),
-    //   width: '22%',
-    //   responsive: ['md'],
-    // },
     {
       title: 'Date',
       dataIndex: 'createdAt',
@@ -551,7 +460,7 @@ function AdminDashboard() {
           </span>
         </Tooltip>
       ),
-      width: '15%',
+      width: '25%',
     },
   ];
 
@@ -640,26 +549,29 @@ function AdminDashboard() {
             // trend={2.5}
             />
           </Col>
+
+          <Col xs={24} sm={12} md={6}>
+            <StatCard
+              icon={ClockCircleOutlined}
+              title="Active Users"
+              value={stats.activeUsers || 0}
+              color={THEME_CONSTANTS.colors.warning}
+              bgColor={THEME_CONSTANTS.colors.warningLight}
+            // trend={-1.3}
+            />
+          </Col>
           <Col xs={24} sm={12} md={6}>
             <StatCard
               icon={MessageOutlined}
-              title="Messages Sent"
+              title="Total Delivered"
               value={stats.totalMessages || 0}
               color={THEME_CONSTANTS.colors.success}
               bgColor={THEME_CONSTANTS.colors.successLight}
             // trend={5.2}
             />
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <StatCard
-              icon={ClockCircleOutlined}
-              title="Pending Requests"
-              value={stats.pendingRequests || 0}
-              color={THEME_CONSTANTS.colors.warning}
-              bgColor={THEME_CONSTANTS.colors.warningLight}
-            // trend={-1.3}
-            />
-          </Col>
+          
+
           <Col xs={24} sm={12} md={6}>
             <StatCard
               icon={WalletOutlined}
@@ -705,15 +617,20 @@ function AdminDashboard() {
         </Card>
 
         {/* Activity Overview */}
-        <Row gutter={[screens.xs ? 12 : 20, screens.xs ? 12 : 20]}>
-          {/* Wallet Requests */}
+        <Row gutter={[screens.xs ? 12 : 20, screens.xs ? 12 : 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxl }}>
+          {/* Demo Requests */}
           <Col xs={24} lg={12}>
             <Card
               title={
                 <Space size={8}>
-                  <WalletOutlined style={{ color: THEME_CONSTANTS.colors.warning, fontSize: '18px' }} />
-                  <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>Wallet Requests</span>
+                  <ExperimentOutlined style={{ color: THEME_CONSTANTS.colors.warning, fontSize: '18px' }} />
+                  <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>Demo Requests</span>
                 </Space>
+              }
+              extra={
+                <Button type="link" href="/admin/demo-requests" style={{ fontWeight: 500 }}>
+                  View All <RightOutlined style={{ fontSize: '12px' }} />
+                </Button>
               }
               style={{
                 borderRadius: THEME_CONSTANTS.radius.lg,
@@ -725,11 +642,11 @@ function AdminDashboard() {
               bodyStyle={{ padding: 0 }}
             >
               <Table
-                dataSource={recentRequests}
-                columns={walletColumns}
+                dataSource={demoRequests}
+                columns={demoColumns}
                 rowKey="_id"
-                pagination={{ pageSize: 5, showSizeChanger: false }}
-                locale={{ emptyText: <Empty description="No requests found" /> }}
+                pagination={false}
+                locale={{ emptyText: <Empty description="No demo requests" /> }}
                 scroll={{ x: screens.md ? 0 : 500 }}
               />
             </Card>
@@ -740,8 +657,8 @@ function AdminDashboard() {
             <Card
               title={
                 <Space size={8}>
-                  <DollarOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '18px' }} />
-                  <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>Recent Transactions</span>
+                  <CreditCardOutlined style={{ color: THEME_CONSTANTS.colors.success, fontSize: '18px' }} />
+                  <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>Recent Payments</span>
                 </Space>
               }
               style={{

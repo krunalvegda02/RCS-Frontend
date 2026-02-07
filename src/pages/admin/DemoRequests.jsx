@@ -45,7 +45,9 @@ import {
   EyeOutlined,
   EditOutlined,
   RightOutlined,
-  ScheduleOutlined
+  ScheduleOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { _get, _patch } from '../../helper/apiClient';
 import { THEME_CONSTANTS } from '../../theme';
@@ -114,6 +116,26 @@ export default function DemoRequests() {
     } catch (error) {
       message.error('Failed to update status');
     }
+  };
+
+  const handleDelete = (record) => {
+    Modal.confirm({
+      title: 'Delete Demo Request',
+      icon: <ExclamationCircleOutlined />,
+      content: `Are you sure you want to delete demo request from ${record.name}?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await _patch(`/demo-requests/${record._id}`, { isDeleted: true });
+          message.success('Demo request deleted successfully');
+          fetchDemoRequests();
+        } catch (error) {
+          message.error('Failed to delete demo request');
+        }
+      }
+    });
   };
 
   const getStats = () => {
@@ -193,8 +215,8 @@ export default function DemoRequests() {
     {
       title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>DEMO REQUEST</span>,
       key: 'request',
-      width: 240,
-      fixed: screens.md ? 'left' : false,
+      width: screens.xs ? 200 : 240,
+      fixed: screens.lg ? 'left' : false,
       render: (_, record) => (
         <Space align="center">
           <Avatar 
@@ -223,10 +245,16 @@ export default function DemoRequests() {
               color: THEME_CONSTANTS.colors.textSecondary,
               display: 'flex',
               alignItems: 'center',
-              gap: '4px'
+              gap: '4px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '200px'
             }}>
-              <MailOutlined style={{ fontSize: '11px' }} />
-              {record.email || 'No email'}
+              <MailOutlined style={{ fontSize: '11px', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {record.email || 'No email'}
+              </span>
             </div>
             <div style={{ 
               fontSize: '11px', 
@@ -246,7 +274,7 @@ export default function DemoRequests() {
     {
       title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>COMPANY & CONTACT</span>,
       key: 'company',
-      width: 220,
+      width: screens.xs ? 180 : 220,
       render: (_, record) => (
         <div style={{ lineHeight: '1.4' }}>
           <div style={{ 
@@ -256,10 +284,15 @@ export default function DemoRequests() {
             marginBottom: '6px',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px'
+            gap: '6px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}>
-            <TeamOutlined style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.primary }} />
-            {record.company || 'Individual'}
+            <TeamOutlined style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.primary, flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {record.company || 'Individual'}
+            </span>
           </div>
           <div style={{ 
             fontSize: '12px', 
@@ -267,10 +300,15 @@ export default function DemoRequests() {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            marginTop: '4px'
+            marginTop: '4px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}>
-            <PhoneOutlined style={{ fontSize: '11px' }} />
-            {record.phone || 'No phone'}
+            <PhoneOutlined style={{ fontSize: '11px', flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {record.phone || 'No phone'}
+            </span>
           </div>
         </div>
       ),
@@ -278,7 +316,7 @@ export default function DemoRequests() {
     {
       title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>SCHEDULE</span>,
       key: 'scheduled',
-      width: 200,
+      width: screens.xs ? 160 : 200,
       render: (_, record) => (
         <div style={{ lineHeight: '1.4' }}>
           <div style={{ 
@@ -321,7 +359,7 @@ export default function DemoRequests() {
     {
       title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>MEETING LINK</span>,
       key: 'meetingLink',
-      width: 140,
+      width: screens.xs ? 120 : 140,
       render: (_, record) => record.meetingLink ? (
         <div style={{ textAlign: 'center' }}>
           <Button 
@@ -375,7 +413,7 @@ export default function DemoRequests() {
     {
       title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>STATUS</span>,
       key: 'status',
-      width: 150,
+      width: screens.xs ? 130 : 150,
       render: (_, record) => {
         const config = getStatusConfig(record.status);
         return (
@@ -412,7 +450,7 @@ export default function DemoRequests() {
     {
       title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>SOURCE</span>,
       key: 'source',
-      width: 120,
+      width: screens.xs ? 100 : 120,
       render: (_, record) => (
         <Tag
           style={{
@@ -434,23 +472,10 @@ export default function DemoRequests() {
     {
       title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>ACTIONS</span>,
       key: 'actions',
-      width: 180,
-      fixed: screens.md ? 'right' : false,
+      width: screens.xs ? 140 : 180,
+      fixed: screens.lg ? 'right' : false,
       render: (_, record) => (
         <Space size={screens.xs ? 6 : 8} wrap>
-          <Tooltip title="View Details">
-            <Button 
-              size={screens.xs ? "small" : "middle"}
-              icon={<EyeOutlined />}
-              style={{
-                background: `${THEME_CONSTANTS.colors.primary}08`,
-                borderColor: `${THEME_CONSTANTS.colors.primary}30`,
-                color: THEME_CONSTANTS.colors.primary
-              }}
-            >
-              {screens.md && 'View'}
-            </Button>
-          </Tooltip>
           <Tooltip title="Edit Schedule">
             <Button 
               size={screens.xs ? "small" : "middle"}
@@ -463,6 +488,20 @@ export default function DemoRequests() {
               }}
             >
               {screens.md && 'Edit'}
+            </Button>
+          </Tooltip>
+          <Tooltip title="Delete Demo">
+            <Button 
+              size={screens.xs ? "small" : "middle"}
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
+              danger
+              style={{
+                background: `${THEME_CONSTANTS.colors.danger}08`,
+                borderColor: `${THEME_CONSTANTS.colors.danger}30`
+              }}
+            >
+              {screens.md && 'Delete'}
             </Button>
           </Tooltip>
           <Select
@@ -526,12 +565,12 @@ export default function DemoRequests() {
   ];
 
   return (
-    <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', padding: THEME_CONSTANTS.spacing.xxl }}>
+    <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh', padding: screens.xs ? THEME_CONSTANTS.spacing.md : THEME_CONSTANTS.spacing.xxl }}>
       <div style={{ maxWidth: THEME_CONSTANTS.layout.maxContentWidth, margin: '0 auto' }}>
         {/* Header Section */}
         <div style={{ 
-          marginBottom: THEME_CONSTANTS.spacing.xxxl, 
-          paddingBottom: THEME_CONSTANTS.spacing.xxl, 
+          marginBottom: screens.xs ? THEME_CONSTANTS.spacing.xl : THEME_CONSTANTS.spacing.xxxl, 
+          paddingBottom: screens.xs ? THEME_CONSTANTS.spacing.lg : THEME_CONSTANTS.spacing.xxl, 
           borderBottom: `1px solid ${THEME_CONSTANTS.colors.border}` 
         }}>
           <Breadcrumb style={{ marginBottom: THEME_CONSTANTS.spacing.lg }}>
@@ -539,21 +578,22 @@ export default function DemoRequests() {
             <Breadcrumb.Item>Demo Management</Breadcrumb.Item>
           </Breadcrumb>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.lg }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: screens.xs ? THEME_CONSTANTS.spacing.md : THEME_CONSTANTS.spacing.lg }}>
             <div style={{ 
-              width: 72, 
-              height: 72, 
+              width: screens.xs ? 56 : 72, 
+              height: screens.xs ? 56 : 72, 
               background: THEME_CONSTANTS.colors.infoLight,
               borderRadius: THEME_CONSTANTS.radius.xl, 
               display: 'flex', 
               alignItems: 'center', 
-              justifyContent: 'center' 
+              justifyContent: 'center',
+              flexShrink: 0
             }}>
-              <CalendarOutlined style={{ color: THEME_CONSTANTS.colors.info, fontSize: 36 }} />
+              <CalendarOutlined style={{ color: THEME_CONSTANTS.colors.info, fontSize: screens.xs ? 28 : 36 }} />
             </div>
             <div>
               <h1 style={{ 
-                fontSize: THEME_CONSTANTS.typography.h1.size, 
+                fontSize: screens.xs ? THEME_CONSTANTS.typography.h3.size : THEME_CONSTANTS.typography.h1.size, 
                 fontWeight: THEME_CONSTANTS.typography.h1.weight, 
                 marginBottom: THEME_CONSTANTS.spacing.xs,
                 color: THEME_CONSTANTS.colors.text
@@ -563,7 +603,7 @@ export default function DemoRequests() {
               <p style={{ 
                 color: THEME_CONSTANTS.colors.textSecondary, 
                 margin: 0,
-                fontSize: '16px'
+                fontSize: screens.xs ? '14px' : '16px'
               }}>
                 Schedule, manage, and track product demonstration sessions
               </p>
@@ -572,7 +612,7 @@ export default function DemoRequests() {
         </div>
 
         {/* Stats Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
+        <Row gutter={[screens.xs ? 12 : 16, screens.xs ? 12 : 16]} style={{ marginBottom: screens.xs ? 20 : 32 }}>
           {statusCards.map((card, index) => (
             <Col xs={24} sm={12} md={6} key={index}>
               <Card
@@ -664,21 +704,21 @@ export default function DemoRequests() {
                 }} />
                 <Text strong style={{ fontSize: '16px' }}>Filter & Search</Text>
               </div>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', width: screens.xs ? '100%' : 'auto' }}>
                 <Input
-                  placeholder="Search name, email, or company..."
+                  placeholder={screens.xs ? "Search..." : "Search name, email, or company..."}
                   prefix={<SearchOutlined style={{ color: THEME_CONSTANTS.colors.textTertiary }} />}
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                   style={{ width: screens.xs ? '100%' : 280 }}
                   allowClear
-                  size="large"
+                  size={screens.xs ? 'middle' : 'large'}
                 />
                 <Select
                   value={statusFilter}
                   onChange={setStatusFilter}
                   style={{ width: screens.xs ? '100%' : 160 }}
-                  size="large"
+                  size={screens.xs ? 'middle' : 'large'}
                   suffixIcon={<FilterOutlined />}
                 >
                   <Select.Option value="all">All Status</Select.Option>
@@ -692,7 +732,7 @@ export default function DemoRequests() {
           </div>
 
           {/* Table Section */}
-          <div style={{ padding: '24px' }}>
+          <div style={{ padding: screens.xs ? '12px' : '24px' }}>
             <Table
               dataSource={filteredData}
               columns={columns}
@@ -765,7 +805,7 @@ export default function DemoRequests() {
                   </div>
                 ) 
               }}
-              scroll={{ x: screens.xs ? 1200 : '100%' }}
+              scroll={{ x: screens.xs ? 1100 : screens.md ? 1300 : '100%' }}
               style={{
                 fontSize: '14px',
                 borderRadius: THEME_CONSTANTS.radius.md,
