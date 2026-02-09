@@ -14,6 +14,7 @@ import {
   Divider,
   Tag,
   Grid,
+  Typography,
 } from 'antd';
 import {
   UserOutlined,
@@ -34,6 +35,7 @@ import { THEME_CONSTANTS } from '../../theme';
 import apiService from '../../helper/apiClient';
 
 const { useBreakpoint } = Grid;
+const { Text } = Typography;
 
 const AdminProfile = () => {
   const { user, refreshUser } = useAuth();
@@ -89,7 +91,7 @@ const AdminProfile = () => {
     setLoading(true);
     try {
       const response = await apiService.setup2FA();
-      console.log("Handle 2FA setup response",response);
+      console.log("Handle 2FA setup response", response);
       if (response.data.success) {
         setMfaSetupData(response.data);
         setMfaModalVisible(true);
@@ -449,7 +451,7 @@ const AdminProfile = () => {
         </div>
       </div>
 
-      
+
       {/* 2FA Setup Modal */}
       <Modal
         title="Setup Two-Factor Authentication"
