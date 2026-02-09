@@ -724,7 +724,7 @@ const WalletTransaction = () => {
                   title="Starter"
                   price={3000}
                   credits={10000}
-                  rate={0.3}
+                  rate={0.30}
                   selected={addAmount === 3000}
                   onClick={() => setAddAmount(3000)}
                 />

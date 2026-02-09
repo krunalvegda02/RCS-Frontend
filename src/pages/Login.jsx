@@ -5,22 +5,27 @@ import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone, MailOutli
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { THEME_CONSTANTS } from '../theme';
-import { loginUser, clearError, resetLoading } from '../redux/slices/authSlice';
+import { loginUser, clearError, resetLoading, loginStart, loginSuccess, verifyLoginTwoFactor } from '../redux/slices/authSlice';
 import { useNavigate, useLocation } from 'react-router-dom';
+import apiService from '../helper/apiClient';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 export default function Login() {
   const [form] = Form.useForm();
+  const [mfaForm] = Form.useForm();
   const [error, setError] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaUserId, setMfaUserId] = useState(null);
+
   const { login } = useAuth();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const screens = useBreakpoint();
   const hasRedirected = useRef(false);
-  
+
   const { loading, isAuthenticated, user } = useSelector(state => state.auth);
 
   // Get redirect reason from URL or location state
@@ -36,11 +41,11 @@ export default function Login() {
         'logged_out': 'You have been logged out successfully.',
         'deactivated': 'Your account has been deactivated by admin. Please contact administrator.'
       };
-      
+
       const message = messages[redirectReason] || 'Please login to continue.';
-      const toastType = redirectReason === 'deactivated' ? 'error' : 'error';
+      const toastType = 'error';
       toast[toastType](message, { duration: 5000 });
-      
+
       // Clear URL params
       if (redirectReason) {
         window.history.replaceState({}, document.title, '/login');
@@ -64,33 +69,36 @@ export default function Login() {
   }, [dispatch]);
 
   const onFinish = async (values) => {
-    if (loading) return; // Prevent double submission
-    
+    if (loading) return;
+
     try {
       setError('');
       dispatch(clearError());
-      
+
       const credentials = {
         emailorphone: values.email,
         password: values.password
       };
-      
+
       const result = await dispatch(loginUser(credentials)).unwrap();
-      
+
+      if (result.mfaRequired) {
+        setMfaRequired(true);
+        setMfaUserId(result.userId);
+        toast.success('Login successful, please enter 2FA code');
+        return;
+      }
+
       if (result.success && result.user) {
-        // Call login for compatibility
         login(result.user, result.access_token || result.token);
-        
         toast.success('Login successful!');
-        
-        // Navigate based on role
         const targetPath = result.user.role?.toLowerCase() === 'admin' ? '/admin' : '/dashboard';
         navigate(targetPath, { replace: true });
       }
     } catch (error) {
       const errorMsg = error || 'Login failed. Please try again.';
-      const isDeactivated = errorMsg.toLowerCase().includes('deactivated');
-      
+      const isDeactivated = typeof errorMsg === 'string' && errorMsg.toLowerCase().includes('deactivated');
+
       if (isDeactivated) {
         toast.error('Your account has been deactivated. Please contact administrator.', { duration: 5000 });
         setError('Your account has been deactivated. Please contact administrator.');
@@ -98,6 +106,28 @@ export default function Login() {
         toast.error(errorMsg);
         setError(errorMsg);
       }
+    }
+  };
+
+  const onMfaFinish = async (values) => {
+    try {
+      setError('');
+      const result = await dispatch(verifyLoginTwoFactor({
+        userId: mfaUserId,
+        token: values.token
+      })).unwrap();
+
+      if (result.success) {
+        const { user, token, access_token } = result;
+        login(user, token || access_token);
+        toast.success('Login successful!');
+        const targetPath = user.role?.toLowerCase() === 'admin' ? '/admin' : '/dashboard';
+        navigate(targetPath, { replace: true });
+      }
+    } catch (error) {
+      const errorMsg = error || 'Verification failed';
+      toast.error(errorMsg);
+      setError(errorMsg);
     }
   };
 
@@ -156,27 +186,39 @@ export default function Login() {
             <Alert message={error} type="error" showIcon style={{ marginBottom: THEME_CONSTANTS.spacing.md, borderRadius: THEME_CONSTANTS.radius.md }} />
           )}
 
-          <Form form={form} name="login" onFinish={onFinish} layout="vertical" size="middle">
-            <Form.Item name="email" label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600 }}>Email Address</span>} rules={[{ required: true, message: 'Please input your email!' }, { type: 'email', message: 'Please enter a valid email!' }]}>
-              <Input prefix={<MailOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />} placeholder="you@example.com" style={{ borderRadius: THEME_CONSTANTS.radius.md, border: `1px solid ${THEME_CONSTANTS.colors.border}`, padding: '10px 14px' }} />
-            </Form.Item>
-            <Form.Item name="password" label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600 }}>Password</span>} rules={[{ required: true, message: 'Please input your password!' }, { min: 6, message: 'Password must be at least 6 characters!' }]}>
-              <Input.Password prefix={<LockOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />} placeholder="Enter your password" iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)} style={{ borderRadius: THEME_CONSTANTS.radius.md, border: `1px solid ${THEME_CONSTANTS.colors.border}`, padding: '10px 14px' }} />
-            </Form.Item>
-            {/* <Form.Item>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Form.Item name="remember" valuePropName="checked" noStyle>
-                  <Checkbox style={{ color: THEME_CONSTANTS.colors.textSecondary, fontSize: '14px' }}>Remember me</Checkbox>
-                </Form.Item>
-                <a href="#" style={{ color: THEME_CONSTANTS.colors.primary, textDecoration: 'none', fontSize: '14px' }}>Forgot password?</a>
+          {!mfaRequired ? (
+            <Form form={form} name="login" onFinish={onFinish} layout="vertical" size="middle">
+              <Form.Item name="email" label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600 }}>Email Address</span>} rules={[{ required: true, message: 'Please input your email!' }, { type: 'email', message: 'Please enter a valid email!' }]}>
+                <Input prefix={<MailOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />} placeholder="you@example.com" style={{ borderRadius: THEME_CONSTANTS.radius.md, border: `1px solid ${THEME_CONSTANTS.colors.border}`, padding: '10px 14px' }} />
+              </Form.Item>
+              <Form.Item name="password" label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600 }}>Password</span>} rules={[{ required: true, message: 'Please input your password!' }, { min: 6, message: 'Password must be at least 6 characters!' }]}>
+                <Input.Password prefix={<LockOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />} placeholder="Enter your password" iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)} style={{ borderRadius: THEME_CONSTANTS.radius.md, border: `1px solid ${THEME_CONSTANTS.colors.border}`, padding: '10px 14px' }} />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" loading={loading} block style={{ height: '44px', borderRadius: THEME_CONSTANTS.radius.md, background: THEME_CONSTANTS.colors.primary, border: 'none', fontSize: '16px', fontWeight: 600 }}>
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </Button>
+              </Form.Item>
+            </Form>
+          ) : (
+            <Form form={mfaForm} name="mfa" onFinish={onMfaFinish} layout="vertical" size="middle">
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                <Title level={4} style={{ marginBottom: '4px' }}>2FA Required</Title>
+                <Text type="secondary">Enter the 6-digit code</Text>
               </div>
-            </Form.Item> */}
-            <Form.Item>
-              <Button type="primary" htmlType="submit" loading={loading} block style={{ height: '44px', borderRadius: THEME_CONSTANTS.radius.md, background: THEME_CONSTANTS.colors.primary, border: 'none', fontSize: '16px', fontWeight: 600 }}>
-                {loading ? 'Signing in...' : 'Sign In'}
-              </Button>
-            </Form.Item>
-          </Form>
+              <Form.Item name="token" rules={[{ required: true, message: 'Code is required' }, { len: 6, message: 'Must be 6 digits' }]}>
+                <Input prefix={<LockOutlined />} placeholder="000000" style={{ borderRadius: THEME_CONSTANTS.radius.md, padding: '10px', textAlign: 'center', fontSize: '20px', letterSpacing: '4px' }} />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" loading={loading} block style={{ height: '44px', borderRadius: THEME_CONSTANTS.radius.md, fontWeight: 600 }}>
+                  Verify
+                </Button>
+              </Form.Item>
+              <div style={{ textAlign: 'center' }}>
+                <Button type="link" onClick={() => setMfaRequired(false)}>Back to Login</Button>
+              </div>
+            </Form>
+          )}
 
           <div style={{ textAlign: 'center', marginTop: THEME_CONSTANTS.spacing.md }}>
             <Text style={{ color: THEME_CONSTANTS.colors.textSecondary, fontSize: '14px' }}>
@@ -232,7 +274,7 @@ export default function Login() {
           }}>
             <MessageOutlined style={{ fontSize: '32px', color: 'white' }} />
           </div>
-          
+
           <Title level={1} style={{
             color: 'white',
             marginBottom: THEME_CONSTANTS.spacing.lg,
@@ -242,7 +284,7 @@ export default function Login() {
           }}>
             RCS Business Platform
           </Title>
-          
+
           <Text style={{
             color: 'rgba(255,255,255,0.9)',
             fontSize: '18px',
@@ -368,85 +410,142 @@ export default function Login() {
               />
             )}
 
-            <Form
-              form={form}
-              name="login"
-              onFinish={onFinish}
-              layout="vertical"
-              size="large"
-            >
-              <Form.Item
-                name="email"
-                label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600, fontSize: '14px' }}>Email Address</span>}
-                rules={[
-                  { required: true, message: 'Please input your email!' },
-                  { type: 'email', message: 'Please enter a valid email!' }
-                ]}
+            {!mfaRequired ? (
+              <Form
+                form={form}
+                name="login"
+                onFinish={onFinish}
+                layout="vertical"
+                size="large"
               >
-                <Input
-                  prefix={<MailOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />}
-                  placeholder="you@company.com"
-                  style={{
-                    borderRadius: THEME_CONSTANTS.radius.md,
-                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                    padding: '12px 16px',
-                    fontSize: '16px'
-                  }}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="password"
-                label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600, fontSize: '14px' }}>Password</span>}
-                rules={[
-                  { required: true, message: 'Please input your password!' },
-                  { min: 6, message: 'Password must be at least 6 characters!' }
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />}
-                  placeholder="Enter your password"
-                  iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
-                  style={{
-                    borderRadius: THEME_CONSTANTS.radius.md,
-                    border: `1px solid ${THEME_CONSTANTS.colors.border}`,
-                    padding: '12px 16px',
-                    fontSize: '16px'
-                  }}
-                />
-              </Form.Item>
-
-              <Form.Item>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Form.Item name="remember" valuePropName="checked" noStyle>
-                    <Checkbox style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Remember me</Checkbox>
-                  </Form.Item>
-                  {/* <a href="#" style={{ color: THEME_CONSTANTS.colors.primary, textDecoration: 'none' }}>
-                    Forgot password?
-                  </a> */}
-                </div>
-              </Form.Item>
-
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  block
-                  style={{
-                    height: '48px',
-                    borderRadius: THEME_CONSTANTS.radius.md,
-                    background: THEME_CONSTANTS.colors.primary,
-                    border: 'none',
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    boxShadow: THEME_CONSTANTS.shadow.sm
-                  }}
+                <Form.Item
+                  name="email"
+                  label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600, fontSize: '14px' }}>Email Address</span>}
+                  rules={[
+                    { required: true, message: 'Please input your email!' },
+                    { type: 'email', message: 'Please enter a valid email!' }
+                  ]}
                 >
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </Button>
-              </Form.Item>
-            </Form>
+                  <Input
+                    prefix={<MailOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />}
+                    placeholder="you@company.com"
+                    style={{
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                      padding: '12px 16px',
+                      fontSize: '16px'
+                    }}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="password"
+                  label={<span style={{ color: THEME_CONSTANTS.colors.text, fontWeight: 600, fontSize: '14px' }}>Password</span>}
+                  rules={[
+                    { required: true, message: 'Please input your password!' },
+                    { min: 6, message: 'Password must be at least 6 characters!' }
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />}
+                    placeholder="Enter your password"
+                    iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+                    style={{
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                      padding: '12px 16px',
+                      fontSize: '16px'
+                    }}
+                  />
+                </Form.Item>
+
+                <Form.Item>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Form.Item name="remember" valuePropName="checked" noStyle>
+                      <Checkbox style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Remember me</Checkbox>
+                    </Form.Item>
+                  </div>
+                </Form.Item>
+
+                <Form.Item>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    block
+                    style={{
+                      height: '48px',
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      background: THEME_CONSTANTS.colors.primary,
+                      border: 'none',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      boxShadow: THEME_CONSTANTS.shadow.sm
+                    }}
+                  >
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </Button>
+                </Form.Item>
+              </Form>
+            ) : (
+              <Form
+                form={mfaForm}
+                name="mfa"
+                onFinish={onMfaFinish}
+                layout="vertical"
+                size="large"
+              >
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <Title level={3}>Two-Factor Authentication</Title>
+                  <Text type="secondary" style={{ fontSize: '16px' }}>Enter the 6-digit verification code from your authenticator app.</Text>
+                </div>
+                <Form.Item
+                  name="token"
+                  rules={[
+                    { required: true, message: 'Verification code is required' },
+                    { len: 6, message: 'Code must be 6 digits' }
+                  ]}
+                >
+                  <Input
+                    prefix={<LockOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />}
+                    placeholder="000 000"
+                    autoFocus
+                    style={{
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                      padding: '12px 16px',
+                      fontSize: '28px',
+                      textAlign: 'center',
+                      letterSpacing: '12px',
+                      fontWeight: '700'
+                    }}
+                  />
+                </Form.Item>
+
+                <Form.Item>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    block
+                    style={{
+                      height: '52px',
+                      borderRadius: THEME_CONSTANTS.radius.md,
+                      background: THEME_CONSTANTS.colors.primary,
+                      fontSize: '18px',
+                      fontWeight: 700
+                    }}
+                  >
+                    Verify & Sign In
+                  </Button>
+                </Form.Item>
+                <div style={{ textAlign: 'center' }}>
+                  <Button type="link" onClick={() => setMfaRequired(false)} style={{ fontSize: '15px' }}>
+                    Back to password login
+                  </Button>
+                </div>
+              </Form>
+            )}
 
             <div style={{ textAlign: 'center', marginTop: THEME_CONSTANTS.spacing.xl }}>
               <Text style={{ color: THEME_CONSTANTS.colors.textSecondary, fontSize: '15px' }}>

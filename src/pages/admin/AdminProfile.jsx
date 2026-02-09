@@ -25,6 +25,9 @@ import {
   LockOutlined,
   IdcardOutlined,
   CrownOutlined,
+  SafetyOutlined,
+  BarcodeOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { THEME_CONSTANTS } from '../../theme';
@@ -33,26 +36,34 @@ import apiService from '../../helper/apiClient';
 const { useBreakpoint } = Grid;
 
 const AdminProfile = () => {
-  const { user, updateUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const screens = useBreakpoint();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
+  const [mfaModalVisible, setMfaModalVisible] = useState(false);
+  const [mfaSetupData, setMfaSetupData] = useState(null);
+  const [mfaToken, setMfaToken] = useState('');
+  const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
+  const [disable2FAPassword, setDisable2FAPassword] = useState('');
+  const [disabling2FA, setDisabling2FA] = useState(false);
 
   const handleEditProfile = async (values) => {
     setLoading(true);
     try {
       const response = await apiService.updateProfile(values);
-      if (response.success) {
+      if (response.data.success) {
         message.success('Profile updated successfully!');
-        updateUser(response.user);
+        await refreshUser();
         setEditModalVisible(false);
         form.resetFields();
+      } else {
+        message.error(response.data.message || 'Failed to update profile');
       }
     } catch (error) {
-      message.error('Failed to update profile');
+      message.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -71,6 +82,75 @@ const AdminProfile = () => {
       message.error('Failed to change password');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSetup2FA = async () => {
+    setLoading(true);
+    try {
+      const response = await apiService.setup2FA();
+      console.log("Handle 2FA setup response",response);
+      if (response.data.success) {
+        setMfaSetupData(response.data);
+        setMfaModalVisible(true);
+      }
+    } catch (error) {
+      message.error('Failed to initiate 2FA setup');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    if (!mfaToken || mfaToken.length !== 6) {
+      message.error('Please enter a valid 6-digit code');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await apiService.verify2FA(mfaToken);
+      if (response.data.success) {
+        message.success('2FA enabled successfully!');
+        setMfaModalVisible(false);
+        setMfaSetupData(null);
+        setMfaToken('');
+        // Refresh user data to update 2FA status
+        try {
+          await refreshUser();
+        } catch (e) {
+          console.error('Error refreshing profile after 2FA activation:', e);
+        }
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisable2FA = () => {
+    setShowDisable2FAModal(true);
+    setDisable2FAPassword('');
+  };
+
+  const confirmDisable2FA = async () => {
+    if (!disable2FAPassword) {
+      message.error('Please enter your password to disable 2FA');
+      return;
+    }
+
+    setDisabling2FA(true);
+    try {
+      const response = await apiService.disable2FA(disable2FAPassword);
+      if (response.data.success) {
+        message.success('2FA disabled successfully');
+        setShowDisable2FAModal(false);
+        await refreshUser();
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Failed to disable 2FA. Please check your password.');
+    } finally {
+      setDisabling2FA(false);
     }
   };
 
@@ -143,8 +223,8 @@ const AdminProfile = () => {
   return (
     <>
       <div style={{ background: THEME_CONSTANTS.colors.background, minHeight: '100vh' }}>
-        <div style={{ 
-          maxWidth: THEME_CONSTANTS.layout.maxContentWidth, 
+        <div style={{
+          maxWidth: THEME_CONSTANTS.layout.maxContentWidth,
           margin: '0 auto',
           padding: THEME_CONSTANTS.spacing.xl
         }}>
@@ -162,7 +242,7 @@ const AdminProfile = () => {
                 <span style={{ color: THEME_CONSTANTS.colors.textMuted }}>Admin</span>
               </Breadcrumb.Item>
               <Breadcrumb.Item>
-                <span style={{ 
+                <span style={{
                   color: THEME_CONSTANTS.colors.primary,
                   fontWeight: THEME_CONSTANTS.typography.h6.weight
                 }}>
@@ -306,6 +386,62 @@ const AdminProfile = () => {
                       bgColor={user?.status === 'active' ? THEME_CONSTANTS.colors.successLight : THEME_CONSTANTS.colors.dangerLight}
                     />
                   </Col>
+                  <Col xs={24}>
+                    <Card
+                      style={{
+                        borderRadius: THEME_CONSTANTS.radius.lg,
+                        border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                        background: user?.twoFactorEnabled ? THEME_CONSTANTS.colors.successLight + '20' : THEME_CONSTANTS.colors.warningLight + '20',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: '50%',
+                            background: user?.twoFactorEnabled ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.warning,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: 20
+                          }}>
+                            <SafetyOutlined />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '16px', color: THEME_CONSTANTS.colors.text }}>
+                              Two-Factor Authentication (2FA)
+                            </div>
+                            <div style={{ color: THEME_CONSTANTS.colors.textSecondary }}>
+                              {user?.twoFactorEnabled
+                                ? 'Your account is secured with 2FA.'
+                                : 'Add an extra layer of security to your account.'}
+                            </div>
+                          </div>
+                        </div>
+                        {user?.twoFactorEnabled ? (
+                          <Button
+                            danger
+                            onClick={handleDisable2FA}
+                            style={{ borderRadius: THEME_CONSTANTS.radius.md }}
+                          >
+                            Disable 2FA
+                          </Button>
+                        ) : (
+                          <Button
+                            type="primary"
+                            icon={<ScanOutlined />}
+                            onClick={handleSetup2FA}
+                            loading={loading}
+                            style={{ borderRadius: THEME_CONSTANTS.radius.md }}
+                          >
+                            Setup 2FA
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+                  </Col>
                 </Row>
               </Col>
             </Row>
@@ -313,184 +449,116 @@ const AdminProfile = () => {
         </div>
       </div>
 
-      {/* Edit Profile Modal
+      
+      {/* 2FA Setup Modal */}
       <Modal
-        title="Edit Profile"
-        open={editModalVisible}
-        onCancel={() => {
-          setEditModalVisible(false);
-          form.resetFields();
-        }}
-        footer={null}
-        width={600}
-        style={{ borderRadius: THEME_CONSTANTS.radius.lg }}
+        title="Setup Two-Factor Authentication"
+        open={mfaModalVisible}
+        onCancel={() => setMfaModalVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setMfaModalVisible(false)}>
+            Cancel
+          </Button>,
+          <Button
+            key="verify"
+            type="primary"
+            loading={loading}
+            onClick={handleVerify2FA}
+          >
+            Verify & Enable
+          </Button>
+        ]}
+        width={400}
+        centered
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleEditProfile}
-          style={{ marginTop: THEME_CONSTANTS.spacing.lg }}
-        >
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Full Name"
-                name="name"
-                rules={[{ required: true, message: 'Please enter your name' }]}
-              >
-                <Input
-                  prefix={<UserOutlined />}
-                  placeholder="Enter your full name"
-                  style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Email Address"
-                name="email"
-                rules={[
-                  { required: true, message: 'Please enter your email' },
-                  { type: 'email', message: 'Please enter a valid email' },
-                ]}
-              >
-                <Input
-                  prefix={<MailOutlined />}
-                  placeholder="Enter your email"
-                  style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24}>
-              <Form.Item
-                label="Phone Number"
-                name="phone"
-                rules={[{ required: true, message: 'Please enter your phone number' }]}
-              >
-                <Input
-                  prefix={<PhoneOutlined />}
-                  placeholder="Enter your phone number"
-                  style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Divider />
-          <div style={{ textAlign: 'right' }}>
-            <Space>
-              <Button
-                onClick={() => {
-                  setEditModalVisible(false);
-                  form.resetFields();
-                }}
-                style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                icon={<SaveOutlined />}
-                style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-              >
-                Save Changes
-              </Button>
-            </Space>
+        <div style={{ textAlign: 'center' }}>
+          <p>Scan this QR code with your authenticator app (e.g., Google Authenticator, Authy).</p>
+          {mfaSetupData?.qrCode && (
+            <div style={{ background: 'white', padding: '16px', display: 'inline-block', borderRadius: '8px', marginBottom: '16px', border: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
+              <img src={mfaSetupData.qrCode} alt="2FA QR Code" style={{ width: '200px', height: '200px' }} />
+            </div>
+          )}
+          <div style={{ marginBottom: '16px' }}>
+            <Text type="secondary">Unable to scan? Use this secret key:</Text>
+            <div style={{ fontWeight: 'bold', letterSpacing: '2px', marginTop: '4px' }}>
+              {mfaSetupData?.secret}
+            </div>
           </div>
-        </Form>
-      </Modal> */}
+          <Divider />
+          <div style={{ textAlign: 'left' }}>
+            <Text strong>Enter 6-digit verification code:</Text>
+            <Input
+              value={mfaToken}
+              onChange={(e) => setMfaToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              size="large"
+              style={{ marginTop: '8px', textAlign: 'center', letterSpacing: '4px', fontSize: '20px' }}
+            />
+          </div>
+        </div>
+      </Modal>
 
-      {/* Change Password Modal
+      {/* Disable 2FA Modal */}
       <Modal
-        title="Change Password"
-        open={passwordModalVisible}
-        onCancel={() => {
-          setPasswordModalVisible(false);
-          passwordForm.resetFields();
-        }}
-        footer={null}
-        width={500}
-        style={{ borderRadius: THEME_CONSTANTS.radius.lg }}
-      >
-        <Form
-          form={passwordForm}
-          layout="vertical"
-          onFinish={handleChangePassword}
-          style={{ marginTop: THEME_CONSTANTS.spacing.lg }}
-        >
-          <Form.Item
-            label="Current Password"
-            name="currentPassword"
-            rules={[{ required: true, message: 'Please enter your current password' }]}
-          >
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="Enter current password"
-              style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-            />
-          </Form.Item>
-          <Form.Item
-            label="New Password"
-            name="newPassword"
-            rules={[
-              { required: true, message: 'Please enter new password' },
-              { min: 6, message: 'Password must be at least 6 characters' },
-            ]}
-          >
-            <Input.Password
-              prefix={<KeyOutlined />}
-              placeholder="Enter new password"
-              style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-            />
-          </Form.Item>
-          <Form.Item
-            label="Confirm New Password"
-            name="confirmPassword"
-            dependencies={['newPassword']}
-            rules={[
-              { required: true, message: 'Please confirm your new password' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('newPassword') === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error('Passwords do not match'));
-                },
-              }),
-            ]}
-          >
-            <Input.Password
-              prefix={<KeyOutlined />}
-              placeholder="Confirm new password"
-              style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-            />
-          </Form.Item>
-          <Divider />
-          <div style={{ textAlign: 'right' }}>
-            <Space>
-              <Button
-                onClick={() => {
-                  setPasswordModalVisible(false);
-                  passwordForm.resetFields();
-                }}
-                style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                icon={<SaveOutlined />}
-                style={{ borderRadius: THEME_CONSTANTS.radius.md }}
-              >
-                Change Password
-              </Button>
-            </Space>
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <SafetyOutlined style={{ color: THEME_CONSTANTS.colors.danger }} />
+            Disable Two-Factor Authentication
           </div>
-        </Form>
-      </Modal> */}
+        }
+        open={showDisable2FAModal}
+        onCancel={() => setShowDisable2FAModal(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setShowDisable2FAModal(false)}>
+            Cancel
+          </Button>,
+          <Button
+            key="disable"
+            type="primary"
+            danger
+            loading={disabling2FA}
+            onClick={confirmDisable2FA}
+          >
+            Disable 2FA
+          </Button>
+        ]}
+        width={400}
+        centered
+      >
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            margin: '0 auto 20px auto',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: THEME_CONSTANTS.colors.dangerLight,
+            color: THEME_CONSTANTS.colors.danger
+          }}>
+            <SafetyOutlined style={{ fontSize: '32px' }} />
+          </div>
+
+          <h3 style={{ marginBottom: '12px', fontWeight: 700 }}>Confirm Security Downgrade</h3>
+
+          <p style={{ color: THEME_CONSTANTS.colors.textSecondary, marginBottom: '24px' }}>
+            For your security, please enter your password to disable Two-Factor Authentication.
+          </p>
+
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontWeight: 600, marginBottom: '8px' }}>Your Password:</div>
+            <Input.Password
+              value={disable2FAPassword}
+              onChange={(e) => setDisable2FAPassword(e.target.value)}
+              placeholder="Enter your password"
+              size="large"
+              prefix={<LockOutlined style={{ color: THEME_CONSTANTS.colors.textMuted }} />}
+              onPressEnter={confirmDisable2FA}
+            />
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };

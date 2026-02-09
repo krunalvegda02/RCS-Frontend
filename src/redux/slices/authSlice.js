@@ -10,6 +10,12 @@ export const loginUser = createAsyncThunkHandler(
   'auth/login'
 );
 
+export const verifyLoginTwoFactor = createAsyncThunkHandler(
+  'auth/verify2FA',
+  _post,
+  'auth/login/2fa'
+);
+
 export const registerUser = createAsyncThunkHandler(
   'auth/register',
   _post,
@@ -216,6 +222,35 @@ const authSlice = createSlice({
         if (action.payload?.deactivated) {
           state.error = 'Account is deactivated. Please contact administrator.';
         }
+      })
+      .addCase(verifyLoginTwoFactor.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyLoginTwoFactor.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+
+        const token = action.payload.access_token || action.payload.token;
+        const user = action.payload.user;
+
+        if (token && user) {
+          state.isAuthenticated = true;
+          state.user = user;
+          state.token = token;
+
+          // Persist to localStorage
+          try {
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+          } catch (error) {
+            console.error('Error saving to localStorage:', error);
+          }
+        }
+      })
+      .addCase(verifyLoginTwoFactor.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
 
     // Register

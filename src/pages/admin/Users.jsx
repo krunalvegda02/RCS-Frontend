@@ -40,10 +40,13 @@ import {
   HistoryOutlined,
   EyeOutlined,
   StopOutlined,
+  LoginOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import { getAllUsers, updateWallet, updateUserPassword, getUserTransactionHistory, createUser, updateUser, toggleUserStatus, getUserPassword } from '../../redux/slices/adminSlice';
+import { loginSuccess } from '../../redux/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../../helper/apiClient';
 
 
 function UserManagement() {
@@ -239,6 +242,29 @@ function UserManagement() {
       message.success(`User ${currentStatus ? 'deactivated' : 'activated'} successfully`);
     } catch (error) {
       message.error(error || 'Failed to update user status');
+    }
+  };
+
+  const handleImpersonate = async (userId) => {
+    try {
+      const response = await apiService.impersonateUser(userId);
+      if (response.data.success) {
+        const { user: impersonatedUser, token } = response.data;
+
+        // Update auth state to become the user
+        dispatch(loginSuccess({ user: impersonatedUser, token }));
+
+        // Persist to localStorage
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(impersonatedUser));
+
+        message.success(`Now logged in as ${impersonatedUser.name}`);
+
+        // Redirect to user dashboard
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Impersonation failed');
     }
   };
 
@@ -474,6 +500,25 @@ function UserManagement() {
               onClick={(e) => {
                 e.stopPropagation();
                 handleToggleStatus(record._id, record.isActive);
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="Login as User">
+            <Button
+              style={{
+                borderRadius: THEME_CONSTANTS.radius.sm,
+                color: THEME_CONSTANTS.colors.primary,
+                borderColor: THEME_CONSTANTS.colors.primary,
+              }}
+              size="middle"
+              icon={<LoginOutlined style={{ fontSize: '16px' }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                Modal.confirm({
+                  title: 'Impersonate User',
+                  content: `Are you sure you want to log in as ${record.name}?`,
+                  onOk: () => handleImpersonate(record._id)
+                });
               }}
             />
           </Tooltip>

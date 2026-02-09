@@ -73,12 +73,15 @@ apiClient.interceptors.response.use(
         if (error.response?.status === 401 && !originalRequest._isRetry) {
             originalRequest._isRetry = true;
 
-            // Don't redirect if it's a password update error (wrong current password)
-            const isPasswordUpdateError = originalRequest.url?.includes('update-password') ||
-                originalRequest.url?.includes('change-password');
+            // Don't redirect if it's a password-related error (wrong current password/2FA)
+            const isCredentialError = originalRequest.url?.includes('update-password') ||
+                originalRequest.url?.includes('change-password') ||
+                originalRequest.url?.includes('2fa/disable') ||
+                originalRequest.url?.includes('2fa/verify') ||
+                originalRequest.url?.includes('login/2fa');
 
-            // Don't redirect if already on auth page or already handling auth or password update error
-            if (!isAuthPage && !isHandlingAuth && !isPasswordUpdateError) {
+            // Don't redirect if already on auth page or already handling auth or credential error
+            if (!isAuthPage && !isHandlingAuth && !isCredentialError) {
                 isHandlingAuth = true;
 
                 // Determine redirect reason
@@ -178,14 +181,23 @@ const apiService = {
     },
 
     addWalletRequest: (data) => _post('wallet/request', data),
-    updateProfile: (userId, data) => _put(`profile/${userId}`, data),
+    updateProfile: (data) => _put('auth/profile', data),
     changePassword: (data) => _post('auth/change-password', data),
 
     // Wallet request methods
     getWalletRequests: () => _get('wallet/admin/requests'),
     approveWalletRequest: (requestId, adminNote) => _put(`wallet/admin/approve/${requestId}`, { adminNote }),
     rejectWalletRequest: (requestId, rejectionReason) => _put(`wallet/admin/reject/${requestId}`, { rejectionReason }),
-    deleteWalletRequest: (requestId) => _delete(`wallet/admin/delete/${requestId}`)
+    deleteWalletRequest: (requestId) => _delete(`wallet/admin/delete/${requestId}`),
+
+    // 2FA Methods
+    setup2FA: () => _post('auth/2fa/setup'),
+    verify2FA: (token) => _post('auth/2fa/verify', { token }),
+    disable2FA: (password) => _post('auth/2fa/disable', { password }),
+    verifyLogin2FA: (userId, token) => _post('auth/login/2fa', { userId, token }),
+
+    // Admin Impersonation
+    impersonateUser: (userId) => _post(`auth/admin/impersonate/${userId}`)
 };
 
 export { _delete, _get, _post, _patch, _put };
