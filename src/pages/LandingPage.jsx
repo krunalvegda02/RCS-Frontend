@@ -42,6 +42,7 @@ import {
   SendOutlined,
   PhoneOutlined
 } from '@ant-design/icons';
+import { Footer } from 'antd/es/layout/layout';
 
 const { Header, Content } = Layout;
 const { Title, Paragraph, Text } = Typography;
@@ -67,6 +68,7 @@ const professionalColors = {
 // Counter Animation Component with trigger
 const AnimatedCounter = ({ end, duration = 2000, prefix = '', suffix = '', decimals = 0, start = false }) => {
   const [count, setCount] = useState(0);
+
 
   useEffect(() => {
     if (!start) return;
@@ -106,33 +108,12 @@ const LandingPage = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [sending, setSending] = useState(false);
 
-  const pricingPlans = [
-    {
-      title: 'Starter',
-      credits: '10,000',
-      pricePerMsg: '₹0.30',
-      total: '₹3,000',
-      highlight: false,
-      color: professionalColors.info,
-    },
-    {
-      title: 'Growth',
-      credits: '50,000',
-      pricePerMsg: '₹0.28',
-      total: '₹14,000',
-      highlight: true,
-      badge: 'MOST POPULAR',
-      color: professionalColors.primary,
-    },
-    {
-      title: 'Enterprise',
-      credits: '1,00,000',
-      pricePerMsg: '₹0.25',
-      total: '₹25,000',
-      highlight: false,
-      color: professionalColors.success,
-    },
-  ];
+
+    const  isMobile = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  
 
 
 
@@ -2067,29 +2048,45 @@ const LandingPage = () => {
         </section>
       </Content>
 
-      {/* ===== Footer ===== */}
-      <footer
+      {/* Footer */}
+      <Footer
         style={{
-          background: professionalColors.surface,
-          borderTop: `1px solid ${professionalColors.border}`,
-          padding: screens.xs ? '0px 0px 32px' : '0px 0px 40px',
-          marginTop: 0
+          background: THEME_CONSTANTS.colors.surface,
+          borderTop: `1px solid ${THEME_CONSTANTS.colors.border}`,
+          textAlign: 'center',
+          padding: `${THEME_CONSTANTS.spacing.xl} ${isMobile ? THEME_CONSTANTS.spacing.lg : THEME_CONSTANTS.spacing.xxxl}`,
+          height: '80px',
         }}
       >
         <div
           style={{
-
-            paddingTop: 24,
-            borderTop: `1px solid ${professionalColors.border}`,
-            textAlign: 'center',
-            fontSize: 12,
-            color: professionalColors.textSecondary,
+            maxWidth: '1400px',
+            margin: '0 auto',
           }}
         >
-          © {new Date().getFullYear()} RCSsender. All rights reserved.
+          <p
+            style={{
+              fontSize: '14px',
+              fontWeight: 500,
+              color: THEME_CONSTANTS.colors.text,
+              margin: 0,
+            }}
+          >
+            © {new Date().getFullYear()} RCSsender . All rights reserved.<br />
+            A product of <strong>Large Media Solutions</strong> ·
+            <a
+              href="/terms"
+              style={{
+                marginLeft: 8,
+                color: THEME_CONSTANTS.colors.primary,
+                fontWeight: 500,
+              }}
+            >
+              Terms & Conditions
+            </a>
+          </p>
         </div>
-
-      </footer>
+      </Footer>
 
     </Layout>
   );

@@ -54,13 +54,17 @@ const WalletTransaction = () => {
 
 
 
-  const baseAmount = Number(addAmount || 0);
+  const isEnterprise = perMessageCharge !== null;
+  const rawAmount = Number(addAmount || 0);
+
+  // If enterprise, addAmount represents Credits. Otherwise it represents Rupees.
+  const baseAmount = isEnterprise ? rawAmount * perMessageCharge : rawAmount;
   const gstAmount = baseAmount * 0.18;
   const totalPayable = baseAmount + gstAmount;
 
-  // Calculate credits based on perMessageCharge
-  const creditsToReceive = perMessageCharge && perMessageCharge > 0
-    ? Math.floor(baseAmount / perMessageCharge)
+  // Calculate credits to receive
+  const creditsToReceive = isEnterprise
+    ? rawAmount
     : baseAmount === 3000 ? 10000
       : baseAmount === 14000 ? 50000
         : baseAmount === 25000 ? 100000
@@ -118,13 +122,13 @@ const WalletTransaction = () => {
 
         payload = { packageType };
       } else {
-        // Custom pricing - send custom amount
+        // Custom pricing - send custom amount (in Rupees)
         if (addAmount < 100000) {
-          message.error('Minimum amount is ₹1,00,000');
+          message.error('Minimum recharge is 1,00,000 credits');
           setProcessingPayment(false);
           return;
         }
-        payload = { customAmount: Number(addAmount) };
+        payload = { customAmount: Number(baseAmount) };
       }
 
       // Create order
@@ -163,7 +167,7 @@ const WalletTransaction = () => {
             console.log("===========Verify response:", verifyResponse);
 
             if (verifyResponse.success) {
-              message.success(`Payment successful! ₹${verifyResponse.data.credits} credits added to your wallet.`);
+              message.success(`Payment successful! ${verifyResponse.data.credits.toLocaleString('en-IN')} credits added to your wallet.`);
               setShowAddMoney(false);
               setAddAmount('');
               // Refresh data
@@ -774,7 +778,7 @@ const WalletTransaction = () => {
                     marginBottom: 6,
                   }}
                 >
-                  Enter Recharge Amount
+                  Enter Credits to Purchase
                 </div>
                 <div
                   style={{
@@ -782,7 +786,7 @@ const WalletTransaction = () => {
                     color: THEME_CONSTANTS.colors.textMuted,
                   }}
                 >
-                  Enterprise pricing · Custom rate applied · Minimum top-up ₹1,00,000
+                  Enterprise pricing · <strong>Custom rate: ₹{perMessageCharge}/message</strong> · Minimum top-up 1,00,000 Credits
                 </div>
               </div>
 
@@ -808,7 +812,7 @@ const WalletTransaction = () => {
                 }}
                 inputMode="numeric"
                 pattern="[0-9]*"
-                prefix="₹"
+                prefix="Credits"
                 placeholder="1,00,000"
                 size="large"
                 disabled={processingPayment}
@@ -869,7 +873,7 @@ const WalletTransaction = () => {
                                 : '#111827',
                             }}
                           >
-                            ₹{amt.toLocaleString('en-IN')}
+                            {amt.toLocaleString('en-IN')} Credits
                           </div>
 
                           <div
@@ -879,7 +883,7 @@ const WalletTransaction = () => {
                               color: '#6b7280',
                             }}
                           >
-                            + GST
+                            ₹{(amt * perMessageCharge).toLocaleString('en-IN')} + GST
                           </div>
                         </div>
                       </Col>
@@ -950,6 +954,11 @@ const WalletTransaction = () => {
                 }}
               >
                 +{creditsToReceive.toLocaleString('en-IN')} Credits
+                {isEnterprise && (
+                  <span style={{ color: '#6b7280', fontWeight: 400, marginLeft: 8 }}>
+                    (@ ₹{perMessageCharge}/msg)
+                  </span>
+                )}
               </div>
             </div>
           </div>

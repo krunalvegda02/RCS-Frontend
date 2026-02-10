@@ -23,6 +23,7 @@ const Login = lazy(() => import('../pages/Login.jsx'))
 const Register = lazy(() => import('../pages/Register.jsx'))
 const Onboarding = lazy(() => import('../pages/Onboarding.jsx'))
 const PendingApproval = lazy(() => import('../pages/PendingApproval.jsx'))
+const Terms = lazy(() => import('../pages/user/TermsAndConditions.jsx'))
 
 // Layouts
 const Layout = lazy(() => import('../layout/layout.jsx'))
@@ -62,7 +63,11 @@ export const pageData = {
       component: PendingApproval,
       requiresAuth: true,
       skipOnboardingCheck: true
-    }
+    },
+    {
+      path: '/terms',
+      component: Terms
+    },
   ],
 
   // User routes
@@ -105,6 +110,7 @@ export const pageData = {
           path: 'profile',
           component: Profile
         },
+
 
       ]
     }

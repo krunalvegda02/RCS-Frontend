@@ -140,7 +140,7 @@ export default function UserLayout() {
       label: 'Campaign Reports',
       onClick: () => navigate('/dashboard/reports'),
     },
-      {
+    {
       key: '/dashboard/my-reports',
       icon: <FileExcelOutlined className="text-xl" />,
       label: 'My Reports',
@@ -152,7 +152,7 @@ export default function UserLayout() {
       label: 'Wallet',
       onClick: () => navigate('/dashboard/wallet'),
     },
-    
+
   ];
 
   const userMenuItems = [
@@ -429,7 +429,7 @@ export default function UserLayout() {
                     }}
                     className="hover:text-blue-600 hover:bg-blue-50"
                   />
-                  
+
                 </>
               )}
 
@@ -577,7 +577,18 @@ export default function UserLayout() {
                   margin: 0,
                 }}
               >
-                © 2025 RCS Messaging Hub. All rights reserved.
+                © {new Date().getFullYear()} RCSsender . All rights reserved.<br />
+                A product of <strong>Large Media Solutions</strong> ·
+                <a
+                  href="/terms"
+                  style={{
+                    marginLeft: 8,
+                    color: THEME_CONSTANTS.colors.primary,
+                    fontWeight: 500,
+                  }}
+                >
+                  Terms & Conditions
+                </a>
               </p>
             </div>
           </Footer>
