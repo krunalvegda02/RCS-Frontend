@@ -269,20 +269,17 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
       'captured': {
         text: 'Success',
         icon: <CheckCircleOutlined />,
-        color: THEME_CONSTANTS.colors.success,
-        bg: '#f6ffed'
+        color: 'success'
       },
       'pending': {
         text: 'Pending',
         icon: <ClockCircleOutlined />,
-        color: '#faad14',
-        bg: '#fffbe6'
+        color: 'warning'
       },
       'failed': {
         text: 'Failed',
         icon: <CloseCircleOutlined />,
-        color: '#ff4d4f',
-        bg: '#fff1f0'
+        color: 'error'
       }
     };
     return config[status] || config['pending'];
@@ -290,144 +287,100 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
 
   const columns = [
     {
-      title: 'USER',
+      title: 'User',
       key: 'user',
       width: 220,
       render: (_, record) => (
-        <div>
-          <div style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.text, marginBottom: 4 }}>
+        <div style={{ padding: '8px 0' }}>
+          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
             {record.userId?.name || 'N/A'}
           </div>
-          <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+          <div style={{ fontSize: '12px', color: '#666' }}>
             {record.userId?.email || 'N/A'}
-          </div>
-          <div style={{ fontSize: 11, color: '#bfbfbf', marginTop: 2 }}>
-            ID: {record.userId?._id?.slice(-8) || 'N/A'}
           </div>
         </div>
       ),
     },
     {
-      title: 'ORDER ID',
+      title: 'Order ID',
+      dataIndex: 'razorpayOrderId',
       key: 'orderId',
-      width: 180,
-      render: (_, record) => (
-        <Tooltip title={record.razorpayOrderId}>
-          <div style={{
-            fontFamily: 'monospace',
-            fontSize: 12,
-            color: THEME_CONSTANTS.colors.text,
-            backgroundColor: THEME_CONSTANTS.colors.backgroundSecondary,
-            padding: '4px 8px',
-            borderRadius: 4,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}>
-            {record.razorpayOrderId?.slice(0, 16)}...
-          </div>
+      width: 160,
+      render: (orderId) => (
+        <Tooltip title={orderId}>
+          <span style={{ fontFamily: 'monospace', fontSize: '13px', padding: '4px 8px', background: '#f5f5f5', borderRadius: '4px' }}>
+            {orderId?.slice(0, 12)}...
+          </span>
         </Tooltip>
       ),
     },
     {
-      title: 'AMOUNT',
+      title: 'Amount',
       dataIndex: 'amount',
-      width: 120,
+      width: 130,
       sorter: (a, b) => a.amount - b.amount,
       render: (amount) => (
-        <div style={{ fontWeight: 700, color: THEME_CONSTANTS.colors.success }}>
+        <span style={{ fontWeight: 600, fontSize: '15px', color: THEME_CONSTANTS.colors.success }}>
           {formatCurrency(amount)}
-        </div>
+        </span>
       ),
     },
     {
-      title: 'CREDITS',
+      title: 'Credits',
       dataIndex: 'creditsToAdd',
-      width: 100,
+      width: 110,
       sorter: (a, b) => a.creditsToAdd - b.creditsToAdd,
       render: (credits) => (
-
-        <div style={{ fontWeight: 600 }} >
+        <span style={{ fontWeight: 600, fontSize: '14px' }}>
           {Number(credits).toLocaleString('en-IN')}
-        </div >
-
+        </span>
       ),
     },
     {
-      title: 'STATUS',
+      title: 'Status',
       dataIndex: 'status',
-      width: 120,
-      filters: [
-        { text: 'Success', value: 'captured' },
-        { text: 'Pending', value: 'pending' },
-        { text: 'Failed', value: 'failed' },
-      ],
-      onFilter: (value, record) => record.status === value,
+      width: 130,
       render: (status) => {
         const config = getStatusConfig(status);
         return (
-          <Tag
-            icon={config.icon}
-            color={config.bg}
-            style={{
-              color: config.color,
-              border: `1px solid ${config.color}`,
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
-            }}
-          >
+          <Tag color={config.color} icon={config.icon} style={{ margin: 0, padding: '4px 12px', fontSize: '13px' }}>
             {config.text}
           </Tag>
         );
       },
     },
     {
-      title: 'PAYMENT METHOD',
-      dataIndex: 'paymentMethod',
-      width: 140,
-      render: (_, record) => (
-        
-        <span style={{ color: THEME_CONSTANTS.colors.textSecondary }}>
-          {record.method || 'N/A'}
-        </span>
-      ),
+      title: 'Method',
+      dataIndex: 'method',
+      width: 120,
+      render: (method) => <span style={{ fontSize: '13px' }}>{method || 'N/A'}</span>,
     },
     {
-      title: 'DATE',
+      title: 'Date',
       dataIndex: 'createdAt',
       width: 160,
       sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
       render: (date) => (
-        <div>
-          <div style={{ fontWeight: 500, fontSize: 12 }}>
-            {formatDate(date)}
-          </div>
-          <div style={{ fontSize: 11, color: '#bfbfbf' }}>
-            {dayjs(date).fromNow()}
-          </div>
+        <div style={{ padding: '4px 0' }}>
+          <div style={{ fontSize: '13px', marginBottom: '2px' }}>{dayjs(date).format('DD MMM YYYY')}</div>
+          <div style={{ fontSize: '12px', color: '#999' }}>{dayjs(date).format('hh:mm A')}</div>
         </div>
       ),
     },
     {
-      title: 'INVOICE',
+      title: 'Invoice',
       key: 'invoice',
-      width: 100,
+      width: 90,
+      align: 'center',
       render: (_, record) =>
         record.status === 'captured' ? (
           <Tooltip title="Download Invoice">
             <Button
               type="text"
-              icon={
-                <DownloadOutlined
-                  style={{
-                    fontSize: 18,
-                    color: THEME_CONSTANTS.colors.primary,
-                  }}
-                />
-              }
+              icon={<DownloadOutlined style={{ fontSize: '16px' }} />}
               onClick={() => handleDownloadInvoice(record)}
               disabled={downloading}
+              style={{ padding: '8px' }}
             />
           </Tooltip>
         ) : null,
@@ -508,7 +461,7 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
                   precision={2}
                   valueStyle={{ color: THEME_CONSTANTS.colors.success, fontWeight: 600 }}
                   prefix="₹"
-                  suffix={<Tag color="green">INR</Tag>}
+                  // suffix={<Tag color="green">INR</Tag>}
                 />
               </Card>
             </Col>
@@ -519,7 +472,7 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
                   value={stats.successCount}
                   valueStyle={{ color: THEME_CONSTANTS.colors.success }}
                   prefix={<CheckCircleOutlined />}
-                  suffix={<Tag color="success">{Math.round((stats.successCount / transactions.length) * 100) || 0}%</Tag>}
+                  // suffix={<Tag color="success">{Math.round((stats.successCount / transactions.length) * 100) || 0}%</Tag>}
                 />
               </Card>
             </Col>
@@ -612,18 +565,19 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
         {/* Main Table Card */}
         <Card
           title={
-            <Space>
-              <WalletOutlined />
-              <span>All Transactions</span>
-              <Tag color="blue">{filteredTransactions.length} records</Tag>
+            <Space size="middle">
+              <WalletOutlined style={{ fontSize: '18px' }} />
+              <span style={{ fontSize: '16px', fontWeight: 600 }}>All Transactions</span>
+              <Tag color="blue" style={{ fontSize: '13px', padding: '2px 10px' }}>{filteredTransactions.length} records</Tag>
             </Space>
           }
           extra={
-            <Space>
+            <Space size="middle">
               <Button
                 icon={<CheckSquareOutlined />}
                 onClick={handleSelectAll}
                 disabled={filteredTransactions.filter(t => t.status === 'captured').length === 0}
+                style={{ padding: '4px 15px' }}
               >
                 Select All
               </Button>
@@ -636,6 +590,7 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
                   fetchTransactions();
                 }}
                 loading={loading}
+                style={{ padding: '4px 15px' }}
               >
                 Reset
               </Button>
@@ -645,6 +600,7 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
             borderRadius: THEME_CONSTANTS.radius.lg,
             boxShadow: THEME_CONSTANTS.shadow.base
           }}
+          bodyStyle={{ padding: '24px' }}
         >
           <Spin
             spinning={loading || downloading}
@@ -652,31 +608,32 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
           >
             {selectedRowKeys.length > 0 && (
               <div style={{
-                padding: '12px 16px',
+                padding: '16px 20px',
                 background: THEME_CONSTANTS.colors.primaryLight,
                 borderRadius: THEME_CONSTANTS.radius.md,
-                marginBottom: THEME_CONSTANTS.spacing.md,
+                marginBottom: '20px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <span style={{ color: THEME_CONSTANTS.colors.primary, fontWeight: 500 }}>
-                  <CheckSquareOutlined /> {selectedRowKeys.length} invoice{selectedRowKeys.length > 1 ? 's' : ''} selected
+                <span style={{ color: THEME_CONSTANTS.colors.primary, fontWeight: 500, fontSize: '14px' }}>
+                  <CheckSquareOutlined style={{ marginRight: '8px' }} /> 
+                  {selectedRowKeys.length} invoice{selectedRowKeys.length > 1 ? 's' : ''} selected
                 </span>
-                <Space>
+                <Space size="middle">
                   <Button
                     type="primary"
-                    size="small"
                     icon={<DownloadOutlined />}
                     onClick={handleBulkDownload}
                     loading={downloading}
+                    style={{ padding: '4px 20px' }}
                   >
                     Download All
                   </Button>
                   <Button
-                    size="small"
                     icon={<ClearOutlined />}
                     onClick={handleClearSelection}
+                    style={{ padding: '4px 15px' }}
                   >
                     Clear Selection
                   </Button>
@@ -689,27 +646,27 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
               dataSource={filteredTransactions}
               columns={columns}
               rowKey="_id"
+              loading={loading}
               pagination={{
-                pageSize: 20,
+                pageSize: 15,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                pageSizeOptions: ['10', '20', '50', '100']
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} transactions`,
+                pageSizeOptions: ['10', '15', '25', '50'],
+                style: { padding: '16px 0' }
               }}
               locale={{
                 emptyText: (
                   <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description={
-                      <span style={{ color: THEME_CONSTANTS.colors.textSecondary }}>
-                        No transactions found
-                      </span>
-                    }
+                    description="No transactions found"
+                    style={{ padding: '40px 0' }}
                   />
                 )
               }}
               scroll={{ x: 1200 }}
               size="middle"
+              style={{ marginTop: '8px' }}
             />
           </Spin>
         </Card>

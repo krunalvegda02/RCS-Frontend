@@ -49,6 +49,8 @@ function AdminDashboard() {
     pendingRequests: 0,
     totalTransactions: 0,
     totalWalletBalance: 0,
+    totalRevenue: 0,
+    pendingPayments: 0,
   });
 
   const [recentUsers, setRecentUsers] = useState([]);
@@ -539,47 +541,64 @@ function AdminDashboard() {
 
         {/* Stats Overview */}
         <Row gutter={[screens.xs ? 12 : 20, screens.xs ? 12 : 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={12} lg={6}>
             <StatCard
               icon={UserOutlined}
               title="Total Users"
               value={stats.totalUsers || 0}
               color={THEME_CONSTANTS.colors.primary}
-              bgColor={THEME_CONSTANTS.colors.primaryLight}
-            // trend={2.5}
             />
           </Col>
-
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={12} lg={6}>
             <StatCard
-              icon={ClockCircleOutlined}
+              icon={CheckOutlined}
               title="Active Users"
               value={stats.activeUsers || 0}
-              color={THEME_CONSTANTS.colors.warning}
-              bgColor={THEME_CONSTANTS.colors.warningLight}
-            // trend={-1.3}
+              color={THEME_CONSTANTS.colors.success}
             />
           </Col>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={12} lg={6}>
             <StatCard
               icon={MessageOutlined}
-              title="Total Delivered"
+              title="Messages Delivered"
               value={stats.totalMessages || 0}
-              color={THEME_CONSTANTS.colors.success}
-              bgColor={THEME_CONSTANTS.colors.successLight}
-            // trend={5.2}
+              color="#1890ff"
             />
           </Col>
-          
-
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={12} lg={6}>
             <StatCard
               icon={WalletOutlined}
-              title="Total Wallet Balance"
+              title="Total Revenue"
+              value={formatCurrency(stats.totalRevenue || 0)}
+              color="#52c41a"
+            />
+          </Col>
+        </Row>
+
+        {/* Secondary Stats */}
+        <Row gutter={[screens.xs ? 12 : 20, screens.xs ? 12 : 20]} style={{ marginBottom: THEME_CONSTANTS.spacing.xxxl }}>
+          <Col xs={24} sm={12} lg={8}>
+            <StatCard
+              icon={CreditCardOutlined}
+              title="Pending Payments"
+              value={stats.pendingPayments || 0}
+              color="#faad14"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <StatCard
+              icon={WalletOutlined}
+              title="User Wallet Balance"
               value={formatCurrency(stats.totalWalletBalance || 0)}
-              color={THEME_CONSTANTS.colors.danger}
-              bgColor={THEME_CONSTANTS.colors.dangerLight}
-            // trend={3.8}
+              color="#722ed1"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <StatCard
+              icon={DollarOutlined}
+              title="Total Cost"
+              value={formatCurrency(stats.totalCost || 0)}
+              color="#eb2f96"
             />
           </Col>
         </Row>

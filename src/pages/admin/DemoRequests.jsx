@@ -49,7 +49,7 @@ import {
   DeleteOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
-import { _get, _patch } from '../../helper/apiClient';
+import { _get, _patch, _delete } from '../../helper/apiClient';
 import { THEME_CONSTANTS } from '../../theme';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -69,6 +69,7 @@ export default function DemoRequests() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [form] = Form.useForm();
   const screens = useBreakpoint();
 
@@ -122,17 +123,17 @@ export default function DemoRequests() {
     Modal.confirm({
       title: 'Delete Demo Request',
       icon: <ExclamationCircleOutlined />,
-      content: `Are you sure you want to delete demo request from ${record.name}?`,
+      content: `Are you sure you want to delete the demo request from ${record.name}?`,
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await _patch(`/demo-requests/${record._id}`, { isDeleted: true });
+          await _delete(`/demo-requests/${record._id}`);
           message.success('Demo request deleted successfully');
           fetchDemoRequests();
         } catch (error) {
-          message.error('Failed to delete demo request');
+          message.error(error.response?.data?.message || 'Failed to delete demo request');
         }
       }
     });
@@ -152,377 +153,151 @@ export default function DemoRequests() {
 
   const handleEditSchedule = (record) => {
     setSelectedRequest(record);
-    form.setFieldsValue({
-      meetingLink: record.meetingLink,
-      date: record.date ? dayjs(record.date) : null,
-      time: record.time,
-      timezone: record.timezone || 'Asia/Kolkata'
-    });
     setEditModalVisible(true);
+    // Set form values after modal opens to ensure proper rendering
+    setTimeout(() => {
+      form.setFieldsValue({
+        meetingLink: record.meetingLink || '',
+        date: record.date ? dayjs(record.date) : null,
+        time: record.time || '',
+        timezone: record.timezone || 'Asia/Kolkata'
+      });
+    }, 0);
   };
 
   const handleUpdateSchedule = async (values) => {
+    setUpdateLoading(true);
     try {
-      await _patch(`/demo-requests/${selectedRequest._id}`, {
-        meetingLink: values.meetingLink,
-        date: values.date ? dayjs(values.date).format('YYYY-MM-DD') : selectedRequest.date,
+      const updateData = {
+        meetingLink: values.meetingLink || selectedRequest.meetingLink,
+        date: values.date ? values.date.format('YYYY-MM-DD') : selectedRequest.date,
         time: values.time || selectedRequest.time,
-        timezone: values.timezone
-      });
-      message.success('Schedule updated successfully. User will receive an email with meeting details.');
+        timezone: values.timezone || selectedRequest.timezone
+      };
+      
+      await _patch(`/demo-requests/${selectedRequest._id}`, updateData);
+      message.success('Schedule updated successfully!');
       setEditModalVisible(false);
+      form.resetFields();
       fetchDemoRequests();
     } catch (error) {
-      message.error('Failed to update schedule');
+      message.error(error.response?.data?.message || 'Failed to update schedule');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
   const getStatusConfig = (status) => {
     const configs = {
-      'SCHEDULED': {
-        color: '#1890ff',
-        bgColor: '#e6f7ff',
-        icon: <ScheduleOutlined />,
-        label: 'SCHEDULED',
-        badge: 'processing'
-      },
-      'COMPLETED': {
-        color: '#52c41a',
-        bgColor: '#f6ffed',
-        icon: <CheckCircleOutlined />,
-        label: 'COMPLETED',
-        badge: 'success'
-      },
-      'CANCELLED': {
-        color: '#ff4d4f',
-        bgColor: '#fff2f0',
-        icon: <CloseCircleOutlined />,
-        label: 'CANCELLED',
-        badge: 'error'
-      },
-      'NO_SHOW': {
-        color: '#fa8c16',
-        bgColor: '#fff7e6',
-        icon: <MinusCircleOutlined />,
-        label: 'NO SHOW',
-        badge: 'warning'
-      }
+      'SCHEDULED': { color: 'blue', label: 'Scheduled', icon: <ScheduleOutlined /> },
+      'COMPLETED': { color: 'success', label: 'Completed', icon: <CheckCircleOutlined /> },
+      'CANCELLED': { color: 'error', label: 'Cancelled', icon: <CloseCircleOutlined /> },
+      'NO_SHOW': { color: 'warning', label: 'No Show', icon: <MinusCircleOutlined /> }
     };
     return configs[status] || configs['SCHEDULED'];
   };
 
   const columns = [
     {
-      title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>DEMO REQUEST</span>,
-      key: 'request',
-      width: screens.xs ? 200 : 240,
-      fixed: screens.lg ? 'left' : false,
-      render: (_, record) => (
-        <Space align="center">
-          <Avatar 
-            size={44} 
-            style={{ 
-              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.infoLight} 0%, ${THEME_CONSTANTS.colors.info} 100%)`,
-              color: 'white',
-              fontWeight: 600,
-              fontSize: '16px',
-              boxShadow: '0 2px 8px rgba(24, 144, 255, 0.2)'
-            }}
-          >
-            {record.name?.charAt(0)?.toUpperCase() || 'G'}
-          </Avatar>
-          <div style={{ lineHeight: '1.3' }}>
-            <div style={{ 
-              fontWeight: 600, 
-              fontSize: '15px',
-              color: THEME_CONSTANTS.colors.text,
-              marginBottom: '2px'
-            }}>
-              {record.name || 'Guest User'}
-            </div>
-            <div style={{ 
-              fontSize: '12px', 
-              color: THEME_CONSTANTS.colors.textSecondary,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: '200px'
-            }}>
-              <MailOutlined style={{ fontSize: '11px', flexShrink: 0 }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {record.email || 'No email'}
-              </span>
-            </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: THEME_CONSTANTS.colors.textTertiary,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              marginTop: '2px'
-            }}>
-              <CalendarOutlined style={{ fontSize: '10px' }} />
-              {record.createdAt ? dayjs(record.createdAt).format('DD MMM YYYY') : 'Recent'}
-            </div>
-          </div>
-        </Space>
-      ),
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      width: 200,
+      render: (name, record) => (
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '14px' }}>{name || 'Guest User'}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>{record.email}</div>
+        </div>
+      )
     },
     {
-      title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>COMPANY & CONTACT</span>,
+      title: 'Company',
+      dataIndex: 'company',
       key: 'company',
-      width: screens.xs ? 180 : 220,
-      render: (_, record) => (
-        <div style={{ lineHeight: '1.4' }}>
-          <div style={{ 
-            fontWeight: 600, 
-            fontSize: '14px',
-            color: THEME_CONSTANTS.colors.text,
-            marginBottom: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
-            <TeamOutlined style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.primary, flexShrink: 0 }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {record.company || 'Individual'}
-            </span>
-          </div>
-          <div style={{ 
-            fontSize: '12px', 
-            color: THEME_CONSTANTS.colors.textSecondary,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            marginTop: '4px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
-            <PhoneOutlined style={{ fontSize: '11px', flexShrink: 0 }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {record.phone || 'No phone'}
-            </span>
-          </div>
-        </div>
-      ),
+      width: 150,
+      render: (company) => company || 'Individual'
     },
     {
-      title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>SCHEDULE</span>,
-      key: 'scheduled',
-      width: screens.xs ? 160 : 200,
-      render: (_, record) => (
-        <div style={{ lineHeight: '1.4' }}>
-          <div style={{ 
-            fontWeight: 600, 
-            fontSize: '14px',
-            color: THEME_CONSTANTS.colors.text,
-            marginBottom: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <CalendarOutlined style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.success }} />
-            {record.date ? dayjs(record.date).format('DD MMM') : 'Not set'}
-          </div>
-          <div style={{ 
-            fontSize: '12px', 
-            color: THEME_CONSTANTS.colors.textSecondary,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <ClockCircleOutlined style={{ fontSize: '11px' }} />
-            {record.time || 'Time not set'}
-          </div>
-          <div style={{ 
-            fontSize: '11px', 
-            color: THEME_CONSTANTS.colors.textTertiary,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            marginTop: '2px'
-          }}>
-            <GlobalOutlined style={{ fontSize: '10px' }} />
-            {record.timezone?.split('/')[1] || 'IST'}
-          </div>
-        </div>
-      ),
-      sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
+      title: 'Phone',
+      dataIndex: 'phone',
+      key: 'phone',
+      width: 130
     },
     {
-      title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>MEETING LINK</span>,
+      title: 'Schedule',
+      key: 'schedule',
+      width: 150,
+      render: (_, record) => (
+        <div>
+          <div>{record.date ? dayjs(record.date).format('DD MMM YYYY') : 'Not set'}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>{record.time || 'Time not set'}</div>
+        </div>
+      )
+    },
+    {
+      title: 'Meeting Link',
       key: 'meetingLink',
-      width: screens.xs ? 120 : 140,
+      width: 120,
+      align: 'center',
       render: (_, record) => record.meetingLink ? (
-        <div style={{ textAlign: 'center' }}>
-          <Button 
-            type="primary" 
-            size="small"
-            icon={<VideoCameraOutlined />}
-            onClick={() => window.open(record.meetingLink, '_blank')}
-            style={{
-              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.success} 0%, ${THEME_CONSTANTS.colors.successDark} 100%)`,
-              border: 'none',
-              fontWeight: 500,
-              fontSize: '12px',
-              padding: '4px 12px',
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              margin: '0 auto'
-            }}
-          >
-            Join Demo
-          </Button>
-          <div style={{ 
-            fontSize: '11px', 
-            color: THEME_CONSTANTS.colors.success,
-            marginTop: '4px',
-            textDecoration: 'underline',
-            cursor: 'pointer'
-          }} onClick={() => navigator.clipboard.writeText(record.meetingLink)}>
-            Copy Link
-          </div>
-        </div>
-      ) : (
-        <div style={{ 
-          textAlign: 'center',
-          padding: '8px',
-          background: `${THEME_CONSTANTS.colors.warning}10`,
-          borderRadius: '8px',
-          border: `1px dashed ${THEME_CONSTANTS.colors.warning}30`
-        }}>
-          <Text type="secondary" style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-            <LinkOutlined />
-            Not set
-          </Text>
-          <Text type="secondary" style={{ fontSize: '10px', color: THEME_CONSTANTS.colors.textTertiary, display: 'block', marginTop: '2px' }}>
-            Click Edit to add
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>STATUS</span>,
-      key: 'status',
-      width: screens.xs ? 130 : 150,
-      render: (_, record) => {
-        const config = getStatusConfig(record.status);
-        return (
-          <Badge
-            status={config.badge}
-            text={
-              <span style={{
-                fontSize: '12px',
-                fontWeight: 500,
-                color: config.color,
-                background: config.bgColor,
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: `1px solid ${config.color}30`,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                {config.icon}
-                {config.label}
-              </span>
-            }
-          />
-        );
-      },
-      filters: [
-        { text: 'Scheduled', value: 'SCHEDULED' },
-        { text: 'Completed', value: 'COMPLETED' },
-        { text: 'Cancelled', value: 'CANCELLED' },
-        { text: 'No Show', value: 'NO_SHOW' }
-      ],
-      onFilter: (value, record) => record.status === value,
-    },
-    {
-      title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>SOURCE</span>,
-      key: 'source',
-      width: screens.xs ? 100 : 120,
-      render: (_, record) => (
-        <Tag
-          style={{
-            background: `${THEME_CONSTANTS.colors.info}15`,
-            color: THEME_CONSTANTS.colors.info,
-            border: `1px solid ${THEME_CONSTANTS.colors.info}30`,
-            fontWeight: 500,
-            fontSize: '11px',
-            padding: '3px 10px',
-            borderRadius: '12px',
-            margin: 0,
-            textTransform: 'capitalize'
-          }}
+        <Button 
+          type="link" 
+          size="small"
+          icon={<VideoCameraOutlined />}
+          onClick={() => window.open(record.meetingLink, '_blank')}
         >
-          {record.source || 'Website'}
-        </Tag>
-      ),
+          Join
+        </Button>
+      ) : (
+        <span style={{ color: '#999', fontSize: '12px' }}>Not Set</span>
+      )
     },
     {
-      title: <span style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary }}>ACTIONS</span>,
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (status) => {
+        const config = getStatusConfig(status);
+        return (
+          <Tag color={config.color} icon={config.icon} style={{ margin: 0 }}>
+            {config.label}
+          </Tag>
+        );
+      }
+    },
+    {
+      title: 'Actions',
       key: 'actions',
-      width: screens.xs ? 140 : 180,
-      fixed: screens.lg ? 'right' : false,
+      width: 180,
+      fixed: 'right',
       render: (_, record) => (
-        <Space size={screens.xs ? 6 : 8} wrap>
+        <Space size="small">
           <Tooltip title="Edit Schedule">
             <Button 
-              size={screens.xs ? "small" : "middle"}
+              size="small"
               icon={<EditOutlined />}
               onClick={() => handleEditSchedule(record)}
-              style={{
-                background: `${THEME_CONSTANTS.colors.success}08`,
-                borderColor: `${THEME_CONSTANTS.colors.success}30`,
-                color: THEME_CONSTANTS.colors.success
-              }}
-            >
-              {screens.md && 'Edit'}
-            </Button>
+            />
           </Tooltip>
-          <Tooltip title="Delete Demo">
+          <Tooltip title="Delete">
             <Button 
-              size={screens.xs ? "small" : "middle"}
+              size="small"
+              danger
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record)}
-              danger
-              style={{
-                background: `${THEME_CONSTANTS.colors.danger}08`,
-                borderColor: `${THEME_CONSTANTS.colors.danger}30`
-              }}
-            >
-              {screens.md && 'Delete'}
-            </Button>
+            />
           </Tooltip>
           <Select
             value={record.status}
             onChange={(value) => updateStatus(record._id, value)}
-            style={{ width: screens.xs ? 100 : 120 }}
+            style={{ width: 110 }}
             size="small"
-            dropdownStyle={{ minWidth: 140 }}
           >
-            <Select.Option value="SCHEDULED">
-              <Badge status="processing" text="Scheduled" />
-            </Select.Option>
-            <Select.Option value="COMPLETED">
-              <Badge status="success" text="Completed" />
-            </Select.Option>
-            <Select.Option value="CANCELLED">
-              <Badge status="error" text="Cancelled" />
-            </Select.Option>
-            <Select.Option value="NO_SHOW">
-              <Badge status="warning" text="No Show" />
-            </Select.Option>
+            <Select.Option value="SCHEDULED">Scheduled</Select.Option>
+            <Select.Option value="COMPLETED">Completed</Select.Option>
+            <Select.Option value="CANCELLED">Cancelled</Select.Option>
+            <Select.Option value="NO_SHOW">No Show</Select.Option>
           </Select>
         </Space>
       )
@@ -818,19 +593,25 @@ export default function DemoRequests() {
 
         {/* Edit Schedule Modal */}
         <Modal
-          title="Edit Demo Schedule"
+          title={
+            <Space>
+              <EditOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />
+              <span>Edit Demo Schedule</span>
+            </Space>
+          }
           open={editModalVisible}
-          onCancel={() => setEditModalVisible(false)}
+          onCancel={() => {
+            setEditModalVisible(false);
+            form.resetFields();
+          }}
           onOk={() => form.submit()}
-          okText="Update Schedule"
+          okText="Save Changes"
           cancelText="Cancel"
-          width={500}
+          width={560}
           centered
+          confirmLoading={updateLoading}
           okButtonProps={{
-            style: {
-              background: `linear-gradient(135deg, ${THEME_CONSTANTS.colors.primary} 0%, ${THEME_CONSTANTS.colors.primaryDark} 100%)`,
-              border: 'none'
-            }
+            loading: updateLoading
           }}
         >
           <div style={{ 
@@ -864,16 +645,24 @@ export default function DemoRequests() {
             </div>
           </div>
 
-          <Form form={form} layout="vertical" onFinish={handleUpdateSchedule}>
+          <Form 
+            form={form} 
+            layout="vertical" 
+            onFinish={handleUpdateSchedule}
+            preserve={false}
+          >
             <Form.Item 
               name="meetingLink" 
-              label={<Text strong style={{ fontSize: '14px' }}>Meeting Link</Text>}
-              rules={[{ type: 'url', message: 'Please enter a valid URL' }]}
+              label={<Text strong style={{ fontSize: '14px' }}>Meeting Link (Google Meet, Zoom, etc.)</Text>}
+              rules={[
+                { type: 'url', message: 'Please enter a valid URL starting with http:// or https://' }
+              ]}
             >
               <Input 
-                prefix={<LinkOutlined style={{ color: THEME_CONSTANTS.colors.textTertiary }} />} 
+                prefix={<VideoCameraOutlined style={{ color: THEME_CONSTANTS.colors.success }} />} 
                 placeholder="https://meet.google.com/xxx-xxxx-xxx" 
                 size="large"
+                allowClear
               />
             </Form.Item>
             
@@ -881,24 +670,26 @@ export default function DemoRequests() {
               <Col span={12}>
                 <Form.Item 
                   name="date" 
-                  label={<Text strong style={{ fontSize: '14px' }}>Date</Text>}
+                  label={<Text strong style={{ fontSize: '14px' }}>Demo Date</Text>}
                 >
                   <DatePicker 
                     style={{ width: '100%' }} 
                     format="DD MMM YYYY" 
                     size="large"
+                    disabledDate={(current) => current && current < dayjs().startOf('day')}
                   />
                 </Form.Item>
               </Col>
               <Col span={12}>
                 <Form.Item 
                   name="time" 
-                  label={<Text strong style={{ fontSize: '14px' }}>Time</Text>}
+                  label={<Text strong style={{ fontSize: '14px' }}>Demo Time</Text>}
                 >
                   <Input 
-                    prefix={<ClockCircleOutlined style={{ color: THEME_CONSTANTS.colors.textTertiary }} />} 
+                    prefix={<ClockCircleOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />} 
                     placeholder="10:00 AM" 
                     size="large"
+                    allowClear
                   />
                 </Form.Item>
               </Col>
@@ -908,18 +699,51 @@ export default function DemoRequests() {
               name="timezone" 
               label={<Text strong style={{ fontSize: '14px' }}>Timezone</Text>}
             >
-              <Select size="large">
+              <Select size="large" suffixIcon={<GlobalOutlined />}>
                 <Select.Option value="Asia/Kolkata">
                   <Space>
                     <GlobalOutlined />
-                    Asia/Kolkata (IST)
+                    India (IST - UTC+5:30)
                   </Space>
                 </Select.Option>
-                <Select.Option value="America/New_York">America/New_York (EST)</Select.Option>
-                <Select.Option value="Europe/London">Europe/London (GMT)</Select.Option>
-                <Select.Option value="Asia/Singapore">Asia/Singapore (SGT)</Select.Option>
+                <Select.Option value="America/New_York">
+                  <Space>
+                    <GlobalOutlined />
+                    New York (EST - UTC-5)
+                  </Space>
+                </Select.Option>
+                <Select.Option value="Europe/London">
+                  <Space>
+                    <GlobalOutlined />
+                    London (GMT - UTC+0)
+                  </Space>
+                </Select.Option>
+                <Select.Option value="Asia/Singapore">
+                  <Space>
+                    <GlobalOutlined />
+                    Singapore (SGT - UTC+8)
+                  </Space>
+                </Select.Option>
+                <Select.Option value="America/Los_Angeles">
+                  <Space>
+                    <GlobalOutlined />
+                    Los Angeles (PST - UTC-8)
+                  </Space>
+                </Select.Option>
               </Select>
             </Form.Item>
+            
+            <div style={{
+              background: `${THEME_CONSTANTS.colors.info}08`,
+              padding: '12px 16px',
+              borderRadius: '8px',
+              border: `1px solid ${THEME_CONSTANTS.colors.info}20`,
+              marginTop: '16px'
+            }}>
+              <Text style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary }}>
+                💡 User will receive an email notification with the updated meeting details
+              </Text>
+            </div>
           </Form>
         </Modal>
       </div>
