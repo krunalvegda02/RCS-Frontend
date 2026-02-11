@@ -210,7 +210,7 @@ export default function AddCreditsModal({
                 marginBottom: 6,
               }}
             >
-              Enter Recharge Amount
+              Enter Credits to Purchase
             </div>
             <div
               style={{
@@ -218,7 +218,7 @@ export default function AddCreditsModal({
                 color: THEME_CONSTANTS.colors.textMuted,
               }}
             >
-              Enterprise pricing · Custom rate applied · Minimum top-up ₹1,00,000
+              Enterprise pricing · <strong>Custom rate: ₹{perMessageCharge}/message</strong> · Minimum top-up 1,00,000 Credits
             </div>
           </div>
 
@@ -236,7 +236,7 @@ export default function AddCreditsModal({
             }}
             inputMode="numeric"
             pattern="[0-9]*"
-            prefix="₹"
+            prefix="Credits"
             placeholder="1,00,000"
             size="large"
             disabled={processingPayment}
@@ -286,10 +286,10 @@ export default function AddCreditsModal({
                           color: selected ? THEME_CONSTANTS.colors.primary : '#111827',
                         }}
                       >
-                        ₹{amt.toLocaleString('en-IN')}
+                        {amt.toLocaleString('en-IN')} Credits
                       </div>
                       <div style={{ fontSize: 12, marginTop: 4, color: '#6b7280' }}>
-                        + GST
+                        ₹{(amt * perMessageCharge).toLocaleString('en-IN')} + GST
                       </div>
                     </div>
                   </Col>

@@ -58,7 +58,7 @@ export default function Dashboard() {
 
   const { stats, recentOrders, loading, error } = useSelector(state => state.dashboard);
   const { perMessageCharge } = useSelector(state => state.wallet);
-  
+
   const isLoading = loading.stats || loading.orders;
 
   const [refreshing, setRefreshing] = useState(false);
@@ -89,15 +89,21 @@ export default function Dashboard() {
     }
   }, [user?._id, dispatch]);
 
-  const baseAmount = Number(addAmount || 0);
+  const isEnterprise = perMessageCharge !== null;
+  const rawAmount = Number(addAmount || 0);
+
+  // If enterprise, addAmount represents Credits. Otherwise it represents Rupees.
+  const baseAmount = isEnterprise ? rawAmount * perMessageCharge : rawAmount;
   const gstAmount = baseAmount * 0.18;
   const totalPayable = baseAmount + gstAmount;
-  const creditsToReceive = perMessageCharge && perMessageCharge > 0
-    ? Math.floor(baseAmount / perMessageCharge)
+
+  // Calculate credits to receive
+  const creditsToReceive = isEnterprise
+    ? rawAmount
     : baseAmount === 3000 ? 10000
-    : baseAmount === 14000 ? 50000
-    : baseAmount === 25000 ? 100000
-    : baseAmount;
+      : baseAmount === 14000 ? 50000
+        : baseAmount === 25000 ? 100000
+          : baseAmount;
 
   const loadRazorpayScript = useCallback(() => {
     return new Promise((resolve) => {
@@ -135,24 +141,24 @@ export default function Dashboard() {
         // Standard pricing - send package type only
         const packageType = addAmount === 3000 ? 'starter'
           : addAmount === 14000 ? 'growth'
-          : addAmount === 25000 ? 'enterprise'
-          : null;
-        
+            : addAmount === 25000 ? 'enterprise'
+              : null;
+
         if (!packageType) {
           toast.error('Invalid package selected');
           setProcessingPayment(false);
           return;
         }
-        
+
         payload = { packageType };
       } else {
         // Custom pricing - send custom amount
         if (addAmount < 100000) {
-          toast.error('Minimum amount is ₹1,00,000');
+          toast.error('Minimum recharge is 1,00,000 credits');
           setProcessingPayment(false);
           return;
         }
-        payload = { customAmount: Number(addAmount) };
+        payload = { customAmount: Number(baseAmount) };
       }
 
       const orderResponse = await dispatch(createPaymentOrder(payload)).unwrap();
@@ -184,7 +190,7 @@ export default function Dashboard() {
             })).unwrap();
 
             if (verifyResponse.success) {
-              toast.success(`Payment successful! ₹${verifyResponse.data.credits} credits added to your wallet.`);
+              toast.success(`Payment successful! ${verifyResponse.data.credits?.toLocaleString('en-IN') || verifyResponse.data.credits} credits added to your wallet.`);
               setShowAddMoney(false);
               setAddAmount('');
               refreshUser();
