@@ -54,22 +54,22 @@ const RCS_ASPECT_RATIOS = {
     minHeight: 448,
   },
   richCard: {
-    ratio: 16 / 9,
-    label: 'Rich Card - 16:9',
-    description: 'Recommended for single card',
+    ratio: 2 / 1,
+    label: 'Rich Card - 2:1',
+    description: 'RCS Standard 1440×720px',
     optimalWidth: 1440,
     optimalHeight: 720,
     minWidth: 400,
-    minHeight: 225,
+    minHeight: 200,
   },
   carousel: {
-    ratio: 4 / 3,
-    label: 'Carousel - 4:3',
-    description: 'Recommended for carousel',
-    optimalWidth: 960,
+    ratio: 2 / 1,
+    label: 'Carousel - 2:1',
+    description: 'RCS Medium 1440×720px',
+    optimalWidth: 1440,
     optimalHeight: 720,
-    minWidth: 300,
-    minHeight: 225,
+    minWidth: 400,
+    minHeight: 200,
   },
 };
 
@@ -79,12 +79,12 @@ const GridLines = ({ showGrid = true }) => {
   
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 5 }}>
-      {/* Vertical lines at 33.33% and 66.66% */}
-      <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: '1px', background: 'rgba(255,255,255,0.5)' }} />
-      <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: '1px', background: 'rgba(255,255,255,0.5)' }} />
-      {/* Horizontal lines at 33.33% and 66.66% */}
-      <div style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: '1px', background: 'rgba(255,255,255,0.5)' }} />
-      <div style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: '1px', background: 'rgba(255,255,255,0.5)' }} />
+      {/* Vertical lines at exact 1/3 and 2/3 */}
+      <div style={{ position: 'absolute', left: 'calc(100% / 3)', top: 0, bottom: 0, width: '1.5px', background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 2px rgba(0,0,0,0.6)' }} />
+      <div style={{ position: 'absolute', left: 'calc(100% * 2 / 3)', top: 0, bottom: 0, width: '1.5px', background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 2px rgba(0,0,0,0.6)' }} />
+      {/* Horizontal lines at exact 1/3 and 2/3 */}
+      <div style={{ position: 'absolute', top: 'calc(100% / 3)', left: 0, right: 0, height: '1.5px', background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 2px rgba(0,0,0,0.6)' }} />
+      <div style={{ position: 'absolute', top: 'calc(100% * 2 / 3)', left: 0, right: 0, height: '1.5px', background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 2px rgba(0,0,0,0.6)' }} />
     </div>
   );
 };
@@ -125,7 +125,7 @@ export default function RCSImageCropper({
 
     const actualWidth = Math.round(crop.width * scaleX);
     const actualHeight = Math.round(crop.height * scaleY);
-    const currentAspect = (crop.width / crop.height).toFixed(2);
+    const currentAspect = selectedRatio.ratio.toFixed(2);
     const coverage = Math.round(
       ((crop.width * crop.height) / (displayDimensions.width * displayDimensions.height)) * 100
     );
@@ -138,7 +138,7 @@ export default function RCSImageCropper({
       currentAspect,
       coverage,
     };
-  }, [crop, imageDimensions, displayDimensions]);
+  }, [crop, imageDimensions, displayDimensions, selectedRatio.ratio]);
 
 const previewCanvasRef = useRef(null);
 
@@ -153,19 +153,23 @@ const previewCanvasRef = useRef(null);
     const scaleX = imageDimensions.width / displayDimensions.width;
     const scaleY = imageDimensions.height / displayDimensions.height;
 
+    // Calculate source crop coordinates in original image
     const sx = crop.x * scaleX;
     const sy = crop.y * scaleY;
     const sw = crop.width * scaleX;
     const sh = crop.height * scaleY;
 
-    const aspect = crop.width / crop.height;
+    // Set canvas to exact target dimensions
+    const targetRatio = selectedRatio.ratio;
     const previewWidth = 360;
-    const previewHeight = Math.round(previewWidth / aspect);
+    const previewHeight = previewWidth / targetRatio;
 
     canvas.width = previewWidth;
     canvas.height = previewHeight;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.save();
 
     if (rotation !== 0) {
@@ -174,6 +178,7 @@ const previewCanvasRef = useRef(null);
       ctx.translate(-canvas.width / 2, -canvas.height / 2);
     }
 
+    // Draw the exact cropped area
     ctx.drawImage(
       img,
       sx,
@@ -187,6 +192,45 @@ const previewCanvasRef = useRef(null);
     );
 
     ctx.restore();
+
+    // Draw grid lines if enabled
+    if (showGrid) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 2;
+
+      // Vertical lines at 1/3 and 2/3
+      const x1 = canvas.width / 3;
+      const x2 = (canvas.width * 2) / 3;
+      
+      ctx.beginPath();
+      ctx.moveTo(x1, 0);
+      ctx.lineTo(x1, canvas.height);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2, 0);
+      ctx.lineTo(x2, canvas.height);
+      ctx.stroke();
+
+      // Horizontal lines at 1/3 and 2/3
+      const y1 = canvas.height / 3;
+      const y2 = (canvas.height * 2) / 3;
+      
+      ctx.beginPath();
+      ctx.moveTo(0, y1);
+      ctx.lineTo(canvas.width, y1);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, y2);
+      ctx.lineTo(canvas.width, y2);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
   };
 
   img.crossOrigin = 'anonymous';
@@ -194,11 +238,12 @@ const previewCanvasRef = useRef(null);
 }, [
   crop,
   rotation,
-  zoom,
   imageUrl,
   imageDimensions,
   displayDimensions,
-  imageLoading
+  imageLoading,
+  selectedRatio.ratio,
+  showGrid
 ]);
 
 
@@ -221,7 +266,7 @@ const previewCanvasRef = useRef(null);
       height: imgRect.height,
     });
 
-    const ratio = selectedRatio.ratio || 16 / 9;
+    const ratio = selectedRatio.ratio;
     const maxWidth = imgRect.width * 0.9;
     const maxHeight = imgRect.height * 0.9;
 
@@ -232,6 +277,9 @@ const previewCanvasRef = useRef(null);
       cropHeight = maxHeight;
       cropWidth = cropHeight * ratio;
     }
+
+    // Ensure exact aspect ratio
+    cropHeight = cropWidth / ratio;
 
     const initialCrop = {
       x: (imgRect.width - cropWidth) / 2,
@@ -322,6 +370,7 @@ const previewCanvasRef = useRef(null);
           newCrop.width = newCrop.height * ratio;
         }
 
+        // Ensure crop stays within bounds
         if (newCrop.x + newCrop.width > displayDimensions.width) {
           newCrop.width = displayDimensions.width - newCrop.x;
           newCrop.height = newCrop.width / ratio;
@@ -330,6 +379,12 @@ const previewCanvasRef = useRef(null);
           newCrop.height = displayDimensions.height - newCrop.y;
           newCrop.width = newCrop.height * ratio;
         }
+      }
+
+      // Final validation: enforce exact aspect ratio
+      const currentRatio = newCrop.width / newCrop.height;
+      if (Math.abs(currentRatio - ratio) > 0.01) {
+        newCrop.height = newCrop.width / ratio;
       }
 
       setCrop(newCrop);
@@ -727,16 +782,13 @@ const previewCanvasRef = useRef(null);
             {/* RIGHT SIDE - CONTROLS PANEL - RESPONSIVE */}
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px', position: window.innerWidth < 992 ? 'relative' : 'sticky', top: '0', alignSelf: 'flex-start' }}>
               <Card size="small" title={<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ fontSize: '18px' }}></span><span style={{ fontWeight: 600 }}>Live Preview</span></div>} style={{ borderRadius: '12px', border: '1px solid #e0e7ff', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '12px', background: 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)' }}>
-                <div style={{ width: '100%', maxWidth: window.innerWidth < 768 ? '100%' : '360px', margin: '0 auto', position: 'relative', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                  <canvas ref={previewCanvasRef} style={{ width: '100%', display: 'block', background: '#000' }} />
-                  <GridLines showGrid={showGrid} />
+                <div style={{ width: '100%', maxWidth: window.innerWidth < 768 ? '100%' : '360px', margin: '0 auto' }}>
+                  <div style={{ position: 'relative', width: '100%', paddingBottom: `${(1 / selectedRatio.ratio) * 100}%`, borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', background: '#000' }}>
+                    <canvas ref={previewCanvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'block' }} />
+                  </div>
                 </div>
               </Card>
 
-              {/* Zoom Control
-              <Card size="small" title={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ZoomInOutlined style={{ fontSize: '14px', color: '#1890ff' }} /><span style={{ fontWeight: 600 }}>Zoom</span></div><span style={{ fontSize: '12px', fontWeight: 700, color: '#1890ff', background: '#e6f7ff', padding: '2px 8px', borderRadius: '4px' }}>{Math.round(zoom * 100)}%</span></div>} style={{ borderRadius: '10px', border: '1px solid #e8e8e8' }} bodyStyle={{ padding: '12px 16px' }}>
-                <Slider min={0.5} max={3} step={0.1} value={zoom} onChange={handleZoomChange} marks={{ 0.5: '50%', 1: '100%', 3: '300%' }} trackStyle={{ background: 'linear-gradient(90deg, #1890ff 0%, #096dd9 100%)', height: '6px' }} railStyle={{ background: '#e8e8e8', height: '6px' }} handleStyle={{ borderColor: '#1890ff', height: '18px', width: '18px', marginTop: '-6px', boxShadow: '0 2px 6px rgba(24, 144, 255, 0.3)' }} />
-              </Card> */}
 
               {/* Rotation Control */}
               <Card size="small" title={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><RotateRightOutlined style={{ fontSize: '14px', color: '#1890ff' }} /><span style={{ fontWeight: 600 }}>Rotate</span></div><span style={{ fontSize: '12px', fontWeight: 700, color: '#1890ff', background: '#e6f7ff', padding: '2px 8px', borderRadius: '4px' }}>{rotation}°</span></div>} style={{ borderRadius: '10px', border: '1px solid #e8e8e8' }} bodyStyle={{ padding: '12px 16px' }}>
@@ -752,6 +804,20 @@ const previewCanvasRef = useRef(null);
                 <Row gutter={[8, 8]}>
                   <Col span={12}><Button type="default" block onClick={handleCenterCrop} style={{ height: '38px', fontSize: '13px', fontWeight: 500, borderRadius: '8px' }}>Center Crop</Button></Col>
                   <Col span={12}><Button type="default" block onClick={() => setShowGrid(!showGrid)} style={{ height: '38px', fontSize: '13px', fontWeight: 500, borderRadius: '8px' }}>{showGrid ? 'Hide Grid' : 'Show Grid'}</Button></Col>
+                  <Col span={24}><Button type="default" block onClick={() => {
+                    const canvas = previewCanvasRef.current;
+                    if (canvas) {
+                      canvas.toBlob((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'preview-test.jpg';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        message.success('Preview downloaded for testing');
+                      }, 'image/jpeg', 0.95);
+                    }
+                  }} style={{ height: '38px', fontSize: '13px', fontWeight: 500, borderRadius: '8px', background: '#52c41a', color: '#fff', border: 'none' }}>Download Preview</Button></Col>
                   <Col span={24}><Button type="primary" danger block onClick={handleReset} icon={<UndoOutlined />} style={{ height: '38px', fontSize: '13px', fontWeight: 600, borderRadius: '8px', boxShadow: '0 2px 6px rgba(255, 77, 79, 0.3)' }}>Reset All</Button></Col>
                 </Row>
               </Card>

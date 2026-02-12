@@ -620,24 +620,6 @@ console.log(transactions)        // Stats will be calculated via useEffect when 
                   <CheckSquareOutlined style={{ marginRight: '8px' }} /> 
                   {selectedRowKeys.length} invoice{selectedRowKeys.length > 1 ? 's' : ''} selected
                 </span>
-                <Space size="middle">
-                  <Button
-                    type="primary"
-                    icon={<DownloadOutlined />}
-                    onClick={handleBulkDownload}
-                    loading={downloading}
-                    style={{ padding: '4px 20px' }}
-                  >
-                    Download All
-                  </Button>
-                  <Button
-                    icon={<ClearOutlined />}
-                    onClick={handleClearSelection}
-                    style={{ padding: '4px 15px' }}
-                  >
-                    Clear Selection
-                  </Button>
-                </Space>
               </div>
             )}
 

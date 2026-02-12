@@ -166,24 +166,36 @@ export default function RCSMessagePreview({ data }) {
 
   // Render rich card
   const renderRichCard = () => {
-    const { title, subtitle, imageUrl, actions = [] } = content;
+    const { title, subtitle, description, imageUrl, actions = [] } = content;
     if (!title) return null;
 
     return (
-      <div style={messageBubbleStyle}>
+      <div style={{...messageBubbleStyle, maxWidth: '100%'}}>
         {imageUrl && (
-          <img
-            src={imageUrl}
-            alt="RCS Card"
-            style={{
-              width: '100%',
-              height: '160px',
-              objectFit: 'cover',
-            }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          />
+          <div style={{ 
+            width: '100%', 
+            position: 'relative',
+            paddingBottom: '50%',
+            overflow: 'hidden', 
+            background: '#000' 
+          }}>
+            <img
+              src={imageUrl}
+              alt="RCS Card"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+              onError={(e) => {
+                e.target.parentElement.style.display = 'none';
+              }}
+            />
+          </div>
         )}
         <div style={{ padding: '12px' }}>
           <h4
@@ -196,7 +208,7 @@ export default function RCSMessagePreview({ data }) {
           >
             {title}
           </h4>
-          {subtitle && (
+          {(subtitle || description) && (
             <p
               style={{
                 color: '#333',
@@ -207,7 +219,7 @@ export default function RCSMessagePreview({ data }) {
                 wordBreak: 'break-word',
               }}
             >
-              {subtitle}
+              {description || subtitle}
             </p>
           )}
           {actions.length > 0 && (
@@ -259,6 +271,7 @@ export default function RCSMessagePreview({ data }) {
           ...messageBubbleStyle,
           background: 'transparent',
           boxShadow: 'none',
+          maxWidth: '100%',
         }}
       >
         <div
@@ -267,33 +280,49 @@ export default function RCSMessagePreview({ data }) {
             gap: '8px',
             overflowX: 'auto',
             padding: '0 4px',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
           }}
         >
-          {cards.slice(0, 3).map((card, idx) => (
+          {cards.slice(0, 10).map((card, idx) => (
             <div
               key={idx}
               style={{
-                minWidth: 'min(120px, 35vw)',
+                minWidth: '160px',
+                maxWidth: '160px',
                 background: '#e3f2fd',
                 borderRadius: '12px',
                 overflow: 'hidden',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                flexShrink: 0,
               }}
             >
               {card.imageUrl && (
-                <img
-                  src={card.imageUrl}
-                  alt={card.title}
-                  style={{
-                    width: '100%',
-                    height: '100px',
-                    objectFit: 'cover',
-                  }}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
-                />
+                <div style={{ 
+                  width: '100%', 
+                  position: 'relative',
+                  paddingBottom: '50%',
+                  overflow: 'hidden', 
+                  background: '#000' 
+                }}>
+                  <img
+                    src={card.imageUrl}
+                    alt={card.title}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      display: 'block',
+                    }}
+                    onError={(e) => {
+                      e.target.parentElement.style.display = 'none';
+                    }}
+                  />
+                </div>
               )}
               <div style={{ padding: '10px' }}>
                 <h5
@@ -306,7 +335,7 @@ export default function RCSMessagePreview({ data }) {
                 >
                   {card.title}
                 </h5>
-                {card.subtitle && (
+                {(card.subtitle || card.description) && (
                   <p
                     style={{
                       color: '#333',
@@ -317,7 +346,7 @@ export default function RCSMessagePreview({ data }) {
                       lineHeight: '1.3',
                     }}
                   >
-                    {card.subtitle}
+                    {card.description || card.subtitle}
                   </p>
                 )}
                 {card.actions && card.actions.length > 0 && (

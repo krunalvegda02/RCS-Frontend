@@ -565,6 +565,8 @@ export default function CreateTemplatePage() {
                     placeholder="e.g., Learn More"
                     value={action.title}
                     onChange={(e) => handleActionChange(index, 'title', e.target.value)}
+                    maxLength={25}
+                    showCount
                     style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
                   />
                 </Col>
@@ -618,6 +620,8 @@ export default function CreateTemplatePage() {
           placeholder="e.g., Product Details"
           value={richCard.title}
           onChange={(e) => setRichCard({ ...richCard, title: e.target.value })}
+          maxLength={200}
+          showCount
           style={{ height: '52px', fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0' }}
         />
       </div>
@@ -629,6 +633,8 @@ export default function CreateTemplatePage() {
           placeholder="e.g., Limited Time Offer"
           value={richCard.subtitle}
           onChange={(e) => setRichCard({ ...richCard, subtitle: e.target.value })}
+          maxLength={2000}
+          showCount
           style={{ fontSize: '15px', padding: '14px 18px', borderRadius: '10px', border: '2px solid #e0e0e0', lineHeight: '1.6' }}
         />
       </div>
@@ -697,6 +703,8 @@ export default function CreateTemplatePage() {
                     placeholder="e.g., View Details"
                     value={action.title}
                     onChange={(e) => handleRichCardActionChange(index, 'title', e.target.value)}
+                    maxLength={25}
+                    showCount
                     style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
                   />
                 </Col>
@@ -764,6 +772,8 @@ export default function CreateTemplatePage() {
                 placeholder="e.g., Product 1"
                 value={item.title}
                 onChange={(e) => handleCarouselItemChange(itemIndex, 'title', e.target.value)}
+                maxLength={200}
+                showCount
                 style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
               />
             </div>
@@ -775,6 +785,8 @@ export default function CreateTemplatePage() {
                 placeholder="e.g., Description"
                 value={item.subtitle}
                 onChange={(e) => handleCarouselItemChange(itemIndex, 'subtitle', e.target.value)}
+                maxLength={2000}
+                showCount
                 style={{ fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px', lineHeight: '1.6' }}
               />
             </div>
@@ -843,6 +855,8 @@ export default function CreateTemplatePage() {
                           placeholder="e.g., Buy Now"
                           value={action.title}
                           onChange={(e) => handleCarouselActionChange(itemIndex, actionIndex, 'title', e.target.value)}
+                          maxLength={25}
+                          showCount
                           style={{ height: '44px', fontSize: '14px', padding: '10px 14px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
                         />
                       </Col>
