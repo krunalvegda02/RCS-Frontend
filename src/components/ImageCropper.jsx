@@ -74,20 +74,31 @@ const RCS_ASPECT_RATIOS = {
 };
 
 // ✅ REUSABLE GRID LINES - IDENTICAL IN BOTH CROP AND PREVIEW
+const gridLineStyle = (position, type) => ({
+  position: 'absolute',
+
+  ...(type === 'vertical'
+    ? { left: position, top: 0, bottom: 0, width: '1px' }
+    : { top: position, left: 0, right: 0, height: '1px' }),
+
+  background: 'rgba(255,255,255,0.9)',
+  boxShadow: '0 0 2px rgba(0,0,0,0.6)',
+  transform: 'translateZ(0)',
+});
+
 const GridLines = ({ showGrid = true }) => {
   if (!showGrid) return null;
-  
+
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 5 }}>
-      {/* Vertical lines at exact 1/3 and 2/3 */}
-      <div style={{ position: 'absolute', left: 'calc(100% / 3)', top: 0, bottom: 0, width: '1.5px', background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 2px rgba(0,0,0,0.6)' }} />
-      <div style={{ position: 'absolute', left: 'calc(100% * 2 / 3)', top: 0, bottom: 0, width: '1.5px', background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 2px rgba(0,0,0,0.6)' }} />
-      {/* Horizontal lines at exact 1/3 and 2/3 */}
-      <div style={{ position: 'absolute', top: 'calc(100% / 3)', left: 0, right: 0, height: '1.5px', background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 2px rgba(0,0,0,0.6)' }} />
-      <div style={{ position: 'absolute', top: 'calc(100% * 2 / 3)', left: 0, right: 0, height: '1.5px', background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 2px rgba(0,0,0,0.6)' }} />
+      <div style={gridLineStyle('33.3333%', 'vertical')} />
+      <div style={gridLineStyle('66.6666%', 'vertical')} />
+      <div style={gridLineStyle('33.3333%', 'horizontal')} />
+      <div style={gridLineStyle('66.6666%', 'horizontal')} />
     </div>
   );
 };
+
 
 export default function RCSImageCropper({
   open,
@@ -676,7 +687,7 @@ const previewCanvasRef = useRef(null);
                     style={{
                       width: '100%',
                       height: '100%',
-                      objectFit: 'contain',
+                      objectFit: 'cover',
                       transform: `scale(${zoom}) rotate(${rotation}deg)`,
                       transition: isDragging || isResizing ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       draggable: false,
