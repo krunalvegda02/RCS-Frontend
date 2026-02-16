@@ -20,6 +20,8 @@ import {
   Breadcrumb,
   Spin,
   Badge,
+  Switch,
+  Divider,
 } from 'antd';
 import {
   PlusOutlined,
@@ -41,6 +43,7 @@ import {
   EyeOutlined,
   StopOutlined,
   LoginOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import { getAllUsers, updateWallet, updateUserPassword, getUserTransactionHistory, createUser, updateUser, toggleUserStatus, getUserPassword } from '../../redux/slices/adminSlice';
@@ -69,6 +72,12 @@ function UserManagement() {
   const [newPassword, setNewPassword] = useState('');
   const [createUserForm] = Form.useForm();
   const [editUserForm] = Form.useForm();
+
+  // Multi-config state
+  const [createMultiConfig, setCreateMultiConfig] = useState(false);
+  const [createJioConfigs, setCreateJioConfigs] = useState([]);
+  const [editMultiConfig, setEditMultiConfig] = useState(false);
+  const [editJioConfigs, setEditJioConfigs] = useState([]);
 
   useEffect(() => {
     dispatch(getAllUsers({ page: 1, limit: 50, status: 'active', verified: true }));
@@ -159,15 +168,23 @@ function UserManagement() {
   const handleCreateUser = async () => {
     try {
       const values = await createUserForm.validateFields();
-      // Ensure role is set to USER (uppercase)
       const userData = {
         ...values,
         role: 'USER'
       };
+
+      // Add multi-config data
+      if (createMultiConfig && createJioConfigs.length > 0) {
+        userData.isMultiConfig = true;
+        userData.jioConfigs = createJioConfigs;
+      }
+
       await dispatch(createUser(userData)).unwrap();
       message.success('User created successfully!');
       setIsCreateUserModalVisible(false);
       createUserForm.resetFields();
+      setCreateMultiConfig(false);
+      setCreateJioConfigs([]);
     } catch (error) {
       if (error.errorFields) {
         message.error('Please fill in all required fields');
@@ -179,9 +196,19 @@ function UserManagement() {
 
   const openEditModal = (user) => {
     console.log('User data:', user);
-    console.log('Jio Config:', user.jioConfig);
     setSelectedUser(user);
     setIsEditUserModalVisible(true);
+
+    // Set multi-config state
+    const isMulti = user.isMultiConfig || false;
+    setEditMultiConfig(isMulti);
+    setEditJioConfigs(isMulti && user.jioConfigs ? user.jioConfigs.map(c => ({
+      label: c.label || '',
+      clientId: c.clientId || '',
+      clientSecret: c.clientSecret || '',
+      assistantId: c.assistantId || '',
+    })) : []);
+
     setTimeout(() => {
       const formValues = {
         name: user.name,
@@ -193,7 +220,6 @@ function UserManagement() {
         assistantId: user.jioConfig?.assistantId || '',
         perMessageCharge: user.perMessageCharge || 0
       };
-      console.log('Setting form values:', formValues);
       editUserForm.setFieldsValue(formValues);
     }, 100);
   };
@@ -203,23 +229,27 @@ function UserManagement() {
       const values = await editUserForm.validateFields();
       const { clientId, clientSecret, assistantId, ...userData } = values;
 
-      // Validate Jio config - all 3 required if any is provided
-      if ((clientId || clientSecret || assistantId) && (!clientId || !clientSecret || !assistantId)) {
-        message.error('All 3 Jio config fields (Client ID, Client Secret, Assistant ID) are required if updating');
-        return;
-      }
-
       const updatePayload = {
         userId: selectedUser._id,
-        ...userData
+        ...userData,
+        isMultiConfig: editMultiConfig,
       };
 
-      if (clientId && clientSecret && assistantId) {
-        updatePayload.jioConfig = {
-          clientId: clientId.trim(),
-          clientSecret: clientSecret.trim(),
-          assistantId: assistantId.trim()
-        };
+      if (editMultiConfig && editJioConfigs.length > 0) {
+        updatePayload.jioConfigs = editJioConfigs;
+      } else {
+        // Single config - validate same as before
+        if ((clientId || clientSecret || assistantId) && (!clientId || !clientSecret || !assistantId)) {
+          message.error('All 3 Jio config fields (Client ID, Client Secret, Assistant ID) are required if updating');
+          return;
+        }
+        if (clientId && clientSecret && assistantId) {
+          updatePayload.jioConfig = {
+            clientId: clientId.trim(),
+            clientSecret: clientSecret.trim(),
+            assistantId: assistantId.trim()
+          };
+        }
       }
 
       await dispatch(updateUser(updatePayload)).unwrap();
@@ -787,7 +817,7 @@ function UserManagement() {
                 label="Client ID"
                 name="clientId"
               >
-                <Input placeholder="Enter Jio RCS Client ID (optional)" />
+                <Input placeholder="Enter Jio RCS Client ID (optional)" disabled={editMultiConfig} />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -795,7 +825,7 @@ function UserManagement() {
                 label="Client Secret"
                 name="clientSecret"
               >
-                <Input.Password placeholder="Enter Jio RCS Client Secret (optional)" />
+                <Input.Password placeholder="Enter Jio RCS Client Secret (optional)" disabled={editMultiConfig} />
               </Form.Item>
             </Col>
           </Row>
@@ -805,10 +835,102 @@ function UserManagement() {
                 label="Assistant ID"
                 name="assistantId"
               >
-                <Input placeholder="Enter Jio RCS Assistant ID (optional)" />
+                <Input placeholder="Enter Jio RCS Assistant ID (optional)" disabled={editMultiConfig} />
               </Form.Item>
             </Col>
           </Row>
+
+          <Divider style={{ margin: '12px 0' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <Switch
+              checked={editMultiConfig}
+              onChange={(checked) => {
+                setEditMultiConfig(checked);
+                if (checked && editJioConfigs.length === 0) {
+                  setEditJioConfigs([{ label: 'Bot 1', clientId: '', clientSecret: '', assistantId: '' }]);
+                }
+              }}
+            />
+            <span style={{ fontWeight: 600 }}>Enable Multi Config</span>
+            {editMultiConfig && <Tag color="blue">{editJioConfigs.length} config(s)</Tag>}
+          </div>
+
+          {editMultiConfig && (
+            <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 16 }}>
+              {editJioConfigs.map((cfg, idx) => (
+                <div key={idx} style={{ marginBottom: 16, background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #d9d9d9' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <strong>Config {idx + 1}</strong>
+                    {editJioConfigs.length > 1 && (
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<MinusCircleOutlined />}
+                        onClick={() => setEditJioConfigs(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <Row gutter={8}>
+                    <Col span={6}>
+                      <Input
+                        placeholder="Label"
+                        value={cfg.label}
+                        onChange={e => {
+                          const updated = [...editJioConfigs];
+                          updated[idx] = { ...updated[idx], label: e.target.value };
+                          setEditJioConfigs(updated);
+                        }}
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Input
+                        placeholder="Client ID"
+                        value={cfg.clientId}
+                        onChange={e => {
+                          const updated = [...editJioConfigs];
+                          updated[idx] = { ...updated[idx], clientId: e.target.value };
+                          setEditJioConfigs(updated);
+                        }}
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Input.Password
+                        placeholder="Client Secret"
+                        value={cfg.clientSecret}
+                        onChange={e => {
+                          const updated = [...editJioConfigs];
+                          updated[idx] = { ...updated[idx], clientSecret: e.target.value };
+                          setEditJioConfigs(updated);
+                        }}
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Input
+                        placeholder="Assistant ID"
+                        value={cfg.assistantId}
+                        onChange={e => {
+                          const updated = [...editJioConfigs];
+                          updated[idx] = { ...updated[idx], assistantId: e.target.value };
+                          setEditJioConfigs(updated);
+                        }}
+                      />
+                    </Col>
+                  </Row>
+                </div>
+              ))}
+              <Button
+                type="dashed"
+                onClick={() => setEditJioConfigs(prev => [...prev, { label: `Bot ${prev.length + 1}`, clientId: '', clientSecret: '', assistantId: '' }])}
+                icon={<PlusOutlined />}
+                block
+              >
+                Add Config
+              </Button>
+            </div>
+          )}
         </Form>
       </Modal >
 
@@ -925,7 +1047,7 @@ function UserManagement() {
                 label="Client ID"
                 name="clientId"
               >
-                <Input placeholder="Enter Jio RCS Client ID (optional)" />
+                <Input placeholder="Enter Jio RCS Client ID (optional)" disabled={createMultiConfig} />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -933,7 +1055,7 @@ function UserManagement() {
                 label="Client Secret"
                 name="clientSecret"
               >
-                <Input.Password placeholder="Enter Jio RCS Client Secret (optional)" />
+                <Input.Password placeholder="Enter Jio RCS Client Secret (optional)" disabled={createMultiConfig} />
               </Form.Item>
             </Col>
           </Row>
@@ -943,10 +1065,102 @@ function UserManagement() {
                 label="Assistant ID"
                 name="assistantId"
               >
-                <Input placeholder="Enter Jio RCS Assistant ID (optional)" />
+                <Input placeholder="Enter Jio RCS Assistant ID (optional)" disabled={createMultiConfig} />
               </Form.Item>
             </Col>
           </Row>
+
+          <Divider style={{ margin: '12px 0' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <Switch
+              checked={createMultiConfig}
+              onChange={(checked) => {
+                setCreateMultiConfig(checked);
+                if (checked && createJioConfigs.length === 0) {
+                  setCreateJioConfigs([{ label: 'Bot 1', clientId: '', clientSecret: '', assistantId: '' }]);
+                }
+              }}
+            />
+            <span style={{ fontWeight: 600 }}>Enable Multi Config</span>
+            {createMultiConfig && <Tag color="blue">{createJioConfigs.length} config(s)</Tag>}
+          </div>
+
+          {createMultiConfig && (
+            <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 16 }}>
+              {createJioConfigs.map((cfg, idx) => (
+                <div key={idx} style={{ marginBottom: 16, background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #d9d9d9' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <strong>Config {idx + 1}</strong>
+                    {createJioConfigs.length > 1 && (
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<MinusCircleOutlined />}
+                        onClick={() => setCreateJioConfigs(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <Row gutter={8}>
+                    <Col span={6}>
+                      <Input
+                        placeholder="Label"
+                        value={cfg.label}
+                        onChange={e => {
+                          const updated = [...createJioConfigs];
+                          updated[idx] = { ...updated[idx], label: e.target.value };
+                          setCreateJioConfigs(updated);
+                        }}
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Input
+                        placeholder="Client ID"
+                        value={cfg.clientId}
+                        onChange={e => {
+                          const updated = [...createJioConfigs];
+                          updated[idx] = { ...updated[idx], clientId: e.target.value };
+                          setCreateJioConfigs(updated);
+                        }}
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Input.Password
+                        placeholder="Client Secret"
+                        value={cfg.clientSecret}
+                        onChange={e => {
+                          const updated = [...createJioConfigs];
+                          updated[idx] = { ...updated[idx], clientSecret: e.target.value };
+                          setCreateJioConfigs(updated);
+                        }}
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Input
+                        placeholder="Assistant ID"
+                        value={cfg.assistantId}
+                        onChange={e => {
+                          const updated = [...createJioConfigs];
+                          updated[idx] = { ...updated[idx], assistantId: e.target.value };
+                          setCreateJioConfigs(updated);
+                        }}
+                      />
+                    </Col>
+                  </Row>
+                </div>
+              ))}
+              <Button
+                type="dashed"
+                onClick={() => setCreateJioConfigs(prev => [...prev, { label: `Bot ${prev.length + 1}`, clientId: '', clientSecret: '', assistantId: '' }])}
+                icon={<PlusOutlined />}
+                block
+              >
+                Add Config
+              </Button>
+            </div>
+          )}
         </Form>
       </Modal >
 
