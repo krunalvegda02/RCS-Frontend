@@ -151,111 +151,116 @@ export default function RCSImageCropper({
     };
   }, [crop, imageDimensions, displayDimensions, selectedRatio.ratio]);
 
-const previewCanvasRef = useRef(null);
+  const previewCanvasRef = useRef(null);
 
   useEffect(() => {
-  if (!imageUrl || !previewCanvasRef.current || imageLoading) return;
+    if (!imageUrl || !previewCanvasRef.current || imageLoading) return;
 
-  const canvas = previewCanvasRef.current;
-  const ctx = canvas.getContext('2d');
-  const img = new Image();
+    const canvas = previewCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
 
-  img.onload = () => {
-    const scaleX = imageDimensions.width / displayDimensions.width;
-    const scaleY = imageDimensions.height / displayDimensions.height;
+    img.onload = () => {
+      const scaleX = imageDimensions.width / displayDimensions.width;
+      const scaleY = imageDimensions.height / displayDimensions.height;
 
-    // Calculate source crop coordinates in original image
-    const sx = crop.x * scaleX;
-    const sy = crop.y * scaleY;
-    const sw = crop.width * scaleX;
-    const sh = crop.height * scaleY;
+      // Account for image offset within container
+      const offsetX = crop.imageOffsetX || 0;
+      const offsetY = crop.imageOffsetY || 0;
 
-    // Set canvas to exact target dimensions
-    const targetRatio = selectedRatio.ratio;
-    const previewWidth = 360;
-    const previewHeight = previewWidth / targetRatio;
+      // Calculate source crop coordinates in original image (relative to actual image, not container)
+      const sx = Math.max(0, (crop.x - offsetX) / zoom * scaleX);
+      const sy = Math.max(0, (crop.y - offsetY) / zoom * scaleY);
+      const sw = crop.width / zoom * scaleX;
+      const sh = crop.height / zoom * scaleY;
 
-    canvas.width = previewWidth;
-    canvas.height = previewHeight;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.save();
+      // Set canvas to exact target dimensions
+      const targetRatio = selectedRatio.ratio;
+      const previewWidth = 360;
+      const previewHeight = previewWidth / targetRatio;
 
-    if (rotation !== 0) {
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.translate(-canvas.width / 2, -canvas.height / 2);
-    }
+      canvas.width = previewWidth;
+      canvas.height = previewHeight;
 
-    // Draw the exact cropped area
-    ctx.drawImage(
-      img,
-      sx,
-      sy,
-      sw,
-      sh,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-
-    ctx.restore();
-
-    // Draw grid lines if enabled
-    if (showGrid) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = 'rgba(0,0,0,0.6)';
-      ctx.shadowBlur = 2;
 
-      // Vertical lines at 1/3 and 2/3
-      const x1 = canvas.width / 3;
-      const x2 = (canvas.width * 2) / 3;
-      
-      ctx.beginPath();
-      ctx.moveTo(x1, 0);
-      ctx.lineTo(x1, canvas.height);
-      ctx.stroke();
+      if (rotation !== 0) {
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+      }
 
-      ctx.beginPath();
-      ctx.moveTo(x2, 0);
-      ctx.lineTo(x2, canvas.height);
-      ctx.stroke();
+      // Draw the exact cropped area
+      ctx.drawImage(
+        img,
+        sx,
+        sy,
+        sw,
+        sh,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
 
-      // Horizontal lines at 1/3 and 2/3
-      const y1 = canvas.height / 3;
-      const y2 = (canvas.height * 2) / 3;
-      
-      ctx.beginPath();
-      ctx.moveTo(0, y1);
-      ctx.lineTo(canvas.width, y1);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(0, y2);
-      ctx.lineTo(canvas.width, y2);
-      ctx.stroke();
-      
       ctx.restore();
-    }
-  };
 
-  img.crossOrigin = 'anonymous';
-  img.src = imageUrl;
-}, [
-  crop,
-  rotation,
-  imageUrl,
-  imageDimensions,
-  displayDimensions,
-  imageLoading,
-  selectedRatio.ratio,
-  showGrid
-]);
+      // Draw grid lines if enabled
+      if (showGrid) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = 'rgba(0,0,0,0.6)';
+        ctx.shadowBlur = 2;
+
+        // Vertical lines at 1/3 and 2/3
+        const x1 = canvas.width / 3;
+        const x2 = (canvas.width * 2) / 3;
+
+        ctx.beginPath();
+        ctx.moveTo(x1, 0);
+        ctx.lineTo(x1, canvas.height);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(x2, 0);
+        ctx.lineTo(x2, canvas.height);
+        ctx.stroke();
+
+        // Horizontal lines at 1/3 and 2/3
+        const y1 = canvas.height / 3;
+        const y2 = (canvas.height * 2) / 3;
+
+        ctx.beginPath();
+        ctx.moveTo(0, y1);
+        ctx.lineTo(canvas.width, y1);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, y2);
+        ctx.lineTo(canvas.width, y2);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    };
+
+    img.crossOrigin = 'anonymous';
+    img.src = imageUrl;
+  }, [
+    crop,
+    rotation,
+    imageUrl,
+    imageDimensions,
+    displayDimensions,
+    imageLoading,
+    selectedRatio.ratio,
+    showGrid
+  ]);
 
 
 
@@ -266,6 +271,7 @@ const previewCanvasRef = useRef(null);
     if (!container) return;
 
     const imgRect = img.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
 
     setImageDimensions({
       width: img.naturalWidth,
@@ -278,14 +284,24 @@ const previewCanvasRef = useRef(null);
     });
 
     const ratio = selectedRatio.ratio;
-    const maxWidth = imgRect.width * 0.9;
-    const maxHeight = imgRect.height * 0.9;
 
-    let cropWidth = Math.min(maxWidth, 500);
+    // Calculate image offset within container (since image is centered)
+    const offsetX = (containerRect.width - imgRect.width) / 2;
+    const offsetY = (containerRect.height - imgRect.height) / 2;
+
+    // Use full image dimensions to show complete uploaded image
+    let cropWidth = imgRect.width;
     let cropHeight = cropWidth / ratio;
 
-    if (cropHeight > maxHeight) {
-      cropHeight = maxHeight;
+    // If calculated height exceeds image height, fit by height instead
+    // if (cropHeight > imgRect.height) {
+    //   cropHeight = imgRect.height;
+    //   cropWidth = cropHeight * ratio;
+    // }
+
+
+    if (cropHeight > imgRect.height) {
+      cropHeight = imgRect.height;
       cropWidth = cropHeight * ratio;
     }
 
@@ -293,10 +309,12 @@ const previewCanvasRef = useRef(null);
     cropHeight = cropWidth / ratio;
 
     const initialCrop = {
-      x: (imgRect.width - cropWidth) / 2,
-      y: (imgRect.height - cropHeight) / 2,
+      x: offsetX + (imgRect.width - cropWidth) / 2,
+      y: offsetY + (imgRect.height - cropHeight) / 2,
       width: cropWidth,
       height: cropHeight,
+      imageOffsetX: offsetX,
+      imageOffsetY: offsetY,
     };
 
     setCrop(initialCrop);
@@ -340,9 +358,13 @@ const previewCanvasRef = useRef(null);
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
+    // Get image offset
+    const offsetX = crop.imageOffsetX || 0;
+    const offsetY = crop.imageOffsetY || 0;
+
     if (isDragging) {
-      const newX = Math.max(0, Math.min(displayDimensions.width - crop.width, mouseX - dragStart.x));
-      const newY = Math.max(0, Math.min(displayDimensions.height - crop.height, mouseY - dragStart.y));
+      const newX = Math.max(offsetX, Math.min(offsetX + displayDimensions.width - crop.width, mouseX - dragStart.x));
+      const newY = Math.max(offsetY, Math.min(offsetY + displayDimensions.height - crop.height, mouseY - dragStart.y));
       setCrop((prev) => ({ ...prev, x: newX, y: newY }));
     } else if (isResizing && resizeHandle) {
       const deltaX = e.clientX - dragStart.mouseX;
@@ -356,8 +378,8 @@ const previewCanvasRef = useRef(null);
       }
       if (resizeHandle.includes('w')) {
         const newWidth = Math.max(100, dragStart.cropWidth - deltaX);
-        const newX = Math.max(0, dragStart.cropX + deltaX);
-        if (newX + newWidth <= displayDimensions.width) {
+        const newX = Math.max(offsetX, dragStart.cropX + deltaX);
+        if (newX + newWidth <= offsetX + displayDimensions.width) {
           newCrop.x = newX;
           newCrop.width = newWidth;
         }
@@ -367,8 +389,8 @@ const previewCanvasRef = useRef(null);
       }
       if (resizeHandle.includes('n')) {
         const newHeight = Math.max(100, dragStart.cropHeight - deltaY);
-        const newY = Math.max(0, dragStart.cropY + deltaY);
-        if (newY + newHeight <= displayDimensions.height) {
+        const newY = Math.max(offsetY, dragStart.cropY + deltaY);
+        if (newY + newHeight <= offsetY + displayDimensions.height) {
           newCrop.y = newY;
           newCrop.height = newHeight;
         }
@@ -382,12 +404,12 @@ const previewCanvasRef = useRef(null);
         }
 
         // Ensure crop stays within bounds
-        if (newCrop.x + newCrop.width > displayDimensions.width) {
-          newCrop.width = displayDimensions.width - newCrop.x;
+        if (newCrop.x + newCrop.width > offsetX + displayDimensions.width) {
+          newCrop.width = offsetX + displayDimensions.width - newCrop.x;
           newCrop.height = newCrop.width / ratio;
         }
-        if (newCrop.y + newCrop.height > displayDimensions.height) {
-          newCrop.height = displayDimensions.height - newCrop.y;
+        if (newCrop.y + newCrop.height > offsetY + displayDimensions.height) {
+          newCrop.height = offsetY + displayDimensions.height - newCrop.y;
           newCrop.width = newCrop.height * ratio;
         }
       }
@@ -425,27 +447,29 @@ const previewCanvasRef = useRef(null);
       if (!open || imageLoading) return;
 
       const moveStep = 15;
+      const offsetX = crop.imageOffsetX || 0;
+      const offsetY = crop.imageOffsetY || 0;
 
       switch (e.key) {
         case 'ArrowUp':
-          setCrop((prev) => ({ ...prev, y: Math.max(0, prev.y - moveStep) }));
+          setCrop((prev) => ({ ...prev, y: Math.max(offsetY, prev.y - moveStep) }));
           e.preventDefault();
           break;
         case 'ArrowDown':
           setCrop((prev) => ({
             ...prev,
-            y: Math.min(displayDimensions.height - prev.height, prev.y + moveStep),
+            y: Math.min(offsetY + displayDimensions.height - prev.height, prev.y + moveStep),
           }));
           e.preventDefault();
           break;
         case 'ArrowLeft':
-          setCrop((prev) => ({ ...prev, x: Math.max(0, prev.x - moveStep) }));
+          setCrop((prev) => ({ ...prev, x: Math.max(offsetX, prev.x - moveStep) }));
           e.preventDefault();
           break;
         case 'ArrowRight':
           setCrop((prev) => ({
             ...prev,
-            x: Math.min(displayDimensions.width - prev.width, prev.x + moveStep),
+            x: Math.min(offsetX + displayDimensions.width - prev.width, prev.x + moveStep),
           }));
           e.preventDefault();
           break;
@@ -473,14 +497,17 @@ const previewCanvasRef = useRef(null);
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [open, imageLoading, displayDimensions]);
+  }, [open, imageLoading, displayDimensions, crop]);
 
   // CONTROL ACTIONS
   const handleCenterCrop = () => {
+    const offsetX = crop.imageOffsetX || 0;
+    const offsetY = crop.imageOffsetY || 0;
+
     setCrop((prev) => ({
       ...prev,
-      x: (displayDimensions.width - prev.width) / 2,
-      y: (displayDimensions.height - prev.height) / 2,
+      x: offsetX + (displayDimensions.width - prev.width) / 2,
+      y: offsetY + (displayDimensions.height - prev.height) / 2,
     }));
   };
 
@@ -522,10 +549,16 @@ const previewCanvasRef = useRef(null);
       const scaleX = imageDimensions.width / displayDimensions.width;
       const scaleY = imageDimensions.height / displayDimensions.height;
 
-      const actualCropX = Math.round(crop.x * scaleX);
-      const actualCropY = Math.round(crop.y * scaleY);
-      const actualCropWidth = Math.round(crop.width * scaleX);
-      const actualCropHeight = Math.round(crop.height * scaleY);
+      // Account for image offset within container
+      const offsetX = crop.imageOffsetX || 0;
+      const offsetY = crop.imageOffsetY || 0;
+
+      const actualCropX = Math.max(0, Math.round((crop.x - offsetX) / zoom * scaleX));
+      const actualCropY = Math.max(0, Math.round((crop.y - offsetY) / zoom * scaleY));
+
+      const actualCropWidth = Math.round(crop.width / zoom * scaleX);
+      const actualCropHeight = Math.round(crop.height / zoom * scaleY);
+
 
       // Use exact optimal dimensions for output
       const outputWidth = selectedRatio.optimalWidth;
@@ -671,8 +704,11 @@ const previewCanvasRef = useRef(null);
                   style={{
                     position: 'relative',
                     width: '100%',
-                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     minHeight: window.innerWidth < 768 ? '300px' : '400px',
+                    maxHeight: '600px',
                     background: '#0a0a0a',
                     overflow: 'hidden',
                     cursor: isDragging ? 'grabbing' : isResizing ? 'crosshair' : 'default',
@@ -685,9 +721,11 @@ const previewCanvasRef = useRef(null);
                     src={imageUrl}
                     alt="Crop source"
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
+                      maxWidth: '100%',
+                      maxHeight: '600px',
+                      width: 'auto',
+                      height: 'auto',
+                      display: 'block',
                       transform: `scale(${zoom}) rotate(${rotation}deg)`,
                       transition: isDragging || isResizing ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       draggable: false,
