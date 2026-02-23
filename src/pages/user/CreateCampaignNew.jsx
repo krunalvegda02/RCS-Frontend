@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Card, Button, Row, Col, Input, Upload, Empty, message, Breadcrumb, Select, Modal, Form, Table, Tag, Spin, Progress } from 'antd';
 import { SendOutlined, UploadOutlined, DownloadOutlined, HomeOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
@@ -243,22 +243,22 @@ export default function CreateCampaignNew() {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const wb = XLSX.read(evt.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(evt.target.result);
+        const worksheet = workbook.worksheets[0];
         const seen = new Set();
 
-        for (let row of data) {
-          if (!row || row.length === 0) continue;
-          row.forEach((cell) => {
-            if (!cell) return;
-            let num = String(cell).trim().replace(/[\s\-().]/g, '').replace(/[^\d+]/g, '');
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          row.eachCell(cell => {
+            if (!cell.value) return;
+            let num = String(cell.value).trim().replace(/[\s\-().]/g, '').replace(/[^\d+]/g, '');
             if (num.startsWith('+91')) num = num.substring(3);
             else if (num.startsWith('91') && num.length > 10) num = num.substring(2);
             else if (num.startsWith('0')) num = num.substring(1);
             if (/^\d{10}$/.test(num)) seen.add('+91' + num);
           });
-        }
+        });
 
         const imported = Array.from(seen);
         if (imported.length === 0) {
@@ -789,33 +789,53 @@ export default function CreateCampaignNew() {
   };
 
   const downloadDemo = () => {
-    // If contacts are uploaded, download them
     if (batchStats.total > 0 && capabilityResponse?.data) {
       try {
         const contacts = capabilityResponse.data;
-
-        // Create Excel with uploaded contacts
-        const data = [['Index', 'Phone Number']];
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Contacts');
+        
+        sheet.columns = [
+          { header: 'Index', key: 'index', width: 8 },
+          { header: 'Phone Number', key: 'phone', width: 15 }
+        ];
+        
         contacts.forEach((contact, index) => {
-          data.push([index + 1, contact.phoneNumber]);
+          sheet.addRow({ index: index + 1, phone: contact.phoneNumber });
         });
-
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        ws['!cols'] = [{ wch: 8 }, { wch: 15 }];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
-        XLSX.writeFile(wb, `uploaded_contacts_${Date.now()}.xlsx`);
+        
+        workbook.xlsx.writeBuffer().then(buffer => {
+          const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `uploaded_contacts_${Date.now()}.xlsx`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        });
         message.success(`Downloaded ${contacts.length} contacts`);
       } catch {
         message.error('Failed to download contacts');
       }
     } else {
-      // Download demo template
-      const data = [['Index', 'Number'], ['1', '7201000140'], ['2', '7201000141']];
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
-      XLSX.writeFile(wb, 'demo_contacts.xlsx');
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Contacts');
+      sheet.columns = [
+        { header: 'Index', key: 'index', width: 8 },
+        { header: 'Number', key: 'number', width: 15 }
+      ];
+      sheet.addRow({ index: 1, number: '7201000140' });
+      sheet.addRow({ index: 2, number: '7201000141' });
+      
+      workbook.xlsx.writeBuffer().then(buffer => {
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'demo_contacts.xlsx';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      });
       message.success('Demo template downloaded');
     }
   };

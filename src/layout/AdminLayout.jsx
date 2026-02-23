@@ -26,6 +26,7 @@ import {
   TeamOutlined,
   UserAddOutlined,
   CalendarOutlined,
+  FolderOpenOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -137,6 +138,12 @@ export default function AdminLayout() {
     icon: <CalendarOutlined className="text-xl" />,
     label: 'Demo Requests',
     onClick: () => navigate('/admin/demo-requests'),
+  },
+  {
+    key: '/admin/archived-campaigns',
+    icon: <FolderOpenOutlined className="text-xl" />,
+    label: 'Archived Campaigns',
+    onClick: () => navigate('/admin/archived-campaigns'),
   },
   {
     key: '/admin/wallet-requests',

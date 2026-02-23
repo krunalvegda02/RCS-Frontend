@@ -78,7 +78,8 @@ apiClient.interceptors.response.use(
                 originalRequest.url?.includes('change-password') ||
                 originalRequest.url?.includes('2fa/disable') ||
                 originalRequest.url?.includes('2fa/verify') ||
-                originalRequest.url?.includes('login/2fa');
+                originalRequest.url?.includes('login/2fa') ||
+                originalRequest.url?.includes('admin/users/');
 
             // Don't redirect if already on auth page or already handling auth or credential error
             if (!isAuthPage && !isHandlingAuth && !isCredentialError) {
@@ -197,7 +198,10 @@ const apiService = {
     verifyLogin2FA: (userId, token) => _post('auth/login/2fa', { userId, token }),
 
     // Admin Impersonation
-    impersonateUser: (userId) => _post(`auth/admin/impersonate/${userId}`)
+    impersonateUser: (userId) => _post(`auth/admin/impersonate/${userId}`),
+
+    // Delete User
+    deleteUser: (userId, adminPassword) => _delete(`auth/admin/users/${userId}`, { adminPassword }, { data: { adminPassword } })
 };
 
 export { _delete, _get, _post, _patch, _put };

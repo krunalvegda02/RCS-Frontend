@@ -44,6 +44,7 @@ import {
   StopOutlined,
   LoginOutlined,
   MinusCircleOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import { getAllUsers, updateWallet, updateUserPassword, getUserTransactionHistory, createUser, updateUser, toggleUserStatus, getUserPassword } from '../../redux/slices/adminSlice';
@@ -78,6 +79,19 @@ function UserManagement() {
   const [createJioConfigs, setCreateJioConfigs] = useState([]);
   const [editMultiConfig, setEditMultiConfig] = useState(false);
   const [editJioConfigs, setEditJioConfigs] = useState([]);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState(null);
+  const [deleteUserName, setDeleteUserName] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   useEffect(() => {
     dispatch(getAllUsers({ page: 1, limit: 50, status: 'active', verified: true }));
@@ -299,7 +313,27 @@ function UserManagement() {
   };
 
   const handleDeleteUser = (userId, userName) => {
-    message.info('Delete user functionality will be implemented soon');
+    setDeleteUserId(userId);
+    setDeleteUserName(userName);
+    setAdminPassword('');
+    setIsDeleteModalVisible(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!adminPassword) {
+      message.error('Please enter admin password');
+      return;
+    }
+
+    try {
+      await apiService.deleteUser(deleteUserId, adminPassword);
+      message.success(`User ${deleteUserName} deleted successfully`);
+      setIsDeleteModalVisible(false);
+      setAdminPassword('');
+      dispatch(getAllUsers({ page: 1, limit: 50, status: 'active', verified: true }));
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Failed to delete user');
+    }
   };
 
   const formatCurrency = (value) => `${Number(value || 0).toLocaleString('en-IN')}`;
@@ -533,6 +567,20 @@ function UserManagement() {
               }}
             />
           </Tooltip>
+          <Tooltip title="Delete User">
+            <Button
+              danger
+              style={{
+                borderRadius: THEME_CONSTANTS.radius.sm,
+              }}
+              size="middle"
+              icon={<DeleteOutlined style={{ fontSize: '16px' }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteUser(record._id, record.name);
+              }}
+            />
+          </Tooltip>
           <Tooltip title="Login as User">
             <Button
               style={{
@@ -552,6 +600,7 @@ function UserManagement() {
               }}
             />
           </Tooltip>
+
         </Space>
       ),
     },
@@ -562,6 +611,17 @@ function UserManagement() {
     activeUsers: users.filter((u) => u.isActive).length,
     totalWallet: users.reduce((sum, u) => sum + (u.wallet?.balance || 0), 0),
   };
+
+  const filteredUsers = users.filter(user => {
+    if (!debouncedSearch) return true;
+    const search = debouncedSearch.toLowerCase();
+    return (
+      user.name?.toLowerCase().includes(search) ||
+      user.email?.toLowerCase().includes(search) ||
+      user.phone?.includes(search) ||
+      user.companyname?.toLowerCase().includes(search)
+    );
+  });
 
   return (
     <>
@@ -681,20 +741,30 @@ function UserManagement() {
                 background: THEME_CONSTANTS.colors.surface
               }}
               extra={
-                <Button
-                  type="primary"
-                  icon={<ReloadOutlined />}
-                  onClick={fetchUsers}
-                  loading={loading.users}
-                  style={{ borderRadius: THEME_CONSTANTS.radius.md, fontWeight: 500 }}
-                >
-                  Refresh
-                </Button>
+                <Space>
+                  <Input
+                    placeholder="Search users..."
+                    prefix={<SearchOutlined />}
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    allowClear
+                    style={{ width: 250, borderRadius: THEME_CONSTANTS.radius.md }}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<ReloadOutlined />}
+                    onClick={fetchUsers}
+                    loading={loading.users}
+                    style={{ borderRadius: THEME_CONSTANTS.radius.md, fontWeight: 500 }}
+                  >
+                    Refresh
+                  </Button>
+                </Space>
               }
               bodyStyle={{ padding: 0 }}
             >
               <Table
-                dataSource={users}
+                dataSource={filteredUsers}
                 columns={userColumns}
                 rowKey="_id"
                 pagination={{ pageSize: 10, showSizeChanger: false }}
@@ -1442,6 +1512,56 @@ function UserManagement() {
               </div>
             )}
           </Spin>
+        </div>
+      </Modal>
+
+      {/* Delete User Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <DeleteOutlined style={{ color: THEME_CONSTANTS.colors.danger, fontSize: 24 }} />
+            <span style={{ color: THEME_CONSTANTS.colors.danger, fontWeight: 600 }}>Delete User</span>
+          </div>
+        }
+        open={isDeleteModalVisible}
+        onCancel={() => {
+          setIsDeleteModalVisible(false);
+          setAdminPassword('');
+        }}
+        onOk={confirmDeleteUser}
+        okText="Delete User"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+      >
+        <div style={{ padding: '20px 0' }}>
+          <div style={{
+            background: '#fff1f0',
+            border: '1px solid #ffccc7',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 20
+          }}>
+            <div style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.danger, marginBottom: 8 }}>
+              ⚠️ Warning: This action cannot be undone!
+            </div>
+            <div style={{ fontSize: 14, color: '#666' }}>
+              You are about to permanently delete user: <strong>{deleteUserName}</strong>
+            </div>
+          </div>
+
+          <Form.Item
+            label="Enter Your Password to Confirm"
+            required
+            style={{ marginBottom: 0 }}
+          >
+            <Input.Password
+              placeholder="Enter your admin password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              prefix={<LockOutlined />}
+              size="large"
+            />
+          </Form.Item>
         </div>
       </Modal>
     </>

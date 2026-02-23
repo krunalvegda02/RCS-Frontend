@@ -3,7 +3,7 @@ import { Card, Button, Upload, Alert, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { resetUpload, checkBatchCapability } from '../redux/slices/contactUploadSlice';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 const ContactUpload = ({ onContactsReady }) => {
   const dispatch = useDispatch();
@@ -14,16 +14,16 @@ const ContactUpload = ({ onContactsReady }) => {
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(e.target.result);
+        const worksheet = workbook.worksheets[0];
         
         const phoneNumbers = [];
-        data.forEach((row, idx) => {
-          if (idx === 0) return;
-          row.forEach(cell => {
-            if (cell) {
-              let num = String(cell).replace(/\D/g, '');
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          row.eachCell(cell => {
+            if (cell.value) {
+              let num = String(cell.value).replace(/\D/g, '');
               if (num.length === 10) phoneNumbers.push(num);
             }
           });

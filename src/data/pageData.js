@@ -19,6 +19,7 @@ const AdminProfile = lazy(() => import('../pages/admin/AdminProfile.jsx'))
 const AdminReports = lazy(() => import('../pages/admin/AdminReports.jsx'))
 const DemoRequests = lazy(() => import('../pages/admin/DemoRequests.jsx'))
 const PendingUsers = lazy(() => import('../pages/admin/PendingUsers.jsx'))
+const ArchivedCampaigns = lazy(() => import('../pages/admin/ArchivedCampaigns.jsx'))
 const Login = lazy(() => import('../pages/Login.jsx'))
 const Register = lazy(() => import('../pages/Register.jsx'))
 const Onboarding = lazy(() => import('../pages/Onboarding.jsx'))
@@ -159,6 +160,10 @@ export const pageData = {
         {
           path: 'pending-users',
           component: PendingUsers
+        },
+        {
+          path: 'archived-campaigns',
+          component: ArchivedCampaigns
         }
       ]
     }

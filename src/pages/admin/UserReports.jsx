@@ -38,7 +38,7 @@ import {
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import toast from 'react-hot-toast';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { getUserReport, getMyReport } from '../../redux/slices/userReportSlice';
 
 const UserReports = () => {
@@ -177,23 +177,40 @@ const UserReports = () => {
       'Last Campaign Date': formatDate(userStats?.lastCampaignAt)
     }];
 
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(userInfo), 'User Info');
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(walletInfo), 'Wallet Summary');
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(messageStatsData), 'Message Statistics');
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(campaignStatsData), 'Campaign Statistics');
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(userStatsData), 'User Statistics');
+    const addSheet = (name, data) => {
+      const sheet = workbook.addWorksheet(name);
+      if (data.length > 0) {
+        const keys = Object.keys(data[0]);
+        sheet.columns = keys.map(key => ({ header: key, key, width: 20 }));
+        data.forEach(row => sheet.addRow(row));
+      }
+    };
+
+    addSheet('User Info', userInfo);
+    addSheet('Wallet Summary', walletInfo);
+    addSheet('Message Statistics', messageStatsData);
+    addSheet('Campaign Statistics', campaignStatsData);
+    addSheet('User Statistics', userStatsData);
 
     if (campaignsData.length > 0) {
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(campaignsData), 'All Campaigns');
+      addSheet('All Campaigns', campaignsData);
     }
 
     if (transactionsData.length > 0) {
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(transactionsData), 'All Transactions');
+      addSheet('All Transactions', transactionsData);
     }
 
-    XLSX.writeFile(workbook, `user-report-${user.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`);
+    workbook.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `user-report-${user.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
     toast.success(`Exported complete report with ${campaignsData.length} campaigns and ${transactionsData.length} transactions`);
   };
 

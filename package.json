@@ -28,6 +28,7 @@
     "axios": "^1.13.2",
     "echarts": "^5.6.0",
     "echarts-for-react": "^3.0.2",
+    "exceljs": "^4.4.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-helmet": "^6.1.0",
@@ -40,8 +41,7 @@
     "slate": "^0.118.1",
     "slate-history": "^0.113.1",
     "slate-react": "^0.117.4",
-    "tailwindcss": "^4.1.12",
-    "xlsx": "^0.18.5"
+    "tailwindcss": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

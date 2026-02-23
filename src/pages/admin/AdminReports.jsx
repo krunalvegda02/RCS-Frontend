@@ -41,7 +41,7 @@ import {
 import { THEME_CONSTANTS } from '../../theme';
 import toast from 'react-hot-toast';
 import { _get } from '../../helper/apiClient.jsx';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -277,10 +277,21 @@ export default function AdminReports() {
         'User Response': msg.userText || msg.clickedAction || 'N/A',
         'Error': msg.status === 'failed' ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A',
       }));
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Messages');
-      XLSX.writeFile(workbook, `campaign-${selectedOrder?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`);
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Campaign Messages');
+      
+      const keys = Object.keys(exportData[0]);
+      sheet.columns = keys.map(key => ({ header: key, key, width: 15 }));
+      exportData.forEach(row => sheet.addRow(row));
+      
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `campaign-${selectedOrder?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
       toast.success(`Exported ${exportData.length} messages successfully`);
     } catch (error) {
       toast.error('Failed to export campaign details');
@@ -317,10 +328,21 @@ export default function AdminReports() {
         'Expired': order?.expiredCount || 0,
         'Created': new Date(order.createdAt).toLocaleString(),
       }));
-      const workbook = XLSX.utils.book_new();
-      const sheet = XLSX.utils.json_to_sheet(campaignsData);
-      XLSX.utils.book_append_sheet(workbook, sheet, 'All Campaigns');
-      XLSX.writeFile(workbook, `all-campaigns-${new Date().toISOString().split('T')[0]}.xlsx`);
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('All Campaigns');
+      
+      const keys = Object.keys(campaignsData[0]);
+      sheet.columns = keys.map(key => ({ header: key, key, width: 15 }));
+      campaignsData.forEach(row => sheet.addRow(row));
+      
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `all-campaigns-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
       toast.success(`Exported ${allCampaigns.length} campaigns successfully`);
     } catch (error) {
       toast.error('Failed to export report');
@@ -344,6 +366,28 @@ export default function AdminReports() {
           </div>
         </div>
       ),
+    },
+    {
+      title: 'Bot',
+      dataIndex: 'botId',
+      key: 'bot',
+      render: (botId) => (
+        <Tag
+          style={{
+            background: '#f0f5ff',
+            color: THEME_CONSTANTS.colors.primary,
+            border: `1px solid ${THEME_CONSTANTS.colors.primary}`,
+            fontWeight: 600,
+            padding: '4px 8px',
+            borderRadius: THEME_CONSTANTS.radius.sm,
+            fontSize: '12px'
+          }}
+        >
+          {botId || 'N/A'}
+        </Tag>
+      ),
+      width: 100,
+      align: 'center',
     },
     {
       title: 'Type',

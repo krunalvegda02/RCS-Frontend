@@ -54,7 +54,7 @@ import {
   fetchAllCampaignMessages,
   fetchAllCampaigns
 } from '../../redux/slices/ordersSlice';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -327,11 +327,7 @@ export default function Orders() {
 
       setIsExportingCampaign(true);
 
-      // Start dismissing toasts immediately
-      toastInterval = setInterval(() => {
-        toast.dismiss();
-      }, 10);
-
+      toastInterval = setInterval(() => toast.dismiss(), 10);
       await new Promise(resolve => setTimeout(resolve, 50));
 
       const result = await dispatch(fetchAllCampaignMessages(selectedOrder._id)).unwrap();
@@ -345,40 +341,65 @@ export default function Orders() {
         return;
       }
 
-      const exportData = allMessages.map((msg, idx) => ({
-        'S.No': idx + 1,
-        'Phone Number': msg.phoneNumber || 'N/A',
-        'Status': msg.status?.toUpperCase() || 'N/A',
-        'Template Type': msg.templateType || 'N/A',
-        'Sent At': msg.sentAt ? new Date(msg.sentAt).toLocaleString() : 'N/A',
-        'Delivered At': msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString() : 'N/A',
-        'Read At': msg.readAt ? new Date(msg.readAt).toLocaleString() : 'N/A',
-        'Interactions': msg.interactions || 0,
-        'Replies': msg.replies || 0,
-        'User Response': msg.userText || msg.clickedAction || msg.suggestionResponse?.plainText || 'N/A',
-        'Error': msg.status === 'failed' ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A',
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      worksheet['!cols'] = [
-        { wch: 8 }, { wch: 15 }, { wch: 12 }, { wch: 15 },
-        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 12 },
-        { wch: 10 }, { wch: 30 }, { wch: 30 }
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Campaign Messages');
+      
+      sheet.columns = [
+        { header: 'S.No', key: 'sno', width: 8 },
+        { header: 'Phone Number', key: 'phone', width: 15 },
+        { header: 'Status', key: 'status', width: 12 },
+        { header: 'Template Type', key: 'templateType', width: 15 },
+        { header: 'Queued At', key: 'queuedAt', width: 20 },
+        { header: 'Sent At', key: 'sentAt', width: 20 },
+        { header: 'Delivered At', key: 'deliveredAt', width: 20 },
+        { header: 'Read At', key: 'readAt', width: 20 },
+        { header: 'Failed At', key: 'failedAt', width: 20 },
+        { header: 'Interactions', key: 'interactions', width: 12 },
+        { header: 'Replies', key: 'replies', width: 10 },
+        { header: 'User Response', key: 'userResponse', width: 30 },
+        { header: 'Error', key: 'error', width: 30 }
       ];
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Messages');
+      const rows = allMessages.map((msg, idx) => ({
+        sno: idx + 1,
+        phone: msg.phoneNumber || 'N/A',
+        status: msg.status?.toUpperCase() || 'N/A',
+        templateType: msg.templateType || 'RCS',
+        queuedAt: msg.queuedAt ? new Date(msg.queuedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+        sentAt: msg.sentAt ? new Date(msg.sentAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+        deliveredAt: msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+        readAt: msg.readAt ? new Date(msg.readAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+        failedAt: msg.failedAt ? new Date(msg.failedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+        interactions: msg.interactions || 0,
+        replies: msg.replies || 0,
+        userResponse: msg.userText || msg.clickedAction || msg.suggestionResponse?.plainText || 'N/A',
+        error: (msg.status === 'failed' || msg.status === 'bounced') ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A'
+      }));
 
-      // Stop dismissing toasts before file write
+      sheet.addRows(rows);
+      
+      sheet.getRow(1).font = { bold: true };
+      sheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+
       if (toastInterval) clearInterval(toastInterval);
       await new Promise(resolve => setTimeout(resolve, 150));
       toast.dismiss();
 
-      XLSX.writeFile(workbook, `campaign-${selectedOrder?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `campaign-${selectedOrder?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
 
-      // Show success toast after file download
       await new Promise(resolve => setTimeout(resolve, 200));
-      toast.success(`Exported ${exportData.length} messages successfully`);
+      toast.success(`Exported ${rows.length} messages successfully`);
     } catch (error) {
       console.error('Export error:', error);
       if (toastInterval) clearInterval(toastInterval);
@@ -422,7 +443,6 @@ export default function Orders() {
     try {
       setIsExporting(true);
 
-      // Use orders from Redux state which already has rcsCapableCount
       const allCampaigns = orders || [];
 
       if (allCampaigns.length === 0) {
@@ -430,8 +450,27 @@ export default function Orders() {
         return;
       }
 
-      const campaignsData = allCampaigns.map((order, idx) => {
-        // Backend already sends correct totalDelivered
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Campaigns Report');
+      
+      sheet.columns = [
+        { header: 'S.No', key: 'sno', width: 8 },
+        { header: 'Campaign ID', key: 'campaignId', width: 25 },
+        { header: 'Campaign Name', key: 'campaignName', width: 30 },
+        { header: 'Message Type', key: 'messageType', width: 15 },
+        { header: 'Status', key: 'status', width: 12 },
+        { header: 'Total Recipients', key: 'totalRecipients', width: 15 },
+        { header: 'RCS Capable', key: 'rcsCapable', width: 12 },
+        { header: 'Sent', key: 'sent', width: 12 },
+        { header: 'Delivered', key: 'delivered', width: 15 },
+        { header: 'Failed', key: 'failed', width: 10 },
+        { header: 'Expired', key: 'expired', width: 12 },
+        { header: 'Success Rate (%)', key: 'successRate', width: 15 },
+        { header: 'Created Date', key: 'createdDate', width: 15 },
+        { header: 'Created Time', key: 'createdTime', width: 15 }
+      ];
+
+      const rows = allCampaigns.map((order, idx) => {
         const totalDelivered = order?.totalDelivered || 0;
         const failed = order?.failedCount || 0;
         const sentCount = totalDelivered + failed;
@@ -441,33 +480,41 @@ export default function Orders() {
         const successRate = rcsCapableCount > 0 ? ((totalDelivered / rcsCapableCount) * 100).toFixed(2) : 0;
 
         return {
-          'S.No': idx + 1,
-          'Campaign ID': order?._id || 'N/A',
-          'Campaign Name': order?.CampaignName || 'N/A',
-          'Message Type': order?.type || 'N/A',
-          'Status': order?.status || 'N/A',
-          'Total Recipients': totalRecipients,
-          'RCS Capable': rcsCapableCount,
-          'Sent': sentCount,
-          'Delivered': totalDelivered,
-          'Failed': failed,
-          'Expired': expired,
-          'Success Rate (%)': successRate,
-          'Created Date': new Date(order.createdAt).toLocaleDateString(),
-          'Created Time': new Date(order.createdAt).toLocaleTimeString(),
+          sno: idx + 1,
+          campaignId: order?._id || 'N/A',
+          campaignName: order?.CampaignName || 'N/A',
+          messageType: order?.type || 'N/A',
+          status: order?.status || 'N/A',
+          totalRecipients,
+          rcsCapable: rcsCapableCount,
+          sent: sentCount,
+          delivered: totalDelivered,
+          failed,
+          expired,
+          successRate,
+          createdDate: new Date(order.createdAt).toLocaleDateString(),
+          createdTime: new Date(order.createdAt).toLocaleTimeString()
         };
       });
 
-      const workbook = XLSX.utils.book_new();
-      const campaignsSheet = XLSX.utils.json_to_sheet(campaignsData);
-      campaignsSheet['!cols'] = [
-        { wch: 8 }, { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 12 },
-        { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 10 },
-        { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
-      ];
-      XLSX.utils.book_append_sheet(workbook, campaignsSheet, 'Campaigns Report');
+      sheet.addRows(rows);
+      
+      sheet.getRow(1).font = { bold: true };
+      sheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
 
-      XLSX.writeFile(workbook, `campaigns-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `campaigns-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+
       toast.success(`Exported ${allCampaigns.length} campaigns successfully`);
     } catch (error) {
       console.error('Export error:', error);
