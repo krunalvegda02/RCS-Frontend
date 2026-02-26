@@ -24,6 +24,8 @@ import {
   FormOutlined,
   ArrowLeftOutlined,
   EyeOutlined,
+  VideoCameraOutlined,
+  PictureOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { THEME_CONSTANTS } from '../../theme';
@@ -63,11 +65,13 @@ export default function CreateTemplatePage() {
     title: '',
     subtitle: '',
     imageUrl: '',
+    mediaType: 'image',
+    thumbnailUrl: '',
     actions: [],
     mediaFile: null
   });
   const [carouselItems, setCarouselItems] = useState([
-    { title: '', subtitle: '', imageUrl: '', actions: [], mediaFile: null }
+    { title: '', subtitle: '', imageUrl: '', mediaType: 'image', thumbnailUrl: '', actions: [], mediaFile: null }
   ]);
   const [error, setError] = useState('');
   const [previewMode, setPreviewMode] = useState('desktop');
@@ -99,6 +103,8 @@ export default function CreateTemplatePage() {
           title: editingTemplateFromState.content.title || '',
           subtitle: editingTemplateFromState.content.subtitle || editingTemplateFromState.content.description || '',
           imageUrl: editingTemplateFromState.content.imageUrl || '',
+          mediaType: editingTemplateFromState.content.mediaType || 'image',
+          thumbnailUrl: editingTemplateFromState.content.thumbnailUrl || '',
           actions: editingTemplateFromState.content.actions?.map(action => ({
             type: action.actionType === 'openUri' ? 'url' : action.actionType === 'dialPhone' ? 'call' : 'reply',
             title: action.label || '',
@@ -114,6 +120,8 @@ export default function CreateTemplatePage() {
           title: card.title || '',
           subtitle: card.subtitle || card.description || '',
           imageUrl: card.imageUrl || '',
+          mediaType: card.mediaType || 'image',
+          thumbnailUrl: card.thumbnailUrl || '',
           actions: card.actions?.map(action => ({
             type: action.actionType === 'openUri' ? 'url' : action.actionType === 'dialPhone' ? 'call' : 'reply',
             title: action.label || '',
@@ -164,10 +172,18 @@ export default function CreateTemplatePage() {
           setFormData(prev => ({ ...prev, imageUrl: url }));
         } else if (type === 'rich_card') {
           setRichCard(prev => ({ ...prev, imageUrl: url }));
+        } else if (type === 'rich_card_thumbnail') {
+          setRichCard(prev => ({ ...prev, thumbnailUrl: url }));
         } else if (type === 'carousel' && index !== null) {
           setCarouselItems(prev => {
             const updated = [...prev];
             updated[index] = { ...updated[index], imageUrl: url };
+            return updated;
+          });
+        } else if (type === 'carousel_thumbnail' && index !== null) {
+          setCarouselItems(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], thumbnailUrl: url };
             return updated;
           });
         }
@@ -194,6 +210,43 @@ export default function CreateTemplatePage() {
       URL.revokeObjectURL(cropperImageUrl);
     }
   };
+
+  // Handle video upload (direct upload, no cropping)
+  const handleVideoUpload = async (file, targetType = 'rich_card', index = null) => {
+    if (!file) return false;
+
+    const maxSizeMB = 100;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      toast.error(`Video file must be under ${maxSizeMB}MB`);
+      return false;
+    }
+
+    try {
+      toast.loading('Uploading video...', { id: 'video-upload' });
+      const url = await uploadFileToServer(file);
+
+      if (url) {
+        if (targetType === 'rich_card') {
+          setRichCard(prev => ({ ...prev, imageUrl: url, mediaType: 'video' }));
+        } else if (targetType === 'carousel' && index !== null) {
+          setCarouselItems(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], imageUrl: url, mediaType: 'video' };
+            return updated;
+          });
+        }
+        toast.success('✅ Video uploaded successfully!', { id: 'video-upload' });
+      } else {
+        toast.error('❌ Video upload failed', { id: 'video-upload' });
+      }
+    } catch (error) {
+      toast.error('❌ Failed to upload video: ' + error.message, { id: 'video-upload' });
+    }
+
+    return false; // Prevent default upload
+  };
+
+  // Handle thumbnail upload for video (REMOVED - now uses handleImageSelect)
 
   const uploadFileToServer = async (file) => {
     try {
@@ -235,6 +288,12 @@ export default function CreateTemplatePage() {
         return;
       }
 
+      // Check if any uploads are in progress
+      if (uploadLoading) {
+        toast.error('Please wait for uploads to complete');
+        return;
+      }
+
       // Validate actions have titles for text-with-action
       const validActions = messageType === 'text-with-action'
         ? actions.filter(action => action.title && action.title.trim())
@@ -257,6 +316,19 @@ export default function CreateTemplatePage() {
           toast.error('Carousel templates must have at least 2 cards');
           return;
         }
+
+        // Validate carousel video thumbnails
+        for (let i = 0; i < validCarouselItems.length; i++) {
+          const item = validCarouselItems[i];
+          if (!item.imageUrl) {
+            toast.error(`Carousel item ${i + 1}: Please upload media`);
+            return;
+          }
+          if (item.mediaType === 'video' && !item.thumbnailUrl) {
+            toast.error(`Carousel item ${i + 1}: Video thumbnail is required`);
+            return;
+          }
+        }
       }
 
       // Validate rich card actions
@@ -264,6 +336,14 @@ export default function CreateTemplatePage() {
       if (messageType === 'rcs') {
         if (!richCard.title || !richCard.title.trim()) {
           toast.error('Rich card title is required');
+          return;
+        }
+        if (!richCard.imageUrl) {
+          toast.error('Rich card media is required');
+          return;
+        }
+        if (richCard.mediaType === 'video' && !richCard.thumbnailUrl) {
+          toast.error('Video thumbnail is required for rich card');
           return;
         }
         validRichCard = {
@@ -292,6 +372,8 @@ export default function CreateTemplatePage() {
           subtitle: richCard.subtitle,
           description: richCard.subtitle,
           imageUrl: richCard.imageUrl,
+          mediaType: richCard.mediaType || 'image',
+          thumbnailUrl: richCard.thumbnailUrl || '',
           actions: validRichCard?.actions?.map(a => ({
             label: a.title,
             uri: a.payload,
@@ -305,6 +387,8 @@ export default function CreateTemplatePage() {
             subtitle: item.subtitle,
             description: item.subtitle,
             imageUrl: item.imageUrl,
+            mediaType: item.mediaType || 'image',
+            thumbnailUrl: item.thumbnailUrl || '',
             actions: item.actions.map(a => ({
               label: a.title,
               uri: a.payload,
@@ -343,8 +427,8 @@ export default function CreateTemplatePage() {
       setFormData({ name: '', text: '', imageUrl: '' });
       setMessageType('text');
       setActions([{ type: 'reply', title: '', payload: '' }]);
-      setRichCard({ title: '', subtitle: '', imageUrl: '', actions: [], mediaFile: null });
-      setCarouselItems([{ title: '', subtitle: '', imageUrl: '', actions: [], mediaFile: null }]);
+      setRichCard({ title: '', subtitle: '', imageUrl: '', mediaType: 'image', thumbnailUrl: '', actions: [], mediaFile: null });
+      setCarouselItems([{ title: '', subtitle: '', imageUrl: '', mediaType: 'image', thumbnailUrl: '', actions: [], mediaFile: null }]);
       setEditingTemplate(null);
       form.resetFields();
 
@@ -412,7 +496,7 @@ export default function CreateTemplatePage() {
   const handleAddCarouselItem = () => {
     setCarouselItems([
       ...carouselItems,
-      { title: '', subtitle: '', imageUrl: '', actions: [], mediaFile: null }
+      { title: '', subtitle: '', imageUrl: '', mediaType: 'image', actions: [], mediaFile: null }
     ]);
   };
 
@@ -459,6 +543,7 @@ export default function CreateTemplatePage() {
         title: richCard.title,
         subtitle: richCard.subtitle,
         imageUrl: richCard.imageUrl,
+        mediaType: richCard.mediaType || 'image',
         actions: richCard.actions.map(a => ({
           label: a.title,
           uri: a.payload,
@@ -471,6 +556,7 @@ export default function CreateTemplatePage() {
           title: item.title,
           subtitle: item.subtitle,
           imageUrl: item.imageUrl,
+          mediaType: item.mediaType || 'image',
           actions: item.actions.map(a => ({
             label: a.title,
             uri: a.payload,
@@ -640,40 +726,177 @@ export default function CreateTemplatePage() {
       </div>
 
       <div style={{ marginBottom: '28px' }}>
-        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Card Image</label>
-        {!richCard.imageUrl ? (
-          <Upload
-            accept="image/*"
-            maxCount={1}
-            beforeUpload={(file) => handleImageSelect(file, 'rich_card')}
-            listType="picture-card"
-            showUploadList={false}
-            style={{ width: '100%', height: "140px", border: '1.5px dashed #d9d9d9', borderRadius: '12px', cursor: 'pointer' }}
+        <label style={{ fontSize: '15px', fontWeight: 600, color: '#1f1f1f', marginBottom: '10px', display: 'block' }}>Card Media</label>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+          <Button
+            type={richCard.mediaType === 'image' ? 'primary' : 'default'}
+            icon={<PictureOutlined />}
+            onClick={() => setRichCard({ ...richCard, mediaType: 'image', imageUrl: '', mediaFile: null })}
+            style={{
+              height: '42px',
+              fontWeight: 600,
+              borderRadius: '8px',
+              fontSize: '14px',
+              ...(richCard.mediaType === 'image' ? { background: '#1890ff', border: 'none' } : { border: '2px solid #e0e0e0' })
+            }}
           >
-            <div style={{ padding: '40px 100px', textAlign: 'center' }}>
-              <CloudUploadOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '12px', marginTop: '20px' }} />
-              <div style={{ fontSize: '16px', fontWeight: 600, color: '#262626', marginBottom: '6px' }}> Upload & Crop Image</div>
-              <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '20px' }}>Click to select and crop your image</div>
-            </div>
-          </Upload>
-        ) : (
-          <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '2px solid #e8e8e8' }}>
-            <img src={richCard.imageUrl} alt="Preview" style={{ width: '100%', maxHeight: '320px', objectFit: 'cover', display: 'block' }} />
-            <Button
-              style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', height: '40px', padding: '0 20px', fontWeight: 600 }}
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.onchange = (e) => {
-                  const file = e.target.files[0];
-                  if (file) handleImageSelect(file, 'rich_card');
-                };
-                input.click();
-              }}
+            Image
+          </Button>
+          <Button
+            type={richCard.mediaType === 'video' ? 'primary' : 'default'}
+            icon={<VideoCameraOutlined />}
+            onClick={() => setRichCard({ ...richCard, mediaType: 'video', imageUrl: '', mediaFile: null })}
+            style={{
+              height: '42px',
+              fontWeight: 600,
+              borderRadius: '8px',
+              fontSize: '14px',
+              ...(richCard.mediaType === 'video' ? { background: '#722ed1', border: 'none' } : { border: '2px solid #e0e0e0' })
+            }}
+          >
+            Video
+          </Button>
+        </div>
+
+        {richCard.mediaType === 'image' ? (
+          /* Image upload with cropper */
+          !richCard.imageUrl ? (
+            <Upload
+              accept="image/*"
+              maxCount={1}
+              beforeUpload={(file) => handleImageSelect(file, 'rich_card')}
+              listType="picture-card"
+              showUploadList={false}
+              style={{ width: '100%', height: "140px", border: '1.5px dashed #d9d9d9', borderRadius: '12px', cursor: 'pointer' }}
             >
-              ✂️ Re-crop Image
-            </Button>
+              <div style={{ padding: '40px 100px', textAlign: 'center' }}>
+                <CloudUploadOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '12px', marginTop: '20px' }} />
+                <div style={{ fontSize: '16px', fontWeight: 600, color: '#262626', marginBottom: '6px' }}> Upload & Crop Image</div>
+                <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '20px' }}>Click to select and crop your image</div>
+              </div>
+            </Upload>
+          ) : (
+            <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '2px solid #e8e8e8' }}>
+              <img src={richCard.imageUrl} alt="Preview" style={{ width: '100%', maxHeight: '320px', objectFit: 'cover', display: 'block' }} />
+              <Button
+                style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', height: '40px', padding: '0 20px', fontWeight: 600 }}
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) handleImageSelect(file, 'rich_card');
+                  };
+                  input.click();
+                }}
+              >
+                ✂️ Re-crop Image
+              </Button>
+            </div>
+          )
+        ) : (
+          /* Video upload (direct, no cropping) */
+          !richCard.imageUrl ? (
+            <Upload
+              accept="video/mp4,video/webm,video/quicktime,video/*"
+              maxCount={1}
+              beforeUpload={(file) => handleVideoUpload(file, 'rich_card')}
+              showUploadList={false}
+            >
+              <div style={{
+                padding: '40px',
+                textAlign: 'center',
+                border: '2px dashed #d9d9d9',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                background: '#fafafa',
+                transition: 'border-color 0.3s'
+              }}>
+                <VideoCameraOutlined style={{ fontSize: '48px', color: '#722ed1', marginBottom: '12px' }} />
+                <div style={{ fontSize: '16px', fontWeight: 600, color: '#262626', marginBottom: '6px' }}>Upload Video</div>
+                <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>MP4, WebM, MOV supported</div>
+                <div style={{ fontSize: '12px', color: '#bfbfbf' }}>Max 100MB</div>
+              </div>
+            </Upload>
+          ) : (
+            <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '2px solid #e8e8e8' }}>
+              <video
+                src={richCard.imageUrl}
+                controls
+                style={{ width: '100%', maxHeight: '320px', display: 'block', background: '#000' }}
+              />
+              <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '8px' }}>
+                <Button
+                  style={{ background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', height: '40px', padding: '0 20px', fontWeight: 600 }}
+                  onClick={() => setRichCard({ ...richCard, imageUrl: '', mediaFile: null, thumbnailUrl: '' })}
+                >
+                  ✕ Remove Video
+                </Button>
+              </div>
+            </div>
+          )
+        )}
+
+        {/* Video Thumbnail Upload (shown when video is selected) */}
+        {richCard.mediaType === 'video' && richCard.imageUrl && (
+          <div style={{ marginTop: '20px', padding: '20px', background: '#f0f5ff', borderRadius: '12px', border: '2px solid #d6e4ff' }}>
+            <label style={{ fontSize: '14px', fontWeight: 600, color: '#1890ff', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <PictureOutlined style={{ fontSize: '18px' }} />
+              Video Thumbnail <span style={{ fontWeight: 400, color: '#8c8c8c', fontSize: '13px' }}>(Shows as preview before video plays)</span>
+            </label>
+            {!richCard.thumbnailUrl ? (
+              <Upload
+                accept="image/jpeg,image/png,image/webp"
+                maxCount={1}
+                beforeUpload={(file) => handleImageSelect(file, 'rich_card_thumbnail')}
+                showUploadList={false}
+              >
+                <div style={{
+                  padding: '24px',
+                  textAlign: 'center',
+                  border: '2px dashed #91d5ff',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  background: 'white',
+                  transition: 'all 0.3s'
+                }}>
+                  <PictureOutlined style={{ fontSize: '36px', color: '#1890ff', marginBottom: '8px' }} />
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#262626', marginBottom: '4px' }}>Upload & Crop Thumbnail</div>
+                  <div style={{ fontSize: '12px', color: '#8c8c8c' }}>JPEG, PNG, WebP • Max 5MB</div>
+                </div>
+              </Upload>
+            ) : (
+              <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: '2px solid #1890ff', display: 'inline-block', background: 'white' }}>
+                <img src={richCard.thumbnailUrl} alt="Video Thumbnail" style={{ maxHeight: '120px', maxWidth: '200px', objectFit: 'cover', display: 'block' }} />
+                <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px' }}>
+                  <Button
+                    size="small"
+                    style={{ background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', fontSize: '12px', height: '28px', padding: '0 12px', fontWeight: 600 }}
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) handleImageSelect(file, 'rich_card_thumbnail');
+                      };
+                      input.click();
+                    }}
+                  >
+                    ✂️ Re-crop
+                  </Button>
+                  <Button
+                    size="small"
+                    danger
+                    style={{ background: 'rgba(255,77,79,0.9)', color: 'white', border: 'none', fontSize: '12px', height: '28px', padding: '0 12px', fontWeight: 600 }}
+                    onClick={() => setRichCard(prev => ({ ...prev, thumbnailUrl: '' }))}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -792,40 +1015,167 @@ export default function CreateTemplatePage() {
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Item Image</label>
-              {!item.imageUrl ? (
-                <Upload
-                  accept="image/*"
-                  maxCount={1}
-                  beforeUpload={(file) => handleImageSelect(file, 'carousel', itemIndex)}
-                  listType="picture-card"
-                  showUploadList={false}
-                  style={{ width: '100%', height: "140px", border: '1.5px dashed #d9d9d9', borderRadius: '12px', cursor: 'pointer' }}
+              <label style={{ fontSize: '14px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '8px' }}>Item Media</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <Button
+                  size="small"
+                  type={item.mediaType === 'image' || !item.mediaType ? 'primary' : 'default'}
+                  icon={<PictureOutlined />}
+                  onClick={() => handleCarouselItemChange(itemIndex, 'mediaType', 'image')}
+                  style={{
+                    height: '36px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    ...((item.mediaType === 'image' || !item.mediaType) ? { background: '#1890ff', border: 'none' } : { border: '2px solid #e0e0e0' })
+                  }}
                 >
-                  <div style={{ padding: '40px 100px', textAlign: 'center' }}>
-                    <CloudUploadOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '12px', marginTop: '20px' }} />
-                    <div style={{ fontSize: '16px', fontWeight: 600, color: '#262626', marginBottom: '6px' }}> Upload & Crop Image</div>
-                    <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '20px' }}>Click to select and crop your image</div>
-                  </div>
-                </Upload>
-              ) : (
-                <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: '2px solid #e8e8e8' }}>
-                  <img src={item.imageUrl} alt="Preview" style={{ width: '100%', maxHeight: '240px', objectFit: 'cover', display: 'block' }} />
-                  <Button
-                    style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', height: '36px', padding: '0 16px', fontWeight: 600 }}
-                    onClick={() => {
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.accept = 'image/*';
-                      input.onchange = (e) => {
-                        const file = e.target.files[0];
-                        if (file) handleImageSelect(file, 'carousel', itemIndex);
-                      };
-                      input.click();
-                    }}
+                  Image
+                </Button>
+                <Button
+                  size="small"
+                  type={item.mediaType === 'video' ? 'primary' : 'default'}
+                  icon={<VideoCameraOutlined />}
+                  onClick={() => {
+                    const updated = [...carouselItems];
+                    updated[itemIndex] = { ...updated[itemIndex], mediaType: 'video', imageUrl: '', mediaFile: null };
+                    setCarouselItems(updated);
+                  }}
+                  style={{
+                    height: '36px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    ...(item.mediaType === 'video' ? { background: '#722ed1', border: 'none' } : { border: '2px solid #e0e0e0' })
+                  }}
+                >
+                  Video
+                </Button>
+              </div>
+
+              {(item.mediaType === 'image' || !item.mediaType) ? (
+                /* Image upload with cropper */
+                !item.imageUrl ? (
+                  <Upload
+                    accept="image/*"
+                    maxCount={1}
+                    beforeUpload={(file) => handleImageSelect(file, 'carousel', itemIndex)}
+                    listType="picture-card"
+                    showUploadList={false}
+                    style={{ width: '100%', height: "140px", border: '1.5px dashed #d9d9d9', borderRadius: '12px', cursor: 'pointer' }}
                   >
-                    ✂️ Re-crop
-                  </Button>
+                    <div style={{ padding: '40px 100px', textAlign: 'center' }}>
+                      <CloudUploadOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '12px', marginTop: '20px' }} />
+                      <div style={{ fontSize: '16px', fontWeight: 600, color: '#262626', marginBottom: '6px' }}> Upload & Crop Image</div>
+                      <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '20px' }}>Click to select and crop your image</div>
+                    </div>
+                  </Upload>
+                ) : (
+                  <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: '2px solid #e8e8e8' }}>
+                    <img src={item.imageUrl} alt="Preview" style={{ width: '100%', maxHeight: '240px', objectFit: 'cover', display: 'block' }} />
+                    <Button
+                      style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', height: '36px', padding: '0 16px', fontWeight: 600 }}
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.onchange = (e) => {
+                          const file = e.target.files[0];
+                          if (file) handleImageSelect(file, 'carousel', itemIndex);
+                        };
+                        input.click();
+                      }}
+                    >
+                      ✂️ Re-crop
+                    </Button>
+                  </div>
+                )
+              ) : (
+                /* Video upload (direct, no cropping) */
+                !item.imageUrl ? (
+                  <Upload
+                    accept="video/mp4,video/webm,video/quicktime,video/*"
+                    maxCount={1}
+                    beforeUpload={(file) => handleVideoUpload(file, 'carousel', itemIndex)}
+                    showUploadList={false}
+                  >
+                    <div style={{
+                      padding: '30px',
+                      textAlign: 'center',
+                      border: '2px dashed #d9d9d9',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      background: '#fafafa',
+                      transition: 'border-color 0.3s'
+                    }}>
+                      <VideoCameraOutlined style={{ fontSize: '40px', color: '#722ed1', marginBottom: '10px' }} />
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#262626', marginBottom: '4px' }}>Upload Video</div>
+                      <div style={{ fontSize: '13px', color: '#8c8c8c' }}>MP4, WebM, MOV • Max 100MB</div>
+                    </div>
+                  </Upload>
+                ) : (
+                  <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: '2px solid #e8e8e8' }}>
+                    <video
+                      src={item.imageUrl}
+                      controls
+                      style={{ width: '100%', maxHeight: '240px', display: 'block', background: '#000' }}
+                    />
+                    <Button
+                      style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.75)', color: 'white', border: 'none', height: '36px', padding: '0 16px', fontWeight: 600 }}
+                      onClick={() => {
+                        const updated = [...carouselItems];
+                        updated[itemIndex] = { ...updated[itemIndex], imageUrl: '', mediaFile: null, thumbnailUrl: '' };
+                        setCarouselItems(updated);
+                      }}
+                    >
+                      ✕ Remove Video
+                    </Button>
+                  </div>
+                )
+              )}
+
+              {/* Video Thumbnail Upload for carousel item */}
+              {item.mediaType === 'video' && item.imageUrl && (
+                <div style={{ marginTop: '10px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#595959', display: 'block', marginBottom: '6px' }}>
+                    🖼️ Thumbnail <span style={{ fontWeight: 400, color: '#8c8c8c' }}>(optional)</span>
+                  </label>
+                  {!item.thumbnailUrl ? (
+                    <Upload
+                      accept="image/jpeg,image/png,image/webp"
+                      maxCount={1}
+                      beforeUpload={(file) => handleImageSelect(file, 'carousel_thumbnail', itemIndex)}
+                      showUploadList={false}
+                    >
+                      <div style={{
+                        padding: '10px',
+                        textAlign: 'center',
+                        border: '1.5px dashed #d6d6d6',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        background: '#fafafa',
+                      }}>
+                        <PictureOutlined style={{ fontSize: '22px', color: '#8c8c8c', marginBottom: '4px' }} />
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#595959' }}>Upload Thumbnail</div>
+                        <div style={{ fontSize: '10px', color: '#bfbfbf' }}>JPEG, PNG • Max 5MB</div>
+                      </div>
+                    </Upload>
+                  ) : (
+                    <div style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', border: '1.5px solid #e8e8e8', display: 'inline-block' }}>
+                      <img src={item.thumbnailUrl} alt="Thumbnail" style={{ maxHeight: '80px', objectFit: 'cover', display: 'block' }} />
+                      <Button
+                        size="small"
+                        style={{ position: 'absolute', top: '3px', right: '3px', background: 'rgba(0,0,0,0.7)', color: 'white', border: 'none', fontSize: '10px', height: '20px', padding: '0 6px' }}
+                        onClick={() => {
+                          const updated = [...carouselItems];
+                          updated[itemIndex] = { ...updated[itemIndex], thumbnailUrl: '' };
+                          setCarouselItems(updated);
+                        }}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1129,6 +1479,8 @@ export default function CreateTemplatePage() {
                       title: richCard.title,
                       subtitle: richCard.subtitle,
                       imageUrl: richCard.imageUrl,
+                      mediaType: richCard.mediaType || 'image',
+                      thumbnailUrl: richCard.thumbnailUrl || '',
                       actions: richCard.actions.map(a => ({
                         label: a.title,
                         uri: a.payload,
@@ -1141,6 +1493,8 @@ export default function CreateTemplatePage() {
                         title: item.title,
                         subtitle: item.subtitle,
                         imageUrl: item.imageUrl,
+                        mediaType: item.mediaType || 'image',
+                        thumbnailUrl: item.thumbnailUrl || '',
                         actions: item.actions.map(a => ({
                           label: a.title,
                           uri: a.payload,

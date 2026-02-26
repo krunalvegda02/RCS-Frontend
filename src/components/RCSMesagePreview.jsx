@@ -1,11 +1,93 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Button, Tag, Empty } from 'antd';
 import {
   MessageOutlined,
   PhoneOutlined,
   LinkOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../theme';
+
+/**
+ * MediaPreview Component
+ * Handles showing a thumbnail by default for videos and playing on click
+ */
+const MediaPreview = ({ imageUrl, thumbnailUrl, mediaType, alt }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const containerStyle = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    cursor: mediaType === 'video' ? 'pointer' : 'default',
+  };
+
+  const commonMediaStyle = {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+    display: 'block',
+  };
+
+  if (mediaType === 'video') {
+    if (!isPlaying && (thumbnailUrl || imageUrl)) {
+      return (
+        <div style={containerStyle} onClick={() => setIsPlaying(true)}>
+          <img
+            src={thumbnailUrl || imageUrl}
+            alt={alt || "Video Thumbnail"}
+            style={commonMediaStyle}
+          />
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0,0,0,0.6)',
+            borderRadius: '50%',
+            width: '48px',
+            height: '48px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            border: '2px solid rgba(255,255,255,0.8)'
+          }}>
+            <PlayCircleOutlined style={{ fontSize: '30px', color: '#fff' }} />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={containerStyle}>
+        <video
+          src={imageUrl}
+          poster={thumbnailUrl}
+          controls
+          autoPlay
+          style={commonMediaStyle}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={containerStyle}>
+      <img
+        src={imageUrl}
+        alt={alt || "Media"}
+        style={commonMediaStyle}
+        onError={(e) => {
+          e.target.parentElement.style.display = 'none';
+        }}
+      />
+    </div>
+  );
+};
+
 
 /**
  * RCSMessagePreview Component
@@ -166,34 +248,24 @@ export default function RCSMessagePreview({ data }) {
 
   // Render rich card
   const renderRichCard = () => {
-    const { title, subtitle, description, imageUrl, actions = [] } = content;
+    const { title, subtitle, description, imageUrl, mediaType, thumbnailUrl, actions = [] } = content;
     if (!title) return null;
 
     return (
-      <div style={{...messageBubbleStyle, maxWidth: '100%'}}>
-        {imageUrl && (
-          <div style={{ 
-            width: '100%', 
+      <div style={{ ...messageBubbleStyle, maxWidth: '100%' }}>
+        {(imageUrl || thumbnailUrl) && (
+          <div style={{
+            width: '100%',
             position: 'relative',
             paddingBottom: '50%',
-            overflow: 'hidden', 
-            background: '#000' 
+            overflow: 'hidden',
+            background: '#000'
           }}>
-            <img
-              src={imageUrl}
-              alt="RCS Card"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                display: 'block',
-              }}
-              onError={(e) => {
-                e.target.parentElement.style.display = 'none';
-              }}
+            <MediaPreview
+              imageUrl={imageUrl}
+              thumbnailUrl={thumbnailUrl}
+              mediaType={mediaType}
+              alt="Rich Card Media"
             />
           </div>
         )}
@@ -298,29 +370,19 @@ export default function RCSMessagePreview({ data }) {
                 flexShrink: 0,
               }}
             >
-              {card.imageUrl && (
-                <div style={{ 
-                  width: '100%', 
+              {(card.imageUrl || card.thumbnailUrl) && (
+                <div style={{
+                  width: '100%',
                   position: 'relative',
                   paddingBottom: '50%',
-                  overflow: 'hidden', 
-                  background: '#000' 
+                  overflow: 'hidden',
+                  background: '#000'
                 }}>
-                  <img
-                    src={card.imageUrl}
+                  <MediaPreview
+                    imageUrl={card.imageUrl}
+                    thumbnailUrl={card.thumbnailUrl}
+                    mediaType={card.mediaType}
                     alt={card.title}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      display: 'block',
-                    }}
-                    onError={(e) => {
-                      e.target.parentElement.style.display = 'none';
-                    }}
                   />
                 </div>
               )}
