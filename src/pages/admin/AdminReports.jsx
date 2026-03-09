@@ -40,7 +40,7 @@ import {
 } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
 import toast from 'react-hot-toast';
-import { _get } from '../../helper/apiClient.jsx';
+import { _get, _post } from '../../helper/apiClient.jsx';
 import ExcelJS from 'exceljs';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -74,7 +74,7 @@ export default function AdminReports() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [campaignMessages, setCampaignMessages] = useState([]);
   const [messagesPagination, setMessagesPagination] = useState({ total: 0 });
-  const [loading, setLoading] = useState({ orders: false, messages: false });
+  const [loading, setLoading] = useState({ orders: false, messages: false, syncStats: false });
 
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -119,12 +119,96 @@ export default function AdminReports() {
   const [isExportingCampaign, setIsExportingCampaign] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Sync campaign stats function - only updates specific campaign row
+  const handleSyncCampaignStats = async (campaignId) => {
+    setLoading({ ...loading, syncStats: campaignId });
+    try {
+      // Sync stats for this specific campaign
+      await _post(`v1/campaigns/${campaignId}/sync-stats`, {}, {}, token);
+      
+      // Refresh only the current page to get updated data for this campaign
+      const params = { 
+        page: currentPage, 
+        limit: pageSize, 
+        sort: sortOrder,
+        _t: Date.now() // Cache buster
+      };
+      
+      if (searchText && searchText.trim()) params.search = searchText.trim();
+      if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+      if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        params.startDate = dateRange[0].toISOString();
+        params.endDate = dateRange[1].toISOString();
+      }
+
+      const queryString = new URLSearchParams(params).toString();
+      const res = await _get(`v1/admin/campaigns?${queryString}`, {}, {}, token);
+      
+      if (res.data.success) {
+        setOrders(res.data.data || []);
+        setPagination(res.data.pagination || { total: 0 });
+      }
+      
+      toast.success('Campaign stats refreshed successfully');
+    } catch (error) {
+      console.error('Sync campaign stats error:', error);
+      toast.error('Failed to refresh campaign stats');
+    } finally {
+      setLoading({ ...loading, syncStats: false });
+    }
+  };
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await fetchOrders();
-      toast.success('Campaigns refreshed successfully');
+      // First sync all campaign stats to ensure fresh data
+      console.log('Starting refresh - syncing all campaign stats...');
+      
+      // Get current campaigns to sync their stats
+      const currentRes = await _get(`v1/admin/campaigns?page=${currentPage}&limit=${pageSize}`, {}, {}, token);
+      if (currentRes.data.success && currentRes.data.data) {
+        const syncPromises = currentRes.data.data.map(async (campaign) => {
+          try {
+            await _post(`v1/campaigns/${campaign._id}/sync-stats`, {}, {}, token);
+            console.log(`Synced stats for campaign ${campaign._id}`);
+          } catch (err) {
+            console.error(`Failed to sync stats for campaign ${campaign._id}:`, err);
+          }
+        });
+        
+        await Promise.allSettled(syncPromises);
+        console.log('All campaign stats synced, fetching fresh data...');
+      }
+      
+      // Now fetch fresh data with cache buster
+      const params = { 
+        page: currentPage, 
+        limit: pageSize, 
+        sort: sortOrder,
+        refresh: true, // Backend refresh flag
+        _t: Date.now() // Cache buster
+      };
+      
+      if (searchText && searchText.trim()) params.search = searchText.trim();
+      if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+      if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        params.startDate = dateRange[0].toISOString();
+        params.endDate = dateRange[1].toISOString();
+      }
+
+      const queryString = new URLSearchParams(params).toString();
+      const res = await _get(`v1/admin/campaigns?${queryString}`, {}, {}, token);
+      
+      if (res.data.success) {
+        console.log('Fresh data received:', res.data.data?.length, 'campaigns');
+        setOrders(res.data.data || []);
+        setPagination(res.data.pagination || { total: 0 });
+        toast.success('Campaigns and stats refreshed successfully');
+      }
     } catch (error) {
+      console.error('Refresh error:', error);
       toast.error('Failed to refresh campaigns');
     } finally {
       setIsRefreshing(false);
@@ -322,7 +406,7 @@ export default function AdminReports() {
         'Status': order?.status || 'N/A',
         'Recipients': order?.cost || 0,
         'RCS Capable': order?.rcsCapableCount || 0,
-        'Sent': (order?.totalDelivered || 0) + (order?.failedCount || 0),
+        'Sent': (order?.stats?.sent || order?.successCount || 0) + (order?.failedCount || order?.stats?.failed || 0),
         'Delivered': order?.totalDelivered || 0,
         'Failed': order?.failedCount || 0,
         'Expired': order?.expiredCount || 0,
@@ -449,10 +533,8 @@ export default function AdminReports() {
       title: 'Sent',
       key: 'sent',
       render: (text, record) => {
-        // Sent = totalDelivered + failed
-        const totalDelivered = record?.totalDelivered || 0;
-        const failed = record?.failedCount || 0;
-        const sentCount = totalDelivered + failed;
+        // Show sum of sent + failed messages (same logic as Orders.jsx)
+        const sentCount = (record?.stats?.sent || record?.successCount || 0) + (record?.failedCount || record?.stats?.failed || 0);
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
             <SendOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
@@ -515,10 +597,10 @@ export default function AdminReports() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        // Backend already sends correct totalDelivered
-        const totalDelivered = record?.totalDelivered || 0;
+        // Success Rate = (sent / rcsCapable) * 100 (using same logic as Orders.jsx)
+        const sentCount = (record?.stats?.sent || record?.successCount || 0) + (record?.failedCount || record?.stats?.failed || 0);
         const rcsCapableCount = record.rcsCapableCount || 0;
-        const rate = rcsCapableCount > 0 ? (totalDelivered / rcsCapableCount) * 100 : 0;
+        const rate = rcsCapableCount > 0 ? (sentCount / rcsCapableCount) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         const displayRate = rate < 1 && rate > 0 ? rate.toFixed(2) : Math.round(rate);
 
@@ -555,36 +637,61 @@ export default function AdminReports() {
       width: 130,
       align: 'center',
     },
-    {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'date',
-      render: (date) => (
-        <Tooltip title={new Date(date).toLocaleString()}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textPrimary, fontWeight: 600 }}>
-              {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
-            </div>
-            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '3px' }}>
-              {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          </div>
-        </Tooltip>
-      ),
-      width: 130,
-      align: 'center',
-    },
+    // {
+    //   title: 'Created / Updated',
+    //   dataIndex: 'createdAt',
+    //   key: 'date',
+    //   render: (date, record) => {
+    //     const lastUpdated = record.updatedAt || record.lastStatsUpdate || record.createdAt;
+    //     const isRecentlyUpdated = lastUpdated && new Date(lastUpdated) > new Date(record.createdAt);
+    //     
+    //     return (
+    //       <Tooltip title={`Created: ${new Date(date).toLocaleString()}${isRecentlyUpdated ? ` | Updated: ${new Date(lastUpdated).toLocaleString()}` : ''}`}>
+    //         <div style={{ textAlign: 'center' }}>
+    //           <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textPrimary, fontWeight: 600 }}>
+    //             {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+    //           </div>
+    //           <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '3px' }}>
+    //             {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+    //           </div>
+    //           {isRecentlyUpdated && (
+    //             <div style={{ fontSize: '10px', color: '#1890ff', marginTop: '2px', fontWeight: 600 }}>
+    //               Updated {formatISTTime(lastUpdated)}
+    //             </div>
+    //           )}
+    //         </div>
+    //       </Tooltip>
+    //     );
+    //   },
+    //   width: 140,
+    //   align: 'center',
+    // },
     {
       title: 'Actions',
       key: 'actions',
       render: (text, record) => (
         <Space size="small">
+          {/* <Tooltip title="Refresh Stats">
+            <Button
+              icon={<ReloadOutlined spin={loading.syncStats === record._id} />}
+              onClick={() => handleSyncCampaignStats(record._id)}
+              loading={loading.syncStats === record._id}
+              size="middle"
+              style={{ padding: '4px 15px' }}
+            />
+          </Tooltip> */}
           <Tooltip title="View Details">
-            <Button type="primary" icon={<EyeOutlined />} onClick={() => viewOrderDetails(record)} size="middle" style={{ padding: '4px 15px' }} />
+            <Button
+              type="primary"
+              icon={<EyeOutlined />}
+              onClick={() => viewOrderDetails(record)}
+              size="middle"
+              style={{ padding: '4px 15px' }}
+            />
           </Tooltip>
         </Space>
       ),
-      width: 140,
+      width: 180,
       align: 'center',
       fixed: 'right',
     },
@@ -665,7 +772,7 @@ export default function AdminReports() {
               </Col>
               <Col xs={24} lg={6}>
                 <div style={{ textAlign: screens.lg ? 'right' : 'left', display: 'flex', gap: '12px', justifyContent: screens.lg ? 'flex-end' : 'flex-start' }}>
-                  <Button
+                  {/* <Button
                     icon={<ReloadOutlined spin={isRefreshing} />}
                     onClick={handleRefresh}
                     loading={isRefreshing}
@@ -675,7 +782,7 @@ export default function AdminReports() {
                     }}
                   >
                     Refresh
-                  </Button>
+                  </Button> */}
                   <Button
                     type="primary"
                     icon={<DownloadOutlined />}

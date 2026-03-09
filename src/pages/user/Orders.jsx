@@ -8,10 +8,8 @@ import {
   Select,
   Button,
   Input,
-  Progress,
   Tag,
   Modal,
-  Divider,
   Tooltip,
   Breadcrumb,
   Space,
@@ -19,8 +17,6 @@ import {
   Grid,
   Statistic,
   DatePicker,
-  Badge,
-  Timeline,
 } from 'antd';
 import {
   DownloadOutlined,
@@ -45,14 +41,11 @@ import {
   fetchOrders,
   setSelectedOrder,
   clearSelectedOrder,
-  addLiveEvent,
-  updateRealTimeStats,
-  setSocketConnected,
-  updateCampaignFromSocket,
   fetchCampaignMessages,
   deleteOrder,
   fetchAllCampaignMessages,
-  fetchAllCampaigns
+  fetchAllCampaigns,
+  syncCampaignStats
 } from '../../redux/slices/ordersSlice';
 import ExcelJS from 'exceljs';
 import dayjs from 'dayjs';
@@ -90,9 +83,6 @@ export default function Orders() {
     selectedOrder,
     campaignMessages,
     messagesPagination,
-    realTimeStats,
-    liveEvents,
-    socketConnected,
     loading,
     error
   } = useSelector(state => state.orders);
@@ -148,14 +138,65 @@ export default function Orders() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [allCampaignsForFilters, setAllCampaignsForFilters] = useState([]);
 
+  // Sync campaign stats using Redux slice - improved UX with loading states
+  const handleSyncCampaignStats = async (campaignId) => {
+    try {
+      // Show immediate loading feedback
+      const loadingToast = toast.loading('Syncing campaign stats...');
+      
+      // Sync stats for this specific campaign
+      const result = await dispatch(syncCampaignStats({ campaignId })).unwrap();
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      console.log('Sync result:', result); // Debug log
+      
+      if (result.success) {
+        // The Redux slice already updates the campaign in the orders array
+        // Just show success message - the UI will update automatically
+        toast.success('Campaign stats updated successfully');
+      } else {
+        toast.error('Failed to sync campaign stats');
+      }
+    } catch (error) {
+      console.error('Sync campaign stats error:', error);
+      toast.error(error.message || 'Failed to refresh campaign stats');
+    }
+  };
+
   // Manual refresh handler
   const handleRefresh = async () => {
     if (user?._id) {
       setIsRefreshing(true);
       try {
-        await dispatch(fetchOrders({ userId: user._id, page: currentPage, limit: pageSize })).unwrap();
+        console.log('Starting refresh - fetching fresh data with current filters...');
+        
+        // Fetch fresh data with all current filters and refresh flag
+        const params = {
+          userId: user._id,
+          page: currentPage,
+          limit: pageSize,
+          sort: sortOrder,
+          refresh: true, // Backend refresh flag
+          preserveStats: true, // Preserve existing RCS counts
+          _t: Date.now() // Cache buster
+        };
+
+        if (searchText && searchText.trim()) params.search = searchText.trim();
+        if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+        if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
+        if (campaignFilter && campaignFilter !== 'all') params.campaign = campaignFilter;
+        if (dateRange && dateRange[0] && dateRange[1]) {
+          params.startDate = dateRange[0].toISOString();
+          params.endDate = dateRange[1].toISOString();
+        }
+        
+        const result = await dispatch(fetchOrders(params)).unwrap();
+        console.log('Fresh data received:', result.data?.length, 'campaigns');
         toast.success('Campaigns refreshed successfully');
       } catch (error) {
+        console.error('Refresh error:', error);
         toast.error('Failed to refresh campaigns');
       } finally {
         setIsRefreshing(false);
@@ -196,14 +237,6 @@ export default function Orders() {
         .then(result => setAllCampaignsForFilters(result.data || []));
     }
   }, [user?._id, dispatch]);
-
-  const fetchAllCampaignStats = async () => {
-    for (const order of orders) {
-      if (order._id) {
-        dispatch(fetchRealTimeCampaignStats({ campaignId: order._id }));
-      }
-    }
-  };
 
   const getUniqueTypes = () => {
     if (!Array.isArray(allCampaignsForFilters)) return [];
@@ -473,11 +506,12 @@ export default function Orders() {
       const rows = allCampaigns.map((order, idx) => {
         const totalDelivered = order?.totalDelivered || 0;
         const failed = order?.failedCount || 0;
-        const sentCount = totalDelivered + failed;
         const expired = order?.expiredCount || 0;
         const rcsCapableCount = order?.rcsCapableCount || 0;
         const totalRecipients = order?.cost || 0;
-        const successRate = rcsCapableCount > 0 ? ((totalDelivered / rcsCapableCount) * 100).toFixed(2) : 0;
+        // Show sum of sent + failed messages
+        const sentCount = (order?.stats?.sent || order?.successCount || 0) + (order?.failedCount || order?.stats?.failed || 0);
+        const successRate = rcsCapableCount > 0 ? ((sentCount / rcsCapableCount) * 100).toFixed(2) : 0;
 
         return {
           sno: idx + 1,
@@ -600,10 +634,8 @@ export default function Orders() {
       title: 'Sent',
       key: 'sent',
       render: (text, record) => {
-        // Sent = totalDelivered + failed
-        const totalDelivered = record?.totalDelivered || 0;
-        const failed = record?.failedCount || 0;
-        const sentCount = totalDelivered + failed;
+        // Show sum of sent + failed messages
+        const sentCount = (record?.stats?.sent || record?.successCount || 0) + (record?.failedCount || record?.stats?.failed || 0);
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
             <SendOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
@@ -666,10 +698,10 @@ export default function Orders() {
       title: 'Success Rate',
       key: 'rate',
       render: (text, record) => {
-        // Backend already sends correct totalDelivered
-        const totalDelivered = record?.totalDelivered || 0;
+        // Success Rate = (sent / rcsCapable) * 100
+        const sentCount = (record?.stats?.sent || record?.successCount || 0) + (record?.failedCount || record?.stats?.failed || 0);
         const rcsCapableCount = record.rcsCapableCount || 0;
-        const rate = rcsCapableCount > 0 ? (totalDelivered / rcsCapableCount) * 100 : 0;
+        const rate = rcsCapableCount > 0 ? (sentCount / rcsCapableCount) * 100 : 0;
         const color = rate >= 80 ? THEME_CONSTANTS.colors.success : rate >= 50 ? '#fa8c16' : THEME_CONSTANTS.colors.danger;
         const displayRate = rate < 1 && rate > 0 ? rate.toFixed(2) : Math.round(rate);
 
@@ -725,32 +757,128 @@ export default function Orders() {
       width: 130,
       align: 'center',
     },
+    // {
+    //   title: 'Last Updated',
+    //   key: 'lastUpdated',
+    //   render: (text, record) => {
+    //     // Check multiple possible fields for last updated time
+    //     const lastUpdated = record?.stats?.lastUpdated || 
+    //                        record?.lastStatsUpdate || 
+    //                        record?.createdAt;
+    //     
+    //     if (!lastUpdated) {
+    //       return (
+    //         <div style={{ textAlign: 'center' }}>
+    //           <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textMuted }}>
+    //             Never synced
+    //           </div>
+    //         </div>
+    //       );
+    //     }
+    //     
+    //     const now = new Date();
+    //     const updatedTime = new Date(lastUpdated);
+    //     const diffMinutes = Math.floor((now - updatedTime) / (1000 * 60));
+    //     
+    //     // Check if this is from a recent sync (lastStatsUpdate) vs creation time
+    //     const isRecentSync = record?.stats?.lastUpdated || record?.lastStatsUpdate;
+    //     
+    //     let timeAgo;
+    //     let color = THEME_CONSTANTS.colors.textSecondary;
+    //     
+    //     if (isRecentSync) {
+    //       // Show sync time with green for recent syncs
+    //       if (diffMinutes < 1) {
+    //         timeAgo = 'Just now';
+    //         color = THEME_CONSTANTS.colors.success;
+    //       } else if (diffMinutes < 60) {
+    //         timeAgo = `${diffMinutes}m ago`;
+    //         color = diffMinutes < 10 ? THEME_CONSTANTS.colors.success : THEME_CONSTANTS.colors.textSecondary;
+    //       } else if (diffMinutes < 1440) {
+    //         const hours = Math.floor(diffMinutes / 60);
+    //         timeAgo = `${hours}h ago`;
+    //         color = hours < 2 ? THEME_CONSTANTS.colors.textSecondary : THEME_CONSTANTS.colors.textMuted;
+    //       } else {
+    //         const days = Math.floor(diffMinutes / 1440);
+    //         timeAgo = `${days}d ago`;
+    //         color = THEME_CONSTANTS.colors.textMuted;
+    //       }
+    //     } else {
+    //       // Show as "Created X ago" if no sync timestamp
+    //       if (diffMinutes < 60) {
+    //         timeAgo = `Created ${diffMinutes}m ago`;
+    //       } else if (diffMinutes < 1440) {
+    //         const hours = Math.floor(diffMinutes / 60);
+    //         timeAgo = `Created ${hours}h ago`;
+    //       } else {
+    //         const days = Math.floor(diffMinutes / 1440);
+    //         timeAgo = `Created ${days}d ago`;
+    //       }
+    //       color = THEME_CONSTANTS.colors.textMuted;
+    //     }
+    //     
+    //     return (
+    //       <Tooltip title={isRecentSync ? `Last synced: ${updatedTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}` : `Campaign created: ${updatedTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`}>
+    //         <div style={{ textAlign: 'center' }}>
+    //           <div style={{ 
+    //             fontSize: '12px', 
+    //             color, 
+    //             fontWeight: isRecentSync && diffMinutes < 10 ? 600 : 500,
+    //             display: 'flex',
+    //             alignItems: 'center',
+    //             justifyContent: 'center',
+    //             gap: '4px'
+    //           }}>
+    //             <ClockCircleOutlined style={{ fontSize: '11px' }} />
+    //             {timeAgo}
+    //           </div>
+    //           <div style={{ fontSize: '10px', color: THEME_CONSTANTS.colors.textMuted, marginTop: '2px' }}>
+    //             {updatedTime.toLocaleTimeString('en-IN', { 
+    //               timeZone: 'Asia/Kolkata',
+    //               hour: '2-digit', 
+    //               minute: '2-digit' 
+    //             })}
+    //           </div>
+    //         </div>
+    //       </Tooltip>
+    //     );
+    //   },
+    //   width: 120,
+    //   align: 'center',
+    // },
     {
       title: 'Actions',
       key: 'actions',
-      render: (text, record) => (
-        <Space size="small">
-          <Tooltip title="View Details">
-            <Button
-              type="primary"
-              icon={<EyeOutlined />}
-              onClick={() => viewOrderDetails(record)}
-              size="middle"
-              style={{ padding: '4px 15px' }}
-            />
-          </Tooltip>
-          {/* <Tooltip title="Delete">
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => deleteOrderHandler(record._id)}
-              size="middle"
-              style={{ padding: '4px 15px' }}
-            />
-          </Tooltip> */}
-        </Space>
-      ),
-      width: 140,
+      render: (text, record) => {
+        const isRefreshing = loading.syncStats === record._id;
+        return (
+          <Space size="small">
+            {/* <Tooltip title={isRefreshing ? "Syncing stats..." : "Refresh Stats"}>
+              <Button
+                icon={<ReloadOutlined spin={isRefreshing} />}
+                onClick={() => handleSyncCampaignStats(record._id)}
+                loading={isRefreshing}
+                disabled={isRefreshing}
+                size="middle"
+                style={{ 
+                  padding: '4px 15px',
+                  opacity: isRefreshing ? 0.7 : 1
+                }}
+              />
+            </Tooltip> */}
+            <Tooltip title="View Details">
+              <Button
+                type="primary"
+                icon={<EyeOutlined />}
+                onClick={() => viewOrderDetails(record)}
+                size="middle"
+                style={{ padding: '4px 15px' }}
+              />
+            </Tooltip>
+          </Space>
+        );
+      },
+      width: 180,
       align: 'center',
       fixed: 'right',
     },
@@ -831,7 +959,7 @@ export default function Orders() {
               </Col>
               <Col xs={24} lg={6}>
                 <div style={{ textAlign: screens.lg ? 'right' : 'left', display: 'flex', gap: '12px', justifyContent: screens.lg ? 'flex-end' : 'flex-start' }}>
-                  <Button
+                  {/* <Button
                     icon={<ReloadOutlined spin={isRefreshing} />}
                     onClick={handleRefresh}
                     loading={isRefreshing}
@@ -841,7 +969,7 @@ export default function Orders() {
                     }}
                   >
                     Refresh
-                  </Button>
+                  </Button> */}
                   <Button
                     type="primary"
                     icon={<DownloadOutlined />}
@@ -1574,7 +1702,7 @@ export default function Orders() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {(selectedOrder?.totalDelivered || 0) + (selectedOrder?.failedCount || 0)}
+                          {(selectedOrder?.stats?.sent || selectedOrder?.successCount || 0) + (selectedOrder?.failedCount || selectedOrder?.stats?.failed || 0)}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Sent</div>
                       </div>

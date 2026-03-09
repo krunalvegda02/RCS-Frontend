@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { createAsyncThunkHandler } from '../../helper/createAsyncThunkHandler.jsx';
-import { _get, _delete } from '../../helper/apiClient.jsx';
+import { _get, _delete, _post } from '../../helper/apiClient.jsx';
 import { 
   getRealTimeCampaignStats, 
   getLiveMessageFeed, 
@@ -25,6 +25,12 @@ export const deleteOrder = createAsyncThunkHandler(
   'orders/deleteOrder',
   _delete,
   (payload) => `v1/campaign-reports/${payload}`
+);
+
+export const syncCampaignStats = createAsyncThunkHandler(
+  'orders/syncCampaignStats',
+  _post,
+  (payload) => `v1/campaigns/${payload.campaignId}/sync-stats`
 );
 
 // Export the real-time thunks from realtimeApi
@@ -64,12 +70,14 @@ const initialState = {
     realTimeStats: false,
     messages: false,
     delete: false,
+    syncStats: false,
   },
   error: {
     orders: null,
     realTimeStats: null,
     messages: null,
     delete: null,
+    syncStats: null,
   }
 };
 
@@ -217,6 +225,30 @@ const ordersSlice = createSlice({
       .addCase(fetchCampaignMessages.rejected, (state, action) => {
         state.loading.messages = false;
         state.error.messages = action.payload;
+      })
+
+    // Sync campaign stats
+    builder
+      .addCase(syncCampaignStats.pending, (state, action) => {
+        state.loading.syncStats = action.meta.arg.campaignId;
+        state.error.syncStats = null;
+      })
+      .addCase(syncCampaignStats.fulfilled, (state, action) => {
+        state.loading.syncStats = false;
+        const campaignId = action.meta.arg.campaignId;
+        // Update the campaign in orders array with fresh stats
+        const orderIndex = state.orders.findIndex(order => order._id === campaignId);
+        if (orderIndex !== -1 && action.payload.data) {
+          state.orders[orderIndex] = {
+            ...state.orders[orderIndex],
+            ...action.payload.data,
+            lastStatsUpdate: new Date().toISOString()
+          };
+        }
+      })
+      .addCase(syncCampaignStats.rejected, (state, action) => {
+        state.loading.syncStats = false;
+        state.error.syncStats = action.payload;
       });
   },
 });
