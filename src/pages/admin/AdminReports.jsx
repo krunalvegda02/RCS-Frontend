@@ -87,6 +87,7 @@ export default function AdminReports() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [dateRange, setDateRange] = useState([null, null]);
   const [sortOrder, setSortOrder] = useState('newest');
+  const [quickFilter, setQuickFilter] = useState('all');
 
   const handleSearchChange = (value) => {
     setSearchText(value);
@@ -111,6 +112,37 @@ export default function AdminReports() {
   const handleSortChange = () => {
     setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest');
     setCurrentPage(1);
+  };
+
+  const handleQuickFilter = (filter) => {
+    setQuickFilter(filter);
+    setCurrentPage(1);
+    
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    
+    switch (filter) {
+      case 'today':
+        setDateRange([dayjs(startOfToday), dayjs(endOfToday)]);
+        break;
+      case 'yesterday':
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const startOfYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+        const endOfYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59);
+        setDateRange([dayjs(startOfYesterday), dayjs(endOfYesterday)]);
+        break;
+      case 'thisMonth':
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
+        setDateRange([dayjs(startOfMonth), dayjs(endOfMonth)]);
+        break;
+      case 'all':
+      default:
+        setDateRange([null, null]);
+        break;
+    }
   };
 
   const [modalSearchText, setModalSearchText] = useState('');
@@ -637,6 +669,25 @@ export default function AdminReports() {
       width: 130,
       align: 'center',
     },
+    {
+      title: 'Created',
+      dataIndex: 'createdAt',
+      key: 'date',
+      render: (date) => (
+        <Tooltip title={new Date(date).toLocaleString()}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textPrimary, fontWeight: 600 }}>
+              {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+            </div>
+            <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '3px' }}>
+              {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+        </Tooltip>
+      ),
+      width: 130,
+      align: 'center',
+    },
     // {
     //   title: 'Created / Updated',
     //   dataIndex: 'createdAt',
@@ -958,7 +1009,7 @@ export default function AdminReports() {
                 </div>
               </div>
 
-              {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || (dateRange && dateRange[0])) && (
+              {(searchText || statusFilter !== 'all' || typeFilter !== 'all' || (dateRange && dateRange[0]) || quickFilter !== 'all') && (
                 <Button
                   danger
                   type="primary"
@@ -968,6 +1019,7 @@ export default function AdminReports() {
                     setStatusFilter('all');
                     setTypeFilter('all');
                     setDateRange([null, null]);
+                    setQuickFilter('all');
                     toast.success('All filters cleared');
                   }}
                   style={{
@@ -984,6 +1036,69 @@ export default function AdminReports() {
             </div>
 
             <div style={{ padding: '28px' }}>
+              {/* Quick Filter Buttons */}
+              <Row gutter={[12, 16]} style={{ marginBottom: '24px' }}>
+                <Col span={24}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: THEME_CONSTANTS.colors.text,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      Quick Filters
+                    </label>
+                  </div>
+                  <Space size="small" wrap>
+                    <Button
+                      type={quickFilter === 'all' ? 'primary' : 'default'}
+                      onClick={() => handleQuickFilter('all')}
+                      style={{
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        fontWeight: 600,
+                        fontSize: '13px'
+                      }}
+                    >
+                      All Time
+                    </Button>
+                    <Button
+                      type={quickFilter === 'today' ? 'primary' : 'default'}
+                      onClick={() => handleQuickFilter('today')}
+                      style={{
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        fontWeight: 600,
+                        fontSize: '13px'
+                      }}
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      type={quickFilter === 'yesterday' ? 'primary' : 'default'}
+                      onClick={() => handleQuickFilter('yesterday')}
+                      style={{
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        fontWeight: 600,
+                        fontSize: '13px'
+                      }}
+                    >
+                      Yesterday
+                    </Button>
+                    <Button
+                      type={quickFilter === 'thisMonth' ? 'primary' : 'default'}
+                      onClick={() => handleQuickFilter('thisMonth')}
+                      style={{
+                        borderRadius: THEME_CONSTANTS.radius.md,
+                        fontWeight: 600,
+                        fontSize: '13px'
+                      }}
+                    >
+                      This Month
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+
               <Row gutter={[16, 20]}>
                 {/* Search Input */}
                 <Col xs={24} md={12} lg={8}>
@@ -1447,7 +1562,7 @@ export default function AdminReports() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '4px' }}>
-                          {(selectedOrder?.totalDelivered || 0) + (selectedOrder?.failedCount || 0)}
+                          {(selectedOrder?.stats?.sent || selectedOrder?.successCount || 0) + (selectedOrder?.failedCount || selectedOrder?.stats?.failed || 0)}
                         </div>
                         <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Sent</div>
                       </div>
@@ -1625,6 +1740,40 @@ export default function AdminReports() {
                             {selectedOrder?.actualCost ?? selectedOrder?.estimatedCost ?? 0}
                           </div>
                           <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600 }}>Credits Used</div>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                )}
+                {(selectedOrder?.status === 'completed' || selectedOrder?.status === 'settled') && selectedOrder?.completedAt && (
+                  <Col xs={24} sm={12} md={8} lg={4}>
+                    <Card style={{
+                      borderRadius: THEME_CONSTANTS.radius.lg,
+                      border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+                      boxShadow: THEME_CONSTANTS.shadow.sm,
+                      background: THEME_CONSTANTS.colors.surface
+                    }} bodyStyle={{ padding: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          background: '#f0f9ff',
+                          borderRadius: THEME_CONSTANTS.radius.md,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <CheckCircleOutlined style={{ fontSize: '20px', color: '#0ea5e9' }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: THEME_CONSTANTS.colors.text, lineHeight: 1, marginBottom: '3px' }}>
+                            {new Date(selectedOrder.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+                          </div>
+                          <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '3px' }}>
+                            {new Date(selectedOrder.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 600, marginTop: '2px' }}>Completed At</div>
                         </div>
                       </div>
                     </Card>
