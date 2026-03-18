@@ -37,6 +37,92 @@ import { uploadFile } from '../../redux/slices/uploadSlice';
 
 const { useBreakpoint } = Grid;
 
+// Utility functions for URL validation and trimming
+const trimAndValidateUrl = (url) => {
+  if (!url) return '';
+  
+  // Trim whitespace from start and end
+  const trimmedUrl = url.trim();
+  
+  if (!trimmedUrl) return '';
+  
+  try {
+    // Check if URL has protocol
+    if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+      // If it looks like a domain, add https://
+      if (trimmedUrl.includes('.') && !trimmedUrl.includes(' ')) {
+        return `https://${trimmedUrl}`;
+      }
+      return trimmedUrl; // Return as-is if it doesn't look like a URL
+    }
+    
+    // Validate URL format
+    new URL(trimmedUrl);
+    return trimmedUrl;
+  } catch (error) {
+    // If URL is invalid, return the trimmed version anyway
+    // The user will see validation error later
+    return trimmedUrl;
+  }
+};
+
+const validateUrl = (url) => {
+  if (!url || !url.trim()) return true; // Empty URLs are allowed
+  
+  const trimmedUrl = url.trim();
+  
+  try {
+    const urlObj = new URL(trimmedUrl);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch (error) {
+    return false;
+  }
+};
+
+const trimAllFields = (obj) => {
+  if (typeof obj === 'string') {
+    return obj.trim();
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => trimAllFields(item));
+  }
+  
+  if (obj && typeof obj === 'object') {
+    const trimmed = {};
+    for (const [key, value] of Object.entries(obj)) {
+      trimmed[key] = trimAllFields(value);
+    }
+    return trimmed;
+  }
+  
+  return obj;
+};
+
+const sanitizeActionPayload = (action) => {
+  const sanitized = { ...action };
+  
+  // Trim title
+  if (sanitized.title) {
+    sanitized.title = sanitized.title.trim();
+  }
+  
+  // Handle payload based on action type
+  if (sanitized.payload) {
+    if (sanitized.type === 'url') {
+      sanitized.payload = trimAndValidateUrl(sanitized.payload);
+    } else if (sanitized.type === 'call') {
+      // Trim phone numbers and remove extra spaces
+      sanitized.payload = sanitized.payload.trim().replace(/\s+/g, '');
+    } else {
+      // For reply/postback, just trim
+      sanitized.payload = sanitized.payload.trim();
+    }
+  }
+  
+  return sanitized;
+};
+
 export default function CreateTemplatePage() {
   const screens = useBreakpoint();
   const navigate = useNavigate();
@@ -296,7 +382,28 @@ export default function CreateTemplatePage() {
 
       // Validate actions have titles for text-with-action
       const validActions = messageType === 'text-with-action'
-        ? actions.filter(action => action.title && action.title.trim())
+        ? actions.map(action => sanitizeActionPayload(action)).filter(action => {
+            if (!action.title || !action.title.trim()) return false;
+            
+            // Validate URL actions
+            if (action.type === 'url' && action.payload) {
+              if (!validateUrl(action.payload)) {
+                toast.error(`Invalid URL in action "${action.title}": ${action.payload}`);
+                return false;
+              }
+            }
+            
+            // Validate phone actions
+            if (action.type === 'call' && action.payload) {
+              const phoneRegex = /^[+]?[0-9\s\-\(\)]{7,15}$/;
+              if (!phoneRegex.test(action.payload)) {
+                toast.error(`Invalid phone number in action "${action.title}": ${action.payload}`);
+                return false;
+              }
+            }
+            
+            return true;
+          })
         : [];
 
       if (messageType === 'text-with-action' && validActions.length === 0) {
@@ -307,10 +414,38 @@ export default function CreateTemplatePage() {
       // Validate carousel items
       let validCarouselItems = [];
       if (messageType === 'carousel') {
-        validCarouselItems = carouselItems.map(item => ({
-          ...item,
-          actions: item.actions.filter(action => action.title && action.title.trim())
-        })).filter(item => item.title && item.title.trim() && item.actions.length > 0);
+        validCarouselItems = carouselItems.map(item => {
+          // Sanitize and validate actions for each carousel item
+          const sanitizedActions = item.actions.map(action => sanitizeActionPayload(action)).filter(action => {
+            if (!action.title || !action.title.trim()) return false;
+            
+            // Validate URL actions
+            if (action.type === 'url' && action.payload) {
+              if (!validateUrl(action.payload)) {
+                toast.error(`Invalid URL in carousel item "${item.title}" action "${action.title}": ${action.payload}`);
+                return false;
+              }
+            }
+            
+            // Validate phone actions
+            if (action.type === 'call' && action.payload) {
+              const phoneRegex = /^[+]?[0-9\s\-\(\)]{7,15}$/;
+              if (!phoneRegex.test(action.payload)) {
+                toast.error(`Invalid phone number in carousel item "${item.title}" action "${action.title}": ${action.payload}`);
+                return false;
+              }
+            }
+            
+            return true;
+          });
+          
+          return {
+            ...item,
+            title: item.title.trim(),
+            subtitle: item.subtitle.trim(),
+            actions: sanitizedActions
+          };
+        }).filter(item => item.title && item.title.trim() && item.actions.length > 0);
 
         if (validCarouselItems.length < 2) {
           toast.error('Carousel templates must have at least 2 cards');
@@ -346,9 +481,36 @@ export default function CreateTemplatePage() {
           toast.error('Video thumbnail is required for rich card');
           return;
         }
+        
+        // Validate and sanitize rich card actions
+        const sanitizedActions = richCard.actions.map(action => sanitizeActionPayload(action)).filter(action => {
+          if (!action.title || !action.title.trim()) return false;
+          
+          // Validate URL actions
+          if (action.type === 'url' && action.payload) {
+            if (!validateUrl(action.payload)) {
+              toast.error(`Invalid URL in rich card action "${action.title}": ${action.payload}`);
+              return false;
+            }
+          }
+          
+          // Validate phone actions
+          if (action.type === 'call' && action.payload) {
+            const phoneRegex = /^[+]?[0-9\s\-\(\)]{7,15}$/;
+            if (!phoneRegex.test(action.payload)) {
+              toast.error(`Invalid phone number in rich card action "${action.title}": ${action.payload}`);
+              return false;
+            }
+          }
+          
+          return true;
+        });
+        
         validRichCard = {
           ...richCard,
-          actions: richCard.actions.filter(action => action.title && action.title.trim())
+          title: richCard.title.trim(),
+          subtitle: richCard.subtitle.trim(),
+          actions: sanitizedActions
         };
       }
 
@@ -356,21 +518,21 @@ export default function CreateTemplatePage() {
       let content = {};
 
       if (messageType === 'text') {
-        content = { body: formData.text };
+        content = { body: formData.text.trim() };
       } else if (messageType === 'text-with-action') {
         content = {
-          text: formData.text,
+          text: formData.text.trim(),
           buttons: validActions.map(a => ({
-            label: a.title,
+            label: a.title.trim(),
             value: a.payload,
             actionType: a.type === 'url' ? 'openUri' : a.type === 'call' ? 'dialPhone' : 'postback'
           }))
         };
       } else if (messageType === 'rcs') {
         content = {
-          title: richCard.title,
-          subtitle: richCard.subtitle,
-          description: richCard.subtitle,
+          title: validRichCard.title,
+          subtitle: validRichCard.subtitle,
+          description: validRichCard.subtitle,
           imageUrl: richCard.imageUrl,
           mediaType: richCard.mediaType || 'image',
           thumbnailUrl: richCard.thumbnailUrl || '',
@@ -399,8 +561,8 @@ export default function CreateTemplatePage() {
       }
 
       const templateData = {
-        name: formData.name,
-        description: formData.text || richCard.subtitle || '',
+        name: formData.name.trim(),
+        description: (formData.text || richCard.subtitle || '').trim(),
         templateType: messageType === 'text' ? 'plainText' :
           messageType === 'text-with-action' ? 'textWithAction' :
             messageType === 'rcs' ? 'richCard' : 'carousel',
@@ -447,7 +609,7 @@ export default function CreateTemplatePage() {
   };
 
   const handleNameChange = (e) => {
-    setFormData({ ...formData, name: e.target.value });
+    setFormData({ ...formData, name: e.target.value.trim() });
   };
 
 
@@ -455,7 +617,20 @@ export default function CreateTemplatePage() {
 
   const handleActionChange = (index, field, value) => {
     const updated = [...actions];
-    updated[index][field] = value;
+    
+    if (field === 'payload' && updated[index].type === 'url') {
+      // Auto-trim and validate URLs
+      updated[index][field] = trimAndValidateUrl(value);
+    } else if (field === 'payload' && updated[index].type === 'call') {
+      // Clean phone numbers
+      updated[index][field] = value.trim().replace(/\s+/g, '');
+    } else if (field === 'title') {
+      // Trim titles
+      updated[index][field] = value.trim();
+    } else {
+      updated[index][field] = value;
+    }
+    
     setActions(updated);
   };
 
@@ -469,7 +644,20 @@ export default function CreateTemplatePage() {
 
   const handleRichCardActionChange = (index, field, value) => {
     const updated = [...richCard.actions];
-    updated[index][field] = value;
+    
+    if (field === 'payload' && updated[index].type === 'url') {
+      // Auto-trim and validate URLs
+      updated[index][field] = trimAndValidateUrl(value);
+    } else if (field === 'payload' && updated[index].type === 'call') {
+      // Clean phone numbers
+      updated[index][field] = value.trim().replace(/\s+/g, '');
+    } else if (field === 'title') {
+      // Trim titles
+      updated[index][field] = value.trim();
+    } else {
+      updated[index][field] = value;
+    }
+    
     setRichCard({ ...richCard, actions: updated });
   };
 
@@ -489,7 +677,14 @@ export default function CreateTemplatePage() {
 
   const handleCarouselItemChange = (index, field, value) => {
     const updated = [...carouselItems];
-    updated[index][field] = value;
+    
+    if (field === 'title' || field === 'subtitle') {
+      // Trim text fields
+      updated[index][field] = value.trim();
+    } else {
+      updated[index][field] = value;
+    }
+    
     setCarouselItems(updated);
   };
 
@@ -506,7 +701,20 @@ export default function CreateTemplatePage() {
 
   const handleCarouselActionChange = (itemIndex, actionIndex, field, value) => {
     const updated = [...carouselItems];
-    updated[itemIndex].actions[actionIndex][field] = value;
+    
+    if (field === 'payload' && updated[itemIndex].actions[actionIndex].type === 'url') {
+      // Auto-trim and validate URLs
+      updated[itemIndex].actions[actionIndex][field] = trimAndValidateUrl(value);
+    } else if (field === 'payload' && updated[itemIndex].actions[actionIndex].type === 'call') {
+      // Clean phone numbers
+      updated[itemIndex].actions[actionIndex][field] = value.trim().replace(/\s+/g, '');
+    } else if (field === 'title') {
+      // Trim titles
+      updated[itemIndex].actions[actionIndex][field] = value.trim();
+    } else {
+      updated[itemIndex].actions[actionIndex][field] = value;
+    }
+    
     setCarouselItems(updated);
   };
 
@@ -662,8 +870,30 @@ export default function CreateTemplatePage() {
                     placeholder={action.type === 'url' ? 'https://example.com' : action.type === 'call' ? '+1234567890' : 'response_text'}
                     value={action.payload}
                     onChange={(e) => handleActionChange(index, 'payload', e.target.value)}
-                    style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+                    onBlur={(e) => {
+                      // Validate on blur for immediate feedback
+                      if (action.type === 'url' && e.target.value.trim()) {
+                        if (!validateUrl(e.target.value.trim())) {
+                          toast.error(`Invalid URL format. Please use: https://rcssender.com`);
+                        }
+                      }
+                    }}
+                    status={action.type === 'url' && action.payload && !validateUrl(action.payload) ? 'error' : ''}
+                    style={{ 
+                      height: '48px', 
+                      fontSize: '15px', 
+                      padding: '12px 16px', 
+                      border: action.type === 'url' && action.payload && !validateUrl(action.payload) 
+                        ? '2px solid #ff4d4f' 
+                        : '2px solid #e0e0e0', 
+                      borderRadius: '8px' 
+                    }}
                   />
+                  {action.type === 'url' && action.payload && !validateUrl(action.payload) && (
+                    <div style={{ fontSize: '12px', color: '#ff4d4f', marginTop: '4px' }}>
+                      ⚠️ Invalid URL format
+                    </div>
+                  )}
                 </Col>
                 {actions.length > 1 && (
                   <Col span={24} md={2} style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -937,8 +1167,30 @@ export default function CreateTemplatePage() {
                     placeholder={action.type === 'url' ? 'https://example.com' : action.type === 'call' ? '+1234567890' : 'response_text'}
                     value={action.payload}
                     onChange={(e) => handleRichCardActionChange(index, 'payload', e.target.value)}
-                    style={{ height: '48px', fontSize: '15px', padding: '12px 16px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+                    onBlur={(e) => {
+                      // Validate on blur for immediate feedback
+                      if (action.type === 'url' && e.target.value.trim()) {
+                        if (!validateUrl(e.target.value.trim())) {
+                          toast.error(`Invalid URL format. Please use: https://example.com`);
+                        }
+                      }
+                    }}
+                    status={action.type === 'url' && action.payload && !validateUrl(action.payload) ? 'error' : ''}
+                    style={{ 
+                      height: '48px', 
+                      fontSize: '15px', 
+                      padding: '12px 16px', 
+                      border: action.type === 'url' && action.payload && !validateUrl(action.payload) 
+                        ? '2px solid #ff4d4f' 
+                        : '2px solid #e0e0e0', 
+                      borderRadius: '8px' 
+                    }}
                   />
+                  {action.type === 'url' && action.payload && !validateUrl(action.payload) && (
+                    <div style={{ fontSize: '12px', color: '#ff4d4f', marginTop: '4px' }}>
+                      ⚠️ Invalid URL format
+                    </div>
+                  )}
                 </Col>
                 {richCard.actions.length > 1 && (
                   <Col span={24} md={2} style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -1216,8 +1468,30 @@ export default function CreateTemplatePage() {
                           placeholder={action.type === 'url' ? 'https://example.com' : action.type === 'call' ? '+1234567890' : 'response_text'}
                           value={action.payload}
                           onChange={(e) => handleCarouselActionChange(itemIndex, actionIndex, 'payload', e.target.value)}
-                          style={{ height: '44px', fontSize: '14px', padding: '10px 14px', border: '2px solid #e0e0e0', borderRadius: '8px' }}
+                          onBlur={(e) => {
+                            // Validate on blur for immediate feedback
+                            if (action.type === 'url' && e.target.value.trim()) {
+                              if (!validateUrl(e.target.value.trim())) {
+                                toast.error(`Invalid URL format. Please use: https://example.com`);
+                              }
+                            }
+                          }}
+                          status={action.type === 'url' && action.payload && !validateUrl(action.payload) ? 'error' : ''}
+                          style={{ 
+                            height: '44px', 
+                            fontSize: '14px', 
+                            padding: '10px 14px', 
+                            border: action.type === 'url' && action.payload && !validateUrl(action.payload) 
+                              ? '2px solid #ff4d4f' 
+                              : '2px solid #e0e0e0', 
+                            borderRadius: '8px' 
+                          }}
                         />
+                        {action.type === 'url' && action.payload && !validateUrl(action.payload) && (
+                          <div style={{ fontSize: '11px', color: '#ff4d4f', marginTop: '2px' }}>
+                            ⚠️ Invalid URL
+                          </div>
+                        )}
                       </Col>
                       {item.actions.length > 1 && (
                         <Col span={24} md={2} style={{ display: 'flex', alignItems: 'flex-end' }}>
