@@ -16,7 +16,10 @@ const AuthChecker = () => {
         return
       }
 
-      if (!token || !isAuthenticated) {
+      // Only logout if both token and isAuthenticated are false
+      // This prevents unnecessary logouts due to temporary state issues
+      if (!token && !isAuthenticated) {
+        console.log('Auth check failed: no token and not authenticated')
         dispatch(logout())
       }
     }
@@ -24,8 +27,8 @@ const AuthChecker = () => {
     // Check immediately
     checkAuth()
 
-    // Check every 5 minutes
-    const interval = setInterval(checkAuth, 5 * 60 * 1000)
+    // Reduce frequency to every 10 minutes instead of 5
+    const interval = setInterval(checkAuth, 10 * 60 * 1000)
 
     return () => clearInterval(interval)
   }, [dispatch, token, isAuthenticated, location.pathname])

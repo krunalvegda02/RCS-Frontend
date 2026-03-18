@@ -1,49 +1,199 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Input, Tag, Space, Modal, Breadcrumb, Spin, Empty, message } from 'antd';
-import { DownloadOutlined, UserOutlined, FolderOpenOutlined, SearchOutlined, HomeOutlined, CalendarOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Input, Tag, Space, Modal, Breadcrumb, Spin, Empty, message, DatePicker, Select, Row, Col, Statistic } from 'antd';
+import { DownloadOutlined, UserOutlined, FolderOpenOutlined, SearchOutlined, HomeOutlined, CalendarOutlined, BarChartOutlined, SendOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../../theme';
-import axios from 'axios';
+import { _get } from '../../helper/apiClient.jsx';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 export default function ArchivedCampaigns() {
+  const navigate = useNavigate();
+  const { user, token, isAuthenticated } = useSelector(state => state.auth);
+  
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [dateRange, setDateRange] = useState([]);
+  const [quickFilter, setQuickFilter] = useState('all');
+  const [stats, setStats] = useState({
+    totalCampaigns: 0,
+    totalMessages: 0,
+    totalSent: 0,
+    totalDelivered: 0,
+    totalFailed: 0,
+    totalPending: 0,
+    totalExpired: 0,
+    uniqueUsers: 0,
+    deliveryRate: 0,
+    sentRate: 0
+  });
+
+  // Check authentication and admin role
+  useEffect(() => {
+    if (!isAuthenticated || !token) {
+      message.error('Please login to access this page');
+      navigate('/login');
+      return;
+    }
+    
+    if (user?.role !== 'ADMIN') {
+      message.error('Admin access required');
+      navigate('/dashboard');
+      return;
+    }
+  }, [isAuthenticated, token, user, navigate]);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    // Only fetch if user is authenticated and is admin
+    if (isAuthenticated && token && user?.role === 'ADMIN') {
+      fetchUsers();
+      fetchStats();
+    }
+  }, [isAuthenticated, token, user]);
+
+  useEffect(() => {
+    // Only fetch if user is authenticated and is admin
+    if (isAuthenticated && token && user?.role === 'ADMIN') {
+      fetchStats();
+      fetchUsers(); // Also refresh users when filters change
+      // If modal is open and user is selected, refresh campaigns with new filters
+      if (showModal && selectedUser) {
+        fetchUserCampaigns(selectedUser._id);
+      }
+    }
+  }, [dateRange, quickFilter, showModal, selectedUser, isAuthenticated, token, user]);
+
+  const getDateRangeFromFilter = (filter) => {
+    const now = dayjs();
+    switch (filter) {
+      case 'today':
+        return [now.startOf('day'), now.endOf('day')];
+      case 'yesterday':
+        return [now.subtract(1, 'day').startOf('day'), now.subtract(1, 'day').endOf('day')];
+      case 'thisWeek':
+        return [now.startOf('week'), now.endOf('week')];
+      case 'lastWeek':
+        return [now.subtract(1, 'week').startOf('week'), now.subtract(1, 'week').endOf('week')];
+      case 'thisMonth':
+        return [now.startOf('month'), now.endOf('month')];
+      case 'lastMonth':
+        return [now.subtract(1, 'month').startOf('month'), now.subtract(1, 'month').endOf('month')];
+      case 'last3Months':
+        return [now.subtract(2, 'month').startOf('month'), now.endOf('month')];
+      case 'last6Months':
+        return [now.subtract(5, 'month').startOf('month'), now.endOf('month')];
+      case 'thisYear':
+        return [now.startOf('year'), now.endOf('year')];
+      case 'lastYear':
+        return [now.subtract(1, 'year').startOf('year'), now.subtract(1, 'year').endOf('year')];
+      default:
+        return [];
+    }
+  };
+
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    try {
+      let params = {};
+      
+      if (quickFilter !== 'all' && quickFilter !== 'custom') {
+        const range = getDateRangeFromFilter(quickFilter);
+        if (range.length === 2) {
+          params.startDate = range[0].toISOString();
+          params.endDate = range[1].toISOString();
+        }
+      } else if (quickFilter === 'custom' && dateRange.length === 2) {
+        params.startDate = dateRange[0].toISOString();
+        params.endDate = dateRange[1].toISOString();
+      }
+
+      const response = await _get('archived-campaigns/stats', params);
+      setStats(response.data.data || {});
+    } catch (error) {
+      console.error('Fetch stats error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load statistics';
+      message.error(errorMessage);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/archived-campaigns/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      let params = {};
+      
+      // Apply same date filters to users list
+      if (quickFilter !== 'all' && quickFilter !== 'custom') {
+        const range = getDateRangeFromFilter(quickFilter);
+        if (range.length === 2) {
+          params.startDate = range[0].toISOString();
+          params.endDate = range[1].toISOString();
+        }
+      } else if (quickFilter === 'custom' && dateRange.length === 2) {
+        params.startDate = dateRange[0].toISOString();
+        params.endDate = dateRange[1].toISOString();
+      }
+      
+      const response = await _get('archived-campaigns/users', params);
       setUsers(response.data.data || []);
     } catch (error) {
-      message.error('Failed to load users');
+      console.error('Fetch users error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load users';
+      message.error(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickFilterChange = (value) => {
+    setQuickFilter(value);
+    if (value !== 'custom') {
+      setDateRange([]);
+    }
+  };
+
+  const handleDateRangeChange = (dates) => {
+    setDateRange(dates || []);
+    if (dates && dates.length === 2) {
+      setQuickFilter('custom');
+    } else if (!dates || dates.length === 0) {
+      setQuickFilter('all');
     }
   };
 
   const fetchUserCampaigns = async (userId) => {
     setCampaignsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/archived-campaigns?userId=${userId}&limit=100`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      let params = { userId, limit: 100 };
+      
+      // Apply date filters to campaigns as well
+      if (quickFilter !== 'all' && quickFilter !== 'custom') {
+        const range = getDateRangeFromFilter(quickFilter);
+        if (range.length === 2) {
+          params.startDate = range[0].toISOString();
+          params.endDate = range[1].toISOString();
+        }
+      } else if (quickFilter === 'custom' && dateRange.length === 2) {
+        params.startDate = dateRange[0].toISOString();
+        params.endDate = dateRange[1].toISOString();
+      }
+      
+      const response = await _get('archived-campaigns', params);
       setCampaigns(response.data.data || []);
     } catch (error) {
-      message.error('Failed to load campaigns');
+      console.error('Fetch campaigns error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load campaigns';
+      message.error(errorMessage);
     } finally {
       setCampaignsLoading(false);
     }
@@ -213,22 +363,186 @@ export default function ArchivedCampaigns() {
                 Archived Campaigns
               </h1>
               <p style={{ color: THEME_CONSTANTS.colors.textSecondary, margin: 0 }}>
-                View and download archived campaign data by user
+                View statistics and download archived campaign data
+                {quickFilter !== 'all' && (
+                  <span style={{ color: THEME_CONSTANTS.colors.primary, fontWeight: 600 }}>
+                    {' '}• {quickFilter === 'custom' ? 'Custom Range' : 
+                      quickFilter.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                  </span>
+                )}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Search */}
+        {/* Stats Cards */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Total Campaigns"
+                value={stats.totalCampaigns}
+                prefix={<FolderOpenOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Total Messages"
+                value={stats.totalMessages}
+                formatter={(value) => value.toLocaleString()}
+                prefix={<SendOutlined style={{ color: THEME_CONSTANTS.colors.info }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Sent Messages"
+                value={stats.totalSent}
+                formatter={(value) => value.toLocaleString()}
+                prefix={<SendOutlined style={{ color: THEME_CONSTANTS.colors.warning }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Sent Rate"
+                value={stats.sentRate}
+                precision={1}
+                suffix="%"
+                prefix={<BarChartOutlined style={{ color: THEME_CONSTANTS.colors.info }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Delivered"
+                value={stats.totalDelivered}
+                formatter={(value) => value.toLocaleString()}
+                prefix={<CheckCircleOutlined style={{ color: THEME_CONSTANTS.colors.success }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Delivery Rate"
+                value={stats.deliveryRate}
+                precision={1}
+                suffix="%"
+                prefix={<BarChartOutlined style={{ color: THEME_CONSTANTS.colors.success }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Failed"
+                value={stats.totalFailed}
+                formatter={(value) => value.toLocaleString()}
+                prefix={<CloseCircleOutlined style={{ color: THEME_CONSTANTS.colors.danger }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Unique Users"
+                value={stats.uniqueUsers}
+                prefix={<UserOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={8} md={8}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Pending"
+                value={stats.totalPending}
+                formatter={(value) => value.toLocaleString()}
+                prefix={<ClockCircleOutlined style={{ color: THEME_CONSTANTS.colors.warning }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8} md={8}>
+            <Card style={{ borderRadius: THEME_CONSTANTS.radius.lg }}>
+              <Statistic
+                title="Expired"
+                value={stats.totalExpired}
+                formatter={(value) => value.toLocaleString()}
+                prefix={<ClockCircleOutlined style={{ color: THEME_CONSTANTS.colors.textSecondary }} />}
+                loading={statsLoading}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Filters */}
         <Card style={{ marginBottom: 24, borderRadius: THEME_CONSTANTS.radius.lg }}>
-          <Input
-            placeholder="Search by user name or email..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            size="large"
-            allowClear
-          />
+          <Row gutter={[16, 16]} align="middle">
+            <Col xs={24} sm={12} md={8}>
+              <Space>
+                <CalendarOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />
+                <span style={{ fontWeight: 600 }}>Quick Filter:</span>
+                <Select
+                  value={quickFilter}
+                  onChange={handleQuickFilterChange}
+                  style={{ width: 150 }}
+                >
+                  <Option value="all">All Time</Option>
+                  <Option value="today">Today</Option>
+                  <Option value="yesterday">Yesterday</Option>
+                  <Option value="thisWeek">This Week</Option>
+                  <Option value="lastWeek">Last Week</Option>
+                  <Option value="thisMonth">This Month</Option>
+                  <Option value="lastMonth">Last Month</Option>
+                  <Option value="last3Months">Last 3 Months</Option>
+                  <Option value="last6Months">Last 6 Months</Option>
+                  <Option value="thisYear">This Year</Option>
+                  <Option value="lastYear">Last Year</Option>
+                  <Option value="custom">Custom Range</Option>
+                </Select>
+              </Space>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Space>
+                <span style={{ fontWeight: 600 }}>Custom Range:</span>
+                <RangePicker
+                  value={dateRange}
+                  onChange={handleDateRangeChange}
+                  style={{ width: '100%' }}
+                  placeholder={['Start Date', 'End Date']}
+                />
+              </Space>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Input
+                placeholder="Search by user name or email..."
+                prefix={<SearchOutlined />}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                allowClear
+              />
+            </Col>
+          </Row>
         </Card>
 
         {/* Users Table */}
@@ -255,14 +569,31 @@ export default function ArchivedCampaigns() {
         {/* Campaigns Modal */}
         <Modal
           title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <UserOutlined style={{ fontSize: 20, color: THEME_CONSTANTS.colors.primary }} />
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedUser?.userName}</div>
-                <div style={{ fontSize: 13, color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 400 }}>
-                  {selectedUser?.userEmail}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <UserOutlined style={{ fontSize: 20, color: THEME_CONSTANTS.colors.primary }} />
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedUser?.userName}</div>
+                  <div style={{ fontSize: 13, color: THEME_CONSTANTS.colors.textSecondary, fontWeight: 400 }}>
+                    {selectedUser?.userEmail}
+                  </div>
                 </div>
               </div>
+              {(quickFilter !== 'all' || (dateRange && dateRange.length === 2)) && (
+                <div style={{ 
+                  fontSize: 12, 
+                  color: THEME_CONSTANTS.colors.primary, 
+                  fontWeight: 600,
+                  padding: '4px 8px',
+                  background: THEME_CONSTANTS.colors.primaryLight,
+                  borderRadius: 4,
+                  display: 'inline-block'
+                }}>
+                  Filter: {quickFilter === 'custom' ? 'Custom Range' : 
+                    quickFilter === 'all' ? 'Custom Range' :
+                    quickFilter.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                </div>
+              )}
             </div>
           }
           open={showModal}
