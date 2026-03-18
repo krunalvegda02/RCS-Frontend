@@ -248,10 +248,10 @@ export default function ArchivedCampaigns() {
       ),
     },
     {
-      title: 'Last Archived',
-      dataIndex: 'lastArchived',
-      key: 'date',
-      render: (date) => new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      title: 'Last Campaign Created',
+      dataIndex: 'lastCampaignCreated',
+      key: 'lastCreated',
+      render: (date) => date ? new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
     },
     {
       title: 'Actions',
@@ -304,6 +304,42 @@ export default function ArchivedCampaigns() {
           </span>
         </Space>
       ),
+    },
+    {
+      title: 'Created Date',
+      dataIndex: 'campaignCreatedAt',
+      key: 'created',
+      render: (date, record) => {
+        if (!date) {
+          return <span style={{ fontSize: 11, color: THEME_CONSTANTS.colors.textSecondary }}>N/A</span>;
+        }
+        
+        const createdDate = new Date(date);
+        const archivedDate = new Date(record.archivedAt);
+        const diffInHours = Math.round((archivedDate - createdDate) / (1000 * 60 * 60));
+        
+        let durationText = '';
+        if (diffInHours < 24) {
+          durationText = `${diffInHours}h`;
+        } else {
+          const diffInDays = Math.round(diffInHours / 24);
+          durationText = `${diffInDays}d`;
+        }
+        
+        return (
+          <div>
+            <div style={{ fontSize: 13 }}>
+              {createdDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+            </div>
+            <div style={{ fontSize: 11, color: THEME_CONSTANTS.colors.textSecondary }}>
+              {createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            <div style={{ fontSize: 10, color: THEME_CONSTANTS.colors.primary, fontWeight: 600 }}>
+              Duration: {durationText}
+            </div>
+          </div>
+        );
+      },
     },
     {
       title: 'Archived Date',
@@ -363,11 +399,11 @@ export default function ArchivedCampaigns() {
                 Archived Campaigns
               </h1>
               <p style={{ color: THEME_CONSTANTS.colors.textSecondary, margin: 0 }}>
-                View statistics and download archived campaign data
+                View campaigns filtered by creation date and download archived data
                 {quickFilter !== 'all' && (
                   <span style={{ color: THEME_CONSTANTS.colors.primary, fontWeight: 600 }}>
-                    {' '}• {quickFilter === 'custom' ? 'Custom Range' : 
-                      quickFilter.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                    {' '}• Showing campaigns created {quickFilter === 'custom' ? 'in custom range' : 
+                      quickFilter.replace(/([A-Z])/g, ' $1').toLowerCase()}
                   </span>
                 )}
               </p>
@@ -501,19 +537,15 @@ export default function ArchivedCampaigns() {
             <Col xs={24} sm={12} md={8}>
               <Space>
                 <CalendarOutlined style={{ color: THEME_CONSTANTS.colors.primary }} />
-                <span style={{ fontWeight: 600 }}>Quick Filter:</span>
+                <span style={{ fontWeight: 600 }}>Filter by Creation Date:</span>
                 <Select
                   value={quickFilter}
                   onChange={handleQuickFilterChange}
                   style={{ width: 150 }}
                 >
                   <Option value="all">All Time</Option>
-                  <Option value="today">Today</Option>
-                  <Option value="yesterday">Yesterday</Option>
-                  <Option value="thisWeek">This Week</Option>
-                  <Option value="lastWeek">Last Week</Option>
                   <Option value="thisMonth">This Month</Option>
-                  <Option value="lastMonth">Last Month</Option>
+                  <Option value="lastMonth">    Last Month</Option>
                   <Option value="last3Months">Last 3 Months</Option>
                   <Option value="last6Months">Last 6 Months</Option>
                   <Option value="thisYear">This Year</Option>
@@ -524,7 +556,7 @@ export default function ArchivedCampaigns() {
             </Col>
             <Col xs={24} sm={12} md={8}>
               <Space>
-                <span style={{ fontWeight: 600 }}>Custom Range:</span>
+                <span style={{ fontWeight: 600 }}>Creation Date Range:</span>
                 <RangePicker
                   value={dateRange}
                   onChange={handleDateRangeChange}
@@ -589,9 +621,9 @@ export default function ArchivedCampaigns() {
                   borderRadius: 4,
                   display: 'inline-block'
                 }}>
-                  Filter: {quickFilter === 'custom' ? 'Custom Range' : 
-                    quickFilter === 'all' ? 'Custom Range' :
-                    quickFilter.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                  Filter: Campaigns created {quickFilter === 'custom' ? 'in custom range' : 
+                    quickFilter === 'all' ? 'in custom range' :
+                    quickFilter.replace(/([A-Z])/g, ' $1').toLowerCase()}
                 </div>
               )}
             </div>
@@ -599,7 +631,7 @@ export default function ArchivedCampaigns() {
           open={showModal}
           onCancel={() => setShowModal(false)}
           footer={null}
-          width={1000}
+          width={1300}
         >
           <Spin spinning={campaignsLoading}>
             <Table
@@ -608,6 +640,7 @@ export default function ArchivedCampaigns() {
               rowKey="_id"
               pagination={{ pageSize: 5 }}
               locale={{ emptyText: <Empty description="No campaigns found" /> }}
+              scroll={{ x: 1100 }}
             />
           </Spin>
         </Modal>
