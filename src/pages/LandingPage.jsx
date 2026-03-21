@@ -1826,7 +1826,7 @@ const LandingPage = () => {
               </Col>
 
               {/* Phone Card */}
-              <Col xs={24} md={12}>
+              {/* <Col xs={24} md={12}>
                 <Card
                   hoverable
                   style={{
@@ -1887,7 +1887,7 @@ const LandingPage = () => {
                     Available Mon–Sat • 10:00 AM – 7:00 PM IST
                   </div>
                 </Card>
-              </Col>
+              </Col> */}
             </Row>
 
             {/* Trust Footer */}
@@ -2073,7 +2073,7 @@ const LandingPage = () => {
             }}
           >
             © {new Date().getFullYear()} RCSsender . All rights reserved.<br />
-            A product of <strong>Large Media Solutions</strong> ·
+            A product of <strong>LMS</strong> ·
             <a
               href="/terms"
               style={{

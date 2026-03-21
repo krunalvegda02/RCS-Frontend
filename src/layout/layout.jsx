@@ -578,7 +578,7 @@ export default function UserLayout() {
                 }}
               >
                 © {new Date().getFullYear()} RCSsender . All rights reserved.<br />
-                A product of <strong>Large Media Solutions</strong> ·
+                A product of <strong>LMS</strong> ·
                 <a
                   href="/terms"
                   style={{
