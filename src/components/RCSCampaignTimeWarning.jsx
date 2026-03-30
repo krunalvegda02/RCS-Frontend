@@ -3,18 +3,44 @@ import { Alert, Card, Button, Space } from 'antd';
 import { ClockCircleOutlined, InfoCircleOutlined, SendOutlined } from '@ant-design/icons';
 import { THEME_CONSTANTS } from '../theme';
 
+// Export time check functions for use in other components
+export const isAfter10PM = (time = new Date()) => {
+  const hour = time.getHours();
+  return hour >= 22; // 10 PM (22:00) onwards
+};
+
 export default function RCSCampaignTimeWarning() {
   const [isVisible, setIsVisible] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isDismissed, setIsDismissed] = useState(false);
 
-  // Check if current time is in restricted hours (9 PM to 9 AM)
+  // Check if current time is after 10 PM (22:00) - DISABLE CAMPAIGN CREATION
+  const isAfter10PM = (time) => {
+    const hour = time.getHours();
+    return hour >= 22; // 10 PM (22:00) onwards
+  };
+
+  // Check if current time is in restricted hours (9 PM to 9 AM) - MESSAGING RESTRICTION
   const isRestrictedTime = (time) => {
     const hour = time.getHours();
     return hour >= 21 || hour < 9; // 9 PM (21:00) to 9 AM (09:00)
   };
 
-  // Get next allowed time
+  // Get next allowed time for campaign creation
+  const getNextCampaignTime = (time) => {
+    const hour = time.getHours();
+    const nextAllowed = new Date(time);
+    
+    if (hour >= 22) {
+      // After 10 PM, next allowed is 9 AM tomorrow
+      nextAllowed.setDate(nextAllowed.getDate() + 1);
+      nextAllowed.setHours(9, 0, 0, 0);
+    }
+    
+    return nextAllowed;
+  };
+
+  // Get next allowed time for messaging
   const getNextAllowedTime = (time) => {
     const hour = time.getHours();
     const nextAllowed = new Date(time);
@@ -76,13 +102,15 @@ export default function RCSCampaignTimeWarning() {
   }, []);
 
   useEffect(() => {
-    // Show warning only during restricted hours and if not dismissed
-    setIsVisible(isRestrictedTime(currentTime) && !isDismissed);
+    // Show warning during messaging restriction (9 PM-9 AM) OR campaign creation disabled (after 10 PM)
+    const showForMessaging = isRestrictedTime(currentTime) && !isAfter10PM(currentTime);
+    const showForCampaign = isAfter10PM(currentTime);
+    setIsVisible((showForMessaging || showForCampaign) && !isDismissed);
   }, [currentTime, isDismissed]);
 
   useEffect(() => {
     // Reset dismissal when time restriction changes
-    if (!isRestrictedTime(currentTime)) {
+    if (!isRestrictedTime(currentTime) && !isAfter10PM(currentTime)) {
       setIsDismissed(false);
     }
   }, [currentTime]);
@@ -90,6 +118,9 @@ export default function RCSCampaignTimeWarning() {
   if (!isVisible) return null;
 
   const nextAllowedTime = getNextAllowedTime(currentTime);
+  const nextCampaignTime = getNextCampaignTime(currentTime);
+  const isCampaignRestricted = isAfter10PM(currentTime);
+  const isMessagingRestricted = isRestrictedTime(currentTime);
 
   return (
     <Card
@@ -139,7 +170,7 @@ export default function RCSCampaignTimeWarning() {
                 margin: 0,
                 marginBottom: '4px'
               }}>
-                🚫 RCS Messaging Currently Restricted
+                {isCampaignRestricted ? '🚫 Campaign Creation Disabled' : '⚠️ RCS Messaging Restricted (9 PM - 9 AM)'}
               </h3>
               <p style={{ 
                 fontSize: '14px',
@@ -147,7 +178,10 @@ export default function RCSCampaignTimeWarning() {
                 margin: 0,
                 lineHeight: 1.4
               }}>
-                Campaign creation is available, but messages cannot be sent during restricted hours
+                {isCampaignRestricted 
+                  ? 'Campaign creation is disabled after 10:00 PM. You can still create campaigns between 9:00 AM - 10:00 PM.' 
+                  : 'You can create campaigns now, but messages will only be sent between 9:00 AM - 9:00 PM'
+                }
               </p>
             </div>
             
@@ -186,10 +220,21 @@ export default function RCSCampaignTimeWarning() {
               color: '#a0522d',
               lineHeight: 1.5
             }}>
-              <li>RCS messages cannot be sent between <strong>9:00 PM - 9:00 AM</strong></li>
-              <li>You can create and prepare campaigns during restricted hours</li>
-              <li>Messages will be queued and sent automatically when allowed</li>
-              <li>Next sending window opens: <strong>{formatDateTime(nextAllowedTime)}</strong></li>
+              {isCampaignRestricted ? (
+                <>
+                  <li><strong>Campaign creation:</strong> Disabled after 10:00 PM</li>
+                  <li><strong>Message sending:</strong> Only between 9:00 AM - 9:00 PM</li>
+                  <li>This ensures compliance with regulatory guidelines</li>
+                  <li>Next campaign creation window: <strong>{formatDateTime(nextCampaignTime)}</strong></li>
+                </>
+              ) : (
+                <>
+                  <li><strong>Message sending:</strong> Only between 9:00 AM - 9:00 PM</li>
+                  <li><strong>Campaign creation:</strong> Available until 10:00 PM</li>
+                  <li>You can create campaigns now - messages will be queued and sent automatically</li>
+                  <li>Next sending window opens: <strong>{formatDateTime(nextAllowedTime)}</strong></li>
+                </>
+              )}
             </ul>
           </div>
 
@@ -205,40 +250,57 @@ export default function RCSCampaignTimeWarning() {
             <div style={{ display: 'flex', alignItems: 'center', gap: THEME_CONSTANTS.spacing.sm }}>
               <SendOutlined style={{ color: '#d68910', fontSize: '16px' }} />
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#8b4513' }}>
-                What you can do now:
+                {isCampaignRestricted ? 'Campaign creation disabled:' : 'Current status:'}
               </span>
             </div>
             <Space size="small" wrap>
-              <span style={{ 
-                fontSize: '12px', 
-                color: '#a0522d',
-                background: 'rgba(255, 255, 255, 0.8)',
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                border: '1px solid rgba(243, 156, 18, 0.3)'
-              }}>
-                ✓ Create campaigns
-              </span>
-              <span style={{ 
-                fontSize: '12px', 
-                color: '#a0522d',
-                background: 'rgba(255, 255, 255, 0.8)',
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                border: '1px solid rgba(243, 156, 18, 0.3)'
-              }}>
-                ✓ Upload contacts
-              </span>
-              <span style={{ 
-                fontSize: '12px', 
-                color: '#a0522d',
-                background: 'rgba(255, 255, 255, 0.8)',
-                padding: '4px 8px',
-                borderRadius: THEME_CONSTANTS.radius.sm,
-                border: '1px solid rgba(243, 156, 18, 0.3)'
-              }}>
-                ✓ Schedule for later
-              </span>
+              {isCampaignRestricted ? (
+                <>
+                  <span style={{ 
+                    fontSize: '12px', 
+                    color: '#a0522d',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    padding: '4px 8px',
+                    borderRadius: THEME_CONSTANTS.radius.sm,
+                    border: '1px solid rgba(243, 156, 18, 0.3)'
+                  }}>
+                    ⚠️ Campaign creation disabled (After 10 PM)
+                  </span>
+                  <span style={{ 
+                    fontSize: '12px', 
+                    color: '#a0522d',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    padding: '4px 8px',
+                    borderRadius: THEME_CONSTANTS.radius.sm,
+                    border: '1px solid rgba(243, 156, 18, 0.3)'
+                  }}>
+                    ⚠️ Message sending restricted (9 PM - 9 AM)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span style={{ 
+                    fontSize: '12px', 
+                    color: '#a0522d',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    padding: '4px 8px',
+                    borderRadius: THEME_CONSTANTS.radius.sm,
+                    border: '1px solid rgba(243, 156, 18, 0.3)'
+                  }}>
+                    ✓ Create campaigns (Until 10 PM)
+                  </span>
+                  <span style={{ 
+                    fontSize: '12px', 
+                    color: '#a0522d',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    padding: '4px 8px',
+                    borderRadius: THEME_CONSTANTS.radius.sm,
+                    border: '1px solid rgba(243, 156, 18, 0.3)'
+                  }}>
+                    ⚠️ Messages queued (Send 9 AM - 9 PM)
+                  </span>
+                </>
+              )}
             </Space>
           </div>
         </div>

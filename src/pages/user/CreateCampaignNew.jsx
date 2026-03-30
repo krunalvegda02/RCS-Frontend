@@ -8,6 +8,7 @@ import { THEME_CONSTANTS } from '../../theme';
 import { fetchUserTemplates } from '../../redux/slices/templateSlice';
 import { checkCapability, createMasterCampaign, getCampaignById, getAllContactsFromBatches } from '../../redux/slices/campaignSlice';
 import RCSMessagePreview from '../../components/RCSMesagePreview';
+import RCSCampaignTimeWarning, { isAfter10PM } from '../../components/RCSCampaignTimeWarning';
 
 
 // Add keyframes for spinner animation
@@ -128,6 +129,47 @@ export default function CreateCampaignNew() {
 
     if (!phoneNumbers || phoneNumbers.length === 0) {
       message.error('No valid phone numbers found');
+      return;
+    }
+
+    // Check 1.5 lakh contact limit
+    const CONTACT_LIMIT = 150000;
+    if (phoneNumbers.length > CONTACT_LIMIT) {
+      Modal.error({
+        title: '🚫 Contact Limit Exceeded',
+        content: (
+          <div style={{ padding: '16px 0' }}>
+            <p style={{ marginBottom: '16px', fontSize: '14px', lineHeight: 1.5 }}>
+              You are trying to upload <strong>{phoneNumbers.length.toLocaleString()}</strong> contacts, which exceeds our limit of <strong>1.5 lakh (150,000)</strong> contacts per campaign.
+            </p>
+            <div style={{
+              background: '#fff3cd',
+              border: '1px solid #f39c12',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '13px',
+              color: '#8b4513',
+              marginBottom: '12px'
+            }}>
+              <strong>📊 Current Upload:</strong> {phoneNumbers.length.toLocaleString()} contacts<br/>
+              <strong>🚫 Maximum Allowed:</strong> 1,50,000 contacts<br/>
+              <strong>⚠️ Excess:</strong> {(phoneNumbers.length - CONTACT_LIMIT).toLocaleString()} contacts
+            </div>
+            <div style={{
+              background: '#e8f5e8',
+              border: '1px solid #52c41a',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '13px',
+              color: '#389e0d'
+            }}>
+              <strong>💡 Solution:</strong> Please create multiple smaller campaigns with less than 1.5 lakh contacts each for better performance and delivery rates.
+            </div>
+          </div>
+        ),
+        okText: 'Understood',
+        width: 500
+      });
       return;
     }
 
@@ -389,6 +431,45 @@ export default function CreateCampaignNew() {
   // };
 
   const handleSendCampaign = () => {
+    // Check if campaign creation is disabled after 10 PM
+    if (isAfter10PM()) {
+      Modal.error({
+        title: '🚫 Campaign Creation Disabled',
+        content: (
+          <div style={{ padding: '16px 0' }}>
+            <p style={{ marginBottom: '16px', fontSize: '14px', lineHeight: 1.5 }}>
+              Campaign creation is disabled after <strong>10:00 PM</strong> to ensure compliance with regulatory guidelines.
+            </p>
+            <div style={{
+              background: '#fff3cd',
+              border: '1px solid #f39c12',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '13px',
+              color: '#8b4513',
+              marginBottom: '12px'
+            }}>
+              <strong>🕰️ Campaign Creation:</strong> 9:00 AM - 10:00 PM<br/>
+              <strong>📱 Message Sending:</strong> 9:00 AM - 9:00 PM
+            </div>
+            <div style={{
+              background: '#e8f5e8',
+              border: '1px solid #52c41a',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '13px',
+              color: '#389e0d'
+            }}>
+              <strong>✅ Next Available:</strong> Tomorrow at 9:00 AM
+            </div>
+          </div>
+        ),
+        okText: 'Understood',
+        width: 400
+      });
+      return;
+    }
+
     if (!selectedTemplate) {
       message.error('Please select a template');
       return;
@@ -863,6 +944,7 @@ export default function CreateCampaignNew() {
           <Row gutter={[24, 24]}>
             <Col xs={24} lg={14}>
               {/* <RCSCampaignTimeWarning /> */}
+              <RCSCampaignTimeWarning />
 
               <Card style={{ marginBottom: '24px', borderRadius: THEME_CONSTANTS.radius.lg, border: `1px solid ${THEME_CONSTANTS.colors.borderLight}` }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>1. Campaign Name</h3>
@@ -1049,12 +1131,20 @@ export default function CreateCampaignNew() {
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={handleSendCampaign}
-                disabled={!selectedTemplate || !campaignName.trim() || batchStats.total === 0}
+                disabled={!selectedTemplate || !campaignName.trim() || batchStats.total === 0 || isAfter10PM()}
                 size="large"
                 block
-                style={{ height: '52px', fontSize: '16px', fontWeight: 600 }}
+                style={{ 
+                  height: '52px', 
+                  fontSize: '16px', 
+                  fontWeight: 600,
+                  opacity: isAfter10PM() ? 0.6 : 1
+                }}
               >
-                Send Campaign ({batchStats.total} contacts)
+                {isAfter10PM() 
+                  ? '🚫 Campaign Creation Disabled (After 10 PM)' 
+                  : `Send Campaign (${batchStats.total} contacts)`
+                }
               </Button>
             </Col>
 
