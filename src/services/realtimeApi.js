@@ -52,7 +52,14 @@ export const getCampaignMessages = createAsyncThunkHandler(
 export const getAllCampaignMessages = createAsyncThunkHandler(
     'campaigns/getAllMessages',
     _get,
-    (campaignId) => `v1/campaign-reports/campaign/${campaignId}/messages/export`
+    (campaignId) => {
+        // Handle both string and object inputs
+        const id = typeof campaignId === 'object' && campaignId !== null 
+            ? (campaignId.campaignId || campaignId.id || campaignId)
+            : campaignId;
+        return `v1/campaign-reports/campaign/${id}/messages/export`;
+    },
+    false // Not multipart
 );
 
 // Export all campaigns (for Excel export)

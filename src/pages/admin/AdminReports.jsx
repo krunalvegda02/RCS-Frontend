@@ -375,30 +375,68 @@ export default function AdminReports() {
 
   const exportCampaignDetails = async () => {
     if (isExportingCampaign || !selectedOrder?._id) return;
+    
+    let toastId;
     setIsExportingCampaign(true);
+    
     try {
+      toastId = toast.loading('Preparing export...');
+      
+      // Fetch all messages
       const res = await _get(`v1/admin/campaigns/${selectedOrder._id}/messages/all`, {}, {}, token);
       const allMessages = res.data.data || [];
+      
       if (allMessages.length === 0) {
-        toast.error('No messages to export');
+        toast.error('No messages to export', { id: toastId });
         return;
       }
-      const exportData = allMessages.map((msg, idx) => ({
-        'S.No': idx + 1,
-        'Phone Number': msg.phoneNumber || 'N/A',
-        'Status': msg.status?.toUpperCase() || 'N/A',
-        'Sent At': msg.sentAt ? new Date(msg.sentAt).toLocaleString() : 'N/A',
-        'Delivered At': msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString() : 'N/A',
-        'Read At': msg.readAt ? new Date(msg.readAt).toLocaleString() : 'N/A',
-        'User Response': msg.userText || msg.clickedAction || 'N/A',
-        'Error': msg.status === 'failed' ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A',
-      }));
+      
+      toast.loading(`Creating Excel file... (${allMessages.length.toLocaleString()} messages)`, { id: toastId });
+      
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('Campaign Messages');
       
-      const keys = Object.keys(exportData[0]);
-      sheet.columns = keys.map(key => ({ header: key, key, width: 15 }));
-      exportData.forEach(row => sheet.addRow(row));
+      sheet.columns = [
+        { header: 'S.No', key: 'sno', width: 8 },
+        { header: 'Phone Number', key: 'phone', width: 15 },
+        { header: 'Status', key: 'status', width: 12 },
+        { header: 'Sent At', key: 'sentAt', width: 20 },
+        { header: 'Delivered At', key: 'deliveredAt', width: 20 },
+        { header: 'Read At', key: 'readAt', width: 20 },
+        { header: 'User Response', key: 'userResponse', width: 30 },
+        { header: 'Error', key: 'error', width: 30 }
+      ];
+      
+      // Process rows in chunks to avoid memory issues
+      const ROW_CHUNK_SIZE = 1000;
+      for (let i = 0; i < allMessages.length; i += ROW_CHUNK_SIZE) {
+        const chunk = allMessages.slice(i, i + ROW_CHUNK_SIZE);
+        const rows = chunk.map((msg, idx) => ({
+          sno: i + idx + 1,
+          phone: msg.phoneNumber || 'N/A',
+          status: msg.status?.toUpperCase() || 'N/A',
+          sentAt: msg.sentAt ? new Date(msg.sentAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+          deliveredAt: msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+          readAt: msg.readAt ? new Date(msg.readAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+          userResponse: msg.userText || msg.clickedAction || 'N/A',
+          error: msg.status === 'failed' ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A'
+        }));
+        
+        sheet.addRows(rows);
+        
+        // Update progress
+        const progress = Math.min(100, Math.round(((i + chunk.length) / allMessages.length) * 100));
+        toast.loading(`Processing rows... ${progress}%`, { id: toastId });
+      }
+      
+      sheet.getRow(1).font = { bold: true };
+      sheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+      
+      toast.loading('Generating file...', { id: toastId });
       
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -408,9 +446,15 @@ export default function AdminReports() {
       a.download = `campaign-${selectedOrder?.CampaignName}-${new Date().toISOString().split('T')[0]}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
-      toast.success(`Exported ${exportData.length} messages successfully`);
+      
+      toast.success(`Exported ${allMessages.length.toLocaleString()} messages successfully`, { id: toastId });
     } catch (error) {
-      toast.error('Failed to export campaign details');
+      console.error('Export error:', error);
+      if (toastId) {
+        toast.error(error.message || 'Failed to export campaign details', { id: toastId });
+      } else {
+        toast.error('Failed to export campaign details');
+      }
     } finally {
       setIsExportingCampaign(false);
     }

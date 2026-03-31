@@ -351,7 +351,7 @@ export default function Orders() {
   const exportCampaignDetails = async () => {
     if (isExportingCampaign) return;
 
-    let toastInterval;
+    let toastId;
     try {
       if (!selectedOrder?._id) {
         toast.error('No campaign selected');
@@ -360,19 +360,20 @@ export default function Orders() {
 
       setIsExportingCampaign(true);
 
-      toastInterval = setInterval(() => toast.dismiss(), 10);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Show loading toast
+      toastId = toast.loading('Fetching campaign messages...');
 
-      const result = await dispatch(fetchAllCampaignMessages(selectedOrder._id)).unwrap();
+      // Fetch all messages directly from the export endpoint
+      const campaignId = selectedOrder._id;
+      const result = await dispatch(fetchAllCampaignMessages(campaignId)).unwrap();
       const allMessages = result.data || [];
 
       if (allMessages.length === 0) {
-        if (toastInterval) clearInterval(toastInterval);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        toast.dismiss();
-        toast.error('No messages to export');
+        toast.error('No messages to export', { id: toastId });
         return;
       }
+
+      toast.loading(`Creating Excel file... (${allMessages.length.toLocaleString()} messages)`, { id: toastId });
 
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('Campaign Messages');
@@ -393,23 +394,32 @@ export default function Orders() {
         { header: 'Error', key: 'error', width: 30 }
       ];
 
-      const rows = allMessages.map((msg, idx) => ({
-        sno: idx + 1,
-        phone: msg.phoneNumber || 'N/A',
-        status: msg.status?.toUpperCase() || 'N/A',
-        templateType: msg.templateType || 'RCS',
-        queuedAt: msg.queuedAt ? new Date(msg.queuedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
-        sentAt: msg.sentAt ? new Date(msg.sentAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
-        deliveredAt: msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
-        readAt: msg.readAt ? new Date(msg.readAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
-        failedAt: msg.failedAt ? new Date(msg.failedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
-        interactions: msg.interactions || 0,
-        replies: msg.replies || 0,
-        userResponse: msg.userText || msg.clickedAction || msg.suggestionResponse?.plainText || 'N/A',
-        error: (msg.status === 'failed' || msg.status === 'bounced') ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A'
-      }));
-
-      sheet.addRows(rows);
+      // Process rows in chunks to avoid memory issues
+      const ROW_CHUNK_SIZE = 1000;
+      for (let i = 0; i < allMessages.length; i += ROW_CHUNK_SIZE) {
+        const chunk = allMessages.slice(i, i + ROW_CHUNK_SIZE);
+        const rows = chunk.map((msg, idx) => ({
+          sno: i + idx + 1,
+          phone: msg.phoneNumber || 'N/A',
+          status: msg.status?.toUpperCase() || 'N/A',
+          templateType: msg.templateType || 'RCS',
+          queuedAt: msg.queuedAt ? new Date(msg.queuedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+          sentAt: msg.sentAt ? new Date(msg.sentAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+          deliveredAt: msg.deliveredAt ? new Date(msg.deliveredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+          readAt: msg.readAt ? new Date(msg.readAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+          failedAt: msg.failedAt ? new Date(msg.failedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+          interactions: msg.interactions || 0,
+          replies: msg.replies || 0,
+          userResponse: msg.userText || msg.clickedAction || msg.suggestionResponse?.plainText || 'N/A',
+          error: (msg.status === 'failed' || msg.status === 'bounced') ? (msg.errorMessage || msg.errorCode || 'Unknown') : 'N/A'
+        }));
+        
+        sheet.addRows(rows);
+        
+        // Update progress
+        const progress = Math.min(100, Math.round(((i + chunk.length) / allMessages.length) * 100));
+        toast.loading(`Processing rows... ${progress}%`, { id: toastId });
+      }
       
       sheet.getRow(1).font = { bold: true };
       sheet.getRow(1).fill = {
@@ -418,9 +428,7 @@ export default function Orders() {
         fgColor: { argb: 'FFE0E0E0' }
       };
 
-      if (toastInterval) clearInterval(toastInterval);
-      await new Promise(resolve => setTimeout(resolve, 150));
-      toast.dismiss();
+      toast.loading('Generating file...', { id: toastId });
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -431,16 +439,15 @@ export default function Orders() {
       a.click();
       window.URL.revokeObjectURL(url);
 
-      await new Promise(resolve => setTimeout(resolve, 200));
-      toast.success(`Exported ${rows.length} messages successfully`);
+      toast.success(`Exported ${allMessages.length.toLocaleString()} messages successfully`, { id: toastId });
     } catch (error) {
       console.error('Export error:', error);
-      if (toastInterval) clearInterval(toastInterval);
-      await new Promise(resolve => setTimeout(resolve, 150));
-      toast.dismiss();
-      toast.error(error.message || 'Failed to export campaign details');
+      if (toastId) {
+        toast.error(error.message || 'Failed to export campaign details', { id: toastId });
+      } else {
+        toast.error(error.message || 'Failed to export campaign details');
+      }
     } finally {
-      if (toastInterval) clearInterval(toastInterval);
       setIsExportingCampaign(false);
     }
   };

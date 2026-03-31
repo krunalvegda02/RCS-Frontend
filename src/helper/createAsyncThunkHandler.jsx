@@ -17,7 +17,10 @@ export const createAsyncThunkHandler = (typePrefix, apiMethod, urlResolver, isMu
       if (isFormData) {
         // Don't process FormData, pass it directly
         requestData = payload;
-      } else if (typeof payload === 'object' && payload !== null) {
+      } else if (typeof payload === 'string' || typeof payload === 'number' || typeof payload === 'boolean') {
+        // Primitive types should not be sent as request body for GET requests
+        requestData = {};
+      } else if (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) {
         // Extract params that are already in the URL path
         const urlString = String(url);
         const paramsInUrl = {};
