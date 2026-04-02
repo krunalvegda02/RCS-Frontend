@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { restartCompletedCampaign } from '../../redux/slices/campaignSlice';
 import {
   Card,
   Row,
@@ -67,6 +68,7 @@ const formatISTTime = (date) => {
 
 export default function AdminReports() {
   const { token } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
   const screens = useBreakpoint();
 
   const [orders, setOrders] = useState([]);
@@ -88,6 +90,19 @@ export default function AdminReports() {
   const [dateRange, setDateRange] = useState([null, null]);
   const [sortOrder, setSortOrder] = useState('newest');
   const [quickFilter, setQuickFilter] = useState('all');
+
+  // Prevent browser auto-fill on mount
+  useEffect(() => {
+    const input = document.getElementById('campaign-search-field');
+    if (input) {
+      input.value = '';
+      input.setAttribute('readonly', 'readonly');
+      setTimeout(() => {
+        input.removeAttribute('readonly');
+      }, 500);
+    }
+    setSearchText('');
+  }, []);
 
   const handleSearchChange = (value) => {
     setSearchText(value);
@@ -150,6 +165,56 @@ export default function AdminReports() {
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingCampaign, setIsExportingCampaign] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [restartPassword, setRestartPassword] = useState('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  // Restart completed campaign using Redux thunk
+  const handleRestartCampaign = (campaignId) => {
+    // Prevent any state changes that might trigger useEffect
+    const input = document.getElementById('campaign-search-field');
+    if (input && input.value && input.value.includes('@')) {
+      input.value = '';
+      setSearchText('');
+    }
+    
+    setSelectedCampaignId(campaignId);
+    setRestartPassword('');
+    setShowPasswordModal(true);
+  };
+
+  // Handle password confirmation and restart
+  const handlePasswordConfirmRestart = async () => {
+    if (!restartPassword.trim()) {
+      toast.error('Please enter password');
+      return;
+    }
+
+    // Check password - CHANGE THIS TO YOUR DESIRED PASSWORD
+    const RESTART_PASSWORD = 'admin@1234';
+    
+    if (restartPassword !== RESTART_PASSWORD) {
+      toast.error('Incorrect password');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const result = await dispatch(restartCompletedCampaign({ id: selectedCampaignId })).unwrap();
+      toast.success(result.message || 'Campaign restarted successfully');
+      setShowPasswordModal(false);
+      setRestartPassword('');
+      setSelectedCampaignId(null);
+      // Refresh the campaigns list
+      await fetchOrders();
+    } catch (error) {
+      console.error('Restart campaign error:', error);
+      toast.error(error.message || error || 'Failed to restart campaign');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   // Sync campaign stats function - only updates specific campaign row
   const handleSyncCampaignStats = async (campaignId) => {
@@ -248,6 +313,14 @@ export default function AdminReports() {
   };
 
   const fetchOrders = async () => {
+    // Skip if searchText contains @ (browser auto-fill)
+    if (searchText && searchText.includes('@')) {
+      const input = document.getElementById('campaign-search-field');
+      if (input) input.value = '';
+      setSearchText('');
+      return;
+    }
+    
     setLoading({ ...loading, orders: true });
     try {
       const params = { page: currentPage, limit: pageSize, sort: sortOrder };
@@ -524,6 +597,9 @@ export default function AdminReports() {
           <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary }}>
             {record.userId?.name || 'Unknown User'}
           </div>
+          <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textMuted, marginTop: '2px' }}>
+            {record.userId?.email || 'No email'}
+          </div>
         </div>
       ),
     },
@@ -764,29 +840,46 @@ export default function AdminReports() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (text, record) => (
-        <Space size="small">
-          {/* <Tooltip title="Refresh Stats">
-            <Button
-              icon={<ReloadOutlined spin={loading.syncStats === record._id} />}
-              onClick={() => handleSyncCampaignStats(record._id)}
-              loading={loading.syncStats === record._id}
-              size="middle"
-              style={{ padding: '4px 15px' }}
-            />
-          </Tooltip> */}
-          <Tooltip title="View Details">
-            <Button
-              type="primary"
-              icon={<EyeOutlined />}
-              onClick={() => viewOrderDetails(record)}
-              size="middle"
-              style={{ padding: '4px 15px' }}
-            />
-          </Tooltip>
-        </Space>
-      ),
-      width: 180,
+      render: (text, record) => {
+        // Check if campaign is completed today - use createdAt
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        let isCompletedToday = false;
+        if (record.status === 'completed' && record.createdAt) {
+          const createdDate = new Date(record.createdAt);
+          createdDate.setHours(0, 0, 0, 0);
+          isCompletedToday = createdDate.getTime() === today.getTime();
+        }
+        
+        return (
+          <Space size="small">
+            {isCompletedToday && (
+              <Tooltip title="Restart Campaign">
+                <Button
+                  type="default"
+                  icon={<ReloadOutlined />}
+                  onClick={() => handleRestartCampaign(record._id)}
+                  size="middle"
+                  style={{ padding: '4px 15px', color: '#fa8c16', borderColor: '#fa8c16' }}
+                >
+                  
+                </Button>
+              </Tooltip>
+            )}
+            <Tooltip title="View Details">
+              <Button
+                type="primary"
+                icon={<EyeOutlined />}
+                onClick={() => viewOrderDetails(record)}
+                size="middle"
+                style={{ padding: '4px 15px' }}
+              />
+            </Tooltip>
+          </Space>
+        );
+      },
+      width: 200,
       align: 'center',
       fixed: 'right',
     },
@@ -1167,6 +1260,9 @@ export default function AdminReports() {
                     value={searchText}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     allowClear
+                    autoComplete="new-password"
+                    name="campaign-search-field"
+                    id="campaign-search-field"
                     style={{
                       height: '42px',
                       borderRadius: THEME_CONSTANTS.radius.md,
@@ -2075,6 +2171,39 @@ export default function AdminReports() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Password Confirmation Modal for Restart */}
+      <Modal
+        title="Confirm Campaign Restart"
+        open={showPasswordModal}
+        onCancel={() => {
+          setShowPasswordModal(false);
+          setRestartPassword('');
+          setSelectedCampaignId(null);
+        }}
+        onOk={handlePasswordConfirmRestart}
+        okText="Restart Campaign"
+        cancelText="Cancel"
+        confirmLoading={passwordLoading}
+        okButtonProps={{
+          danger: true,
+          disabled: !restartPassword.trim()
+        }}
+      >
+        <div style={{ padding: '20px 0' }}>
+          <p style={{ marginBottom: '16px', fontSize: '14px', color: THEME_CONSTANTS.colors.textSecondary }}>
+            This action will restart the campaign. Please enter the password to confirm.
+          </p>
+          <Input.Password
+            placeholder="Enter password"
+            value={restartPassword}
+            onChange={(e) => setRestartPassword(e.target.value)}
+            onPressEnter={handlePasswordConfirmRestart}
+            size="large"
+            autoFocus
+          />
+        </div>
       </Modal>
     </>
   );

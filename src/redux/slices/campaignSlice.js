@@ -154,6 +154,12 @@ export const syncContactBatches = createAsyncThunkHandler(
   (payload) => `campaigns/${payload.id}/sync-batches`
 );
 
+export const restartCompletedCampaign = createAsyncThunkHandler(
+  'campaigns/restartCompleted',
+  _post,
+  (payload) => `campaigns/${payload.id}/restart-completed`
+);
+
 const initialState = {
   campaigns: [],
   adminCampaigns: [],
@@ -444,6 +450,30 @@ const campaignSlice = createSlice({
       .addCase(getAllContactsFromBatches.fulfilled, (state, action) => {
         state.allContacts = action.payload.data || [];
         state.contactsPagination = action.payload.pagination || state.contactsPagination;
+      })
+
+    // Restart Completed Campaign
+    builder
+      .addCase(restartCompletedCampaign.pending, (state) => {
+        state.loading.campaigns = true;
+        state.error = null;
+      })
+      .addCase(restartCompletedCampaign.fulfilled, (state, action) => {
+        state.loading.campaigns = false;
+        // Update campaign status in the list
+        const campaignId = action.payload.data._id;
+        const index = state.campaigns.findIndex(c => c._id === campaignId);
+        if (index !== -1) {
+          state.campaigns[index].status = 'pending';
+        }
+        const adminIndex = state.adminCampaigns.findIndex(c => c._id === campaignId);
+        if (adminIndex !== -1) {
+          state.adminCampaigns[adminIndex].status = 'pending';
+        }
+      })
+      .addCase(restartCompletedCampaign.rejected, (state, action) => {
+        state.loading.campaigns = false;
+        state.error = action.payload;
       });
   },
 });
