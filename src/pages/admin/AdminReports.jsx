@@ -235,8 +235,10 @@ export default function AdminReports() {
       if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
       if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
       if (dateRange && dateRange[0] && dateRange[1]) {
-        params.startDate = dateRange[0].toISOString();
-        params.endDate = dateRange[1].toISOString();
+        const startDate = dateRange[0].startOf('day').utc().toISOString();
+        const endDate = dateRange[1].endOf('day').utc().toISOString();
+        params.startDate = startDate;
+        params.endDate = endDate;
       }
 
       const queryString = new URLSearchParams(params).toString();
@@ -291,8 +293,10 @@ export default function AdminReports() {
       if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
       if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
       if (dateRange && dateRange[0] && dateRange[1]) {
-        params.startDate = dateRange[0].toISOString();
-        params.endDate = dateRange[1].toISOString();
+        const startDate = dateRange[0].startOf('day').utc().toISOString();
+        const endDate = dateRange[1].endOf('day').utc().toISOString();
+        params.startDate = startDate;
+        params.endDate = endDate;
       }
 
       const queryString = new URLSearchParams(params).toString();
@@ -328,8 +332,12 @@ export default function AdminReports() {
       if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
       if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
       if (dateRange && dateRange[0] && dateRange[1]) {
-        params.startDate = dateRange[0].toISOString();
-        params.endDate = dateRange[1].toISOString();
+        // Convert to UTC dates (start of day and end of day)
+        const startDate = dateRange[0].startOf('day').utc().toISOString();
+        const endDate = dateRange[1].endOf('day').utc().toISOString();
+        params.startDate = startDate;
+        params.endDate = endDate;
+        console.log('Date range being sent:', startDate, 'to', endDate);
       }
 
       const queryString = new URLSearchParams(params).toString();

@@ -64,11 +64,14 @@ export default function ArchivedCampaigns() {
     // Only fetch if user is authenticated and is admin
     if (isAuthenticated && token && user?.role === 'ADMIN') {
       fetchStats();
-      fetchUsers(); // Also refresh users when filters change
-      // If modal is open and user is selected, refresh campaigns with new filters
-      if (showModal && selectedUser) {
-        fetchUserCampaigns(selectedUser._id);
-      }
+      fetchUsers();
+    }
+  }, [dateRange, quickFilter, isAuthenticated, token, user]);
+
+  useEffect(() => {
+    // Refresh campaigns when modal is open and filters change
+    if (isAuthenticated && token && user?.role === 'ADMIN' && showModal && selectedUser) {
+      fetchUserCampaigns(selectedUser._id);
     }
   }, [dateRange, quickFilter, showModal, selectedUser, isAuthenticated, token, user]);
 
@@ -163,10 +166,11 @@ export default function ArchivedCampaigns() {
   };
 
   const handleDateRangeChange = (dates) => {
-    setDateRange(dates || []);
     if (dates && dates.length === 2) {
+      setDateRange(dates);
       setQuickFilter('custom');
-    } else if (!dates || dates.length === 0) {
+    } else {
+      setDateRange([]);
       setQuickFilter('all');
     }
   };
@@ -175,6 +179,8 @@ export default function ArchivedCampaigns() {
     setCampaignsLoading(true);
     try {
       let params = { userId, limit: 100 };
+      
+      console.log('[ArchivedCampaigns] Fetching campaigns for userId:', userId);
       
       // Apply date filters to campaigns as well
       if (quickFilter !== 'all' && quickFilter !== 'custom') {
@@ -188,7 +194,10 @@ export default function ArchivedCampaigns() {
         params.endDate = dateRange[1].toISOString();
       }
       
+      console.log('[ArchivedCampaigns] Request params:', params);
+      
       const response = await _get('archived-campaigns', params);
+      console.log('[ArchivedCampaigns] Response:', response.data.data?.length, 'campaigns');
       setCampaigns(response.data.data || []);
     } catch (error) {
       console.error('Fetch campaigns error:', error);
@@ -592,7 +601,12 @@ export default function ArchivedCampaigns() {
               dataSource={filteredUsers}
               columns={userColumns}
               rowKey="_id"
-              pagination={{ pageSize: 10 }}
+              pagination={{ 
+                pageSize: 10,
+                // showSizeChanger: true,
+                // pageSizeOptions: ['5', '10', '20', '50'],
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} users`
+              }}
               locale={{ emptyText: <Empty description="No archived campaigns found" /> }}
             />
           </Spin>
@@ -638,7 +652,12 @@ export default function ArchivedCampaigns() {
               dataSource={campaigns}
               columns={campaignColumns}
               rowKey="_id"
-              pagination={{ pageSize: 5 }}
+              pagination={{ 
+                pageSize: 10,
+                // showSizeChanger: true,
+                // pageSizeOptions: ['5', '10', '20', '50'],
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} campaigns`
+              }}
               locale={{ emptyText: <Empty description="No campaigns found" /> }}
               scroll={{ x: 1100 }}
             />
