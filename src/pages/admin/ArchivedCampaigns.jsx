@@ -198,6 +198,7 @@ export default function ArchivedCampaigns() {
       
       const response = await _get('archived-campaigns', params);
       console.log('[ArchivedCampaigns] Response:', response.data.data?.length, 'campaigns');
+      console.log('[ArchivedCampaigns] Full response data:', response.data.data);
       setCampaigns(response.data.data || []);
     } catch (error) {
       console.error('Fetch campaigns error:', error);
@@ -369,15 +370,47 @@ export default function ArchivedCampaigns() {
       title: 'Download',
       key: 'download',
       align: 'center',
-      render: (_, record) => (
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          onClick={() => window.open(record.excelUrl, '_blank')}
-        >
-          Excel
-        </Button>
-      ),
+      render: (_, record) => {
+          // Debug logging
+        console.log('[ArchivedCampaigns] Record:', record.campaignName);
+        console.log('[ArchivedCampaigns] excelParts:', record.excelParts);
+        console.log('[ArchivedCampaigns] excelUrl:', record.excelUrl);
+        
+        // Check if campaign has multiple parts
+        const hasParts = record.excelParts && record.excelParts.length > 1;
+        
+        if (hasParts) {
+          return (
+            <Space direction="vertical" size="small">
+              <div style={{ fontSize: 11, fontWeight: 600, color: THEME_CONSTANTS.colors.textSecondary }}>
+                {record.excelParts.length} Parts
+              </div>
+              {record.excelParts.map((part, idx) => (
+                <Button
+                  key={idx}
+                  type="primary"
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  onClick={() => window.open(part.url, '_blank')}
+                  style={{ width: '100%' }}
+                >
+                  Part {part.partNumber}
+                </Button>
+              ))}
+            </Space>
+          );
+        }
+        
+        return (
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={() => window.open(record.excelUrl, '_blank')}
+          >
+            Excel
+          </Button>
+        );
+      },
     },
   ];
 
