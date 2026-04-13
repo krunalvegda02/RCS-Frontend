@@ -50,11 +50,11 @@ const TermsAndConditions = () => {
               }}
             >
               These Terms & Conditions govern the use of the RCS Sender Platform, an enterprise-grade
-              Rich Communication Services (RCS) messaging solution built on Jio RCS infrastructure.
-              Please read them carefully before using our services.
+              Rich Communication Services (RCS) messaging platform integrated with authorized telecom
+              provider infrastructure.
             </Paragraph>
             <Text style={{ color: THEME_CONSTANTS.colors.primaryLight, fontSize: 14 }}>
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: 13 April 2026
             </Text>
           </div>
         </section>
@@ -73,66 +73,159 @@ const TermsAndConditions = () => {
               >
                 <Title level={3}>1. Acceptance of Terms</Title>
                 <Paragraph>
-                  By accessing, registering for, or using the <Text strong>RCS Sender Platform</Text>, you
-                  acknowledge that you have read, understood, and agree to be legally bound by these
-                  Terms & Conditions, along with all applicable laws, telecom regulations, and industry
-                  guidelines. If you do not agree to these terms, you must immediately discontinue use
-                  of the platform.
+                  By accessing or using the RCS Sender Platform, you agree to be bound by these Terms & Conditions,
+                  applicable Indian laws, TRAI regulations, and telecom operator policies. If you do not agree,
+                  you must discontinue use immediately.
                 </Paragraph>
+
                 <Divider />
+
                 <Title level={3}>2. Platform Description</Title>
                 <Paragraph>
-                  RCS Sender Platform is a high-performance, enterprise messaging platform that enables
-                  businesses to deliver large-scale Rich Communication Services (RCS) campaigns using
-                  Jio-approved RCS APIs. The platform provides advanced features including real-time
-                  delivery analytics, campaign lifecycle tracking, automated retries, detailed logs,
-                  and downloadable reports for operational and compliance needs.
+                  RCS Sender Platform is a software-based communication platform that enables businesses to send
+                  RCS messages using APIs provided by authorized telecom operators (such as Jio).
                 </Paragraph>
-                <Divider />
-                <Title level={3}>3. User Responsibilities</Title>
                 <Paragraph>
-                  As a user of the RCS Sender Platform, you agree and undertake to:
+                  We are a <Text strong>technology platform provider</Text> and do not operate as a telecom service provider.
+                </Paragraph>
+
+                <Divider />
+
+                <Title level={3}>3. Service Model (IMPORTANT CLARIFICATION)</Title>
+                <Paragraph>
+                  The platform operates on a <Text strong>prepaid service usage model</Text>:
                 </Paragraph>
                 <ul>
-                  <li>Use the platform strictly for legitimate, lawful, and business-approved communication.</li>
-                  <li>Comply with all applicable TRAI regulations, Jio RCS policies, and telecom laws.</li>
-                  <li>Ensure explicit end-user consent is obtained prior to sending any RCS messages.</li>
-                  <li>Maintain the security of your account credentials and access keys.</li>
-                  <li>Avoid any activity that may degrade, disrupt, or misuse the platform infrastructure.</li>
+                  <li>Users purchase predefined service packages</li>
+                  <li>Each package provides a fixed number of messaging credits</li>
+                  <li>Credits are consumed only when services (message delivery) are used</li>
                 </ul>
-                <Divider />
-                <Title level={3}>4. Prohibited Use</Title>
                 <Paragraph>
-                  You are strictly prohibited from using the platform for activities that are unlawful,
-                  unethical, or harmful.
+                  <Text strong>Important:</Text>
                 </Paragraph>
-                <Divider />
-                <Title level={3}>5. Data Protection & Privacy (India – IT Act & DPDP)</Title>
+                <ul>
+                  <li>Credits are <Text strong>not a stored monetary value</Text></li>
+                  <li>Credits are <Text strong>non-withdrawable and non-transferable</Text></li>
+                  <li>Credits can only be used within the platform for messaging services</li>
+                </ul>
                 <Paragraph>
-                  We comply with the Information Technology Act, 2000 and the Digital Personal Data Protection (DPDP) Act, 2023.
-                  Customer and end-user data is processed strictly for message delivery, analytics, compliance, and reporting.
-                  We implement industry-standard security measures to protect personal data against unauthorized access,
-                  disclosure, or misuse.
+                  This model does <Text strong>not constitute a wallet, payment system, or financial instrument</Text>.
                 </Paragraph>
+
                 <Divider />
-                <Title level={3}>6. TRAI & Jio RCS Compliance</Title>
+
+                <Title level={3}>4. TRAI & Telecom Compliance</Title>
                 <Paragraph>
-                  All messaging activities conducted through the RCS Sender Platform must comply with TRAI regulations,
-                  Jio RCS policies, and approved business messaging guidelines. Message throughput, templates,
-                  sender identities, and content moderation are subject to telecom operator approval.
+                  All messaging activities must comply with:
                 </Paragraph>
-                <Divider />
-                <Title level={3}>7. Refund & Cancellation Policy</Title>
+                <ul>
+                  <li>TRAI regulations</li>
+                  <li>DLT (Distributed Ledger Technology) requirements</li>
+                  <li>Telecom operator policies (including Jio RCS guidelines)</li>
+                </ul>
                 <Paragraph>
-                  Due to the nature of telecom services, all payments made for messaging credits or platform usage
-                  are non-refundable once messages are submitted to the telecom network. In cases of verified
-                  platform-level failure, refunds or credit adjustments may be issued at our sole discretion.
+                  Users are responsible for:
                 </Paragraph>
+                <ul>
+                  <li>Registering sender IDs and templates on DLT platforms</li>
+                  <li>Obtaining explicit end-user consent</li>
+                  <li>Ensuring lawful communication practices</li>
+                </ul>
+
                 <Divider />
-                <Title level={3}>8. Governing Law</Title>
+
+                <Title level={3}>5. User Responsibilities</Title>
                 <Paragraph>
-                  These terms shall be governed by and construed in accordance with the laws of India. Any disputes
-                  shall be subject to the exclusive jurisdiction of courts located in India.
+                  Users agree to:
+                </Paragraph>
+                <ul>
+                  <li>Use the platform only for lawful business communication</li>
+                  <li>Maintain accurate account and business details</li>
+                  <li>Ensure all campaigns comply with telecom and regulatory guidelines</li>
+                  <li>Protect login credentials and API keys</li>
+                </ul>
+
+                <Divider />
+
+                <Title level={3}>6. Prohibited Activities</Title>
+                <Paragraph>
+                  Users must not:
+                </Paragraph>
+                <ul>
+                  <li>Send spam, unsolicited, or misleading messages</li>
+                  <li>Violate TRAI or telecom operator policies</li>
+                  <li>Use the platform for fraudulent, abusive, or illegal activities</li>
+                  <li>Attempt to misuse platform infrastructure</li>
+                </ul>
+
+                <Divider />
+
+                <Title level={3}>7. Payments & Billing</Title>
+                <ul>
+                  <li>Payments are made towards <Text strong>prepaid service packages</Text></li>
+                  <li>Pricing is fixed based on selected plans</li>
+                  <li>GST and applicable taxes are charged as per Indian law</li>
+                </ul>
+                <Paragraph>
+                  <Text strong>Important:</Text>
+                </Paragraph>
+                <ul>
+                  <li>Payments are for service usage only</li>
+                  <li>No monetary value is stored or maintained on behalf of users</li>
+                  <li>The platform does not function as a wallet or financial intermediary</li>
+                </ul>
+
+                <Divider />
+
+                <Title level={3}>8. Refund & Cancellation Policy</Title>
+                <Paragraph>
+                  Due to the nature of telecom and digital service delivery:
+                </Paragraph>
+                <ul>
+                  <li>Payments are generally <Text strong>non-refundable</Text> once services are consumed or credits are allocated</li>
+                  <li>In case of verified technical failure from our platform, adjustments or credits may be provided at our discretion</li>
+                </ul>
+
+                <Divider />
+
+                <Title level={3}>9. Data Protection & Privacy</Title>
+                <Paragraph>
+                  We comply with:
+                </Paragraph>
+                <ul>
+                  <li>Information Technology Act, 2000</li>
+                  <li>Digital Personal Data Protection (DPDP) Act, 2023</li>
+                </ul>
+                <Paragraph>
+                  Data is processed only for:
+                </Paragraph>
+                <ul>
+                  <li>Message delivery</li>
+                  <li>Analytics and reporting</li>
+                  <li>Regulatory compliance</li>
+                </ul>
+                <Paragraph>
+                  We implement appropriate security measures to protect user data.
+                </Paragraph>
+
+                <Divider />
+
+                <Title level={3}>10. Limitation of Liability</Title>
+                <Paragraph>
+                  We are not responsible for:
+                </Paragraph>
+                <ul>
+                  <li>Telecom operator delays or failures</li>
+                  <li>Delivery issues caused by DLT rejection or operator filtering</li>
+                  <li>User misuse or regulatory violations</li>
+                </ul>
+
+                <Divider />
+
+                <Title level={3}>11. Governing Law</Title>
+                <Paragraph>
+                  These Terms are governed by the laws of India. Any disputes shall be subject to the
+                  jurisdiction of Indian courts.
                 </Paragraph>
               </Card>
             </Col>
