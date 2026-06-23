@@ -53,6 +53,9 @@ function AdminDashboard() {
     pendingPayments: 0,
   });
 
+  const [monthlyStats, setMonthlyStats] = useState(null);
+  const [monthlyLoading, setMonthlyLoading] = useState(true);
+
   const [recentUsers, setRecentUsers] = useState([]);
   const [recentRequests, setRecentRequests] = useState([]);
   const [recentTransactions, setRecentTransactions] = useState([]);
@@ -67,9 +70,10 @@ function AdminDashboard() {
 
   const fetchDashboard = async () => {
     try {
-      const [dashRes, demoRes] = await Promise.all([
+      const [dashRes, demoRes, monthlyRes] = await Promise.all([
         _get('v1/dashboard/admin', {}, {}, token),
-        _get('demo-requests', {}, {}, token)
+        _get('demo-requests', {}, {}, token),
+        _get('v1/dashboard/admin/monthly-stats', { monthsBack: 1 }, {}, token)
       ]);
       
       if (dashRes.data.success) {
@@ -81,10 +85,15 @@ function AdminDashboard() {
       
       const demos = demoRes.data?.data || demoRes.data || [];
       setDemoRequests(demos.slice(0, 5));
+
+      if (monthlyRes.data.success) {
+        setMonthlyStats(monthlyRes.data.data);
+      }
     } catch (err) {
       console.error('Dashboard error:', err);
     } finally {
       setLoading(false);
+      setMonthlyLoading(false);
     }
   };
 
@@ -602,6 +611,159 @@ function AdminDashboard() {
             />
           </Col>
         </Row>
+
+        {/* Monthly Statistics Section */}
+        {!monthlyLoading && monthlyStats && (
+          <Card
+            title={
+              <Space size={8}>
+                <MessageOutlined style={{ color: THEME_CONSTANTS.colors.primary, fontSize: '18px' }} />
+                <span style={{ fontSize: THEME_CONSTANTS.typography.h5.size, fontWeight: THEME_CONSTANTS.typography.h5.weight, color: THEME_CONSTANTS.colors.text }}>
+                  {monthlyStats.period.monthName} Campaign Statistics
+                </span>
+              </Space>
+            }
+            style={{
+              borderRadius: THEME_CONSTANTS.radius.lg,
+              border: `1px solid ${THEME_CONSTANTS.colors.border}`,
+              boxShadow: THEME_CONSTANTS.shadow.base,
+              marginBottom: THEME_CONSTANTS.spacing.xxl,
+              background: THEME_CONSTANTS.colors.surface
+            }}
+          >
+            {/* Campaign Overview */}
+            <Row gutter={[16, 16]} style={{ marginBottom: THEME_CONSTANTS.spacing.xl }}>
+              <Col xs={24} sm={12} md={6}>
+                <div style={{ textAlign: 'center', padding: '16px', background: `${THEME_CONSTANTS.colors.primary}10`, borderRadius: THEME_CONSTANTS.radius.md }}>
+                  <div style={{ fontSize: '28px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>
+                    {monthlyStats.stats.totalCampaigns.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Total Campaigns</div>
+                  <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textMuted, marginTop: '2px' }}>
+                    Active: {monthlyStats.stats.activeCampaigns} | Archived: {monthlyStats.stats.archivedCampaigns}
+                  </div>
+                </div>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <div style={{ textAlign: 'center', padding: '16px', background: `${THEME_CONSTANTS.colors.success}10`, borderRadius: THEME_CONSTANTS.radius.md }}>
+                  <div style={{ fontSize: '28px', fontWeight: 700, color: THEME_CONSTANTS.colors.success }}>
+                    {monthlyStats.stats.totalMessages.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Total Messages</div>
+                </div>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <div style={{ textAlign: 'center', padding: '16px', background: '#1890ff15', borderRadius: THEME_CONSTANTS.radius.md }}>
+                  <div style={{ fontSize: '28px', fontWeight: 700, color: '#1890ff' }}>
+                    {monthlyStats.stats.deliveryRate}%
+                  </div>
+                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Delivery Rate</div>
+                  <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textMuted, marginTop: '2px' }}>
+                    {monthlyStats.stats.totalDelivered.toLocaleString()} delivered
+                  </div>
+                </div>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <div style={{ textAlign: 'center', padding: '16px', background: '#52c41a15', borderRadius: THEME_CONSTANTS.radius.md }}>
+                  <div style={{ fontSize: '28px', fontWeight: 700, color: '#52c41a' }}>
+                    {formatCurrency(monthlyStats.stats.netRevenue)}
+                  </div>
+                  <div style={{ fontSize: '13px', color: THEME_CONSTANTS.colors.textSecondary, marginTop: '4px' }}>Net Revenue</div>
+                  <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textMuted, marginTop: '2px' }}>
+                    Cost: {formatCurrency(monthlyStats.stats.totalCost)} | Refund: {formatCurrency(monthlyStats.stats.totalRefunded)}
+                  </div>
+                </div>
+              </Col>
+            </Row>
+
+            {/* Message Breakdown */}
+            <Row gutter={[16, 16]} style={{ marginBottom: THEME_CONSTANTS.spacing.xl }}>
+              <Col xs={24} md={12}>
+                <div style={{ padding: '20px', background: THEME_CONSTANTS.colors.background, borderRadius: THEME_CONSTANTS.radius.md }}>
+                  <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px', color: THEME_CONSTANTS.colors.text }}>Message Statistics</h4>
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Sent</span>
+                      <span style={{ fontWeight: 600, color: THEME_CONSTANTS.colors.success }}>
+                        {monthlyStats.stats.totalSent.toLocaleString()} ({((monthlyStats.stats.totalSent / monthlyStats.stats.totalMessages) * 100).toFixed(2)}%)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Delivered</span>
+                      <span style={{ fontWeight: 600, color: '#1890ff' }}>
+                        {monthlyStats.stats.totalDelivered.toLocaleString()} ({monthlyStats.stats.deliveryRate}%)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Read</span>
+                      <span style={{ fontWeight: 600, color: '#722ed1' }}>
+                        {monthlyStats.stats.totalRead.toLocaleString()} ({monthlyStats.stats.readRate}%)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Replied</span>
+                      <span style={{ fontWeight: 600, color: '#13c2c2' }}>
+                        {monthlyStats.stats.totalReplied.toLocaleString()} ({((monthlyStats.stats.totalReplied / monthlyStats.stats.totalMessages) * 100).toFixed(2)}%)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Failed</span>
+                      <span style={{ fontWeight: 600, color: '#ff4d4f' }}>
+                        {monthlyStats.stats.totalFailed.toLocaleString()} ({monthlyStats.stats.failureRate}%)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: THEME_CONSTANTS.colors.textSecondary }}>Expired</span>
+                      <span style={{ fontWeight: 600, color: '#faad14' }}>
+                        {monthlyStats.stats.totalExpired.toLocaleString()} ({((monthlyStats.stats.totalExpired / monthlyStats.stats.totalMessages) * 100).toFixed(2)}%)
+                      </span>
+                    </div>
+                  </Space>
+                </div>
+              </Col>
+
+              {/* Top Users */}
+              <Col xs={24} md={12}>
+                <div style={{ padding: '20px', background: THEME_CONSTANTS.colors.background, borderRadius: THEME_CONSTANTS.radius.md }}>
+                  <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px', color: THEME_CONSTANTS.colors.text }}>Top 5 Users by Campaigns</h4>
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    {monthlyStats.topUsers.map((user, idx) => (
+                      <div key={idx} style={{ padding: '12px', background: THEME_CONSTANTS.colors.surface, borderRadius: THEME_CONSTANTS.radius.sm, border: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <Avatar size={32} style={{ background: THEME_CONSTANTS.colors.primaryLight, color: THEME_CONSTANTS.colors.primary, fontWeight: 600 }}>
+                            {idx + 1}
+                          </Avatar>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: '13px', color: THEME_CONSTANTS.colors.text }}>{user.name}</div>
+                            <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textSecondary }}>{user.email}</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '11px', color: THEME_CONSTANTS.colors.textMuted, marginLeft: '40px' }}>
+                          Campaigns: {user.campaigns} | Messages: {user.messages.toLocaleString()} | Cost: {formatCurrency(user.cost)}
+                        </div>
+                      </div>
+                    ))}
+                  </Space>
+                </div>
+              </Col>
+            </Row>
+
+            {/* Campaign Status Breakdown */}
+            <div style={{ padding: '20px', background: THEME_CONSTANTS.colors.background, borderRadius: THEME_CONSTANTS.radius.md }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px', color: THEME_CONSTANTS.colors.text }}>Campaign Status Breakdown</h4>
+              <Row gutter={[12, 12]}>
+                {monthlyStats.statusBreakdown.map((status, idx) => (
+                  <Col key={idx} xs={12} sm={8} md={6}>
+                    <div style={{ textAlign: 'center', padding: '12px', background: THEME_CONSTANTS.colors.surface, borderRadius: THEME_CONSTANTS.radius.sm, border: `1px solid ${THEME_CONSTANTS.colors.border}` }}>
+                      <div style={{ fontSize: '20px', fontWeight: 700, color: THEME_CONSTANTS.colors.primary }}>{status.count}</div>
+                      <div style={{ fontSize: '12px', color: THEME_CONSTANTS.colors.textSecondary, textTransform: 'capitalize', marginTop: '4px' }}>{status._id}</div>
+                    </div>
+                  </Col>
+                ))}
+              </Row>
+            </div>
+          </Card>
+        )}
 
         {/* Recent Users */}
         <Card
